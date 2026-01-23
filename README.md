@@ -1,5 +1,8 @@
 # Praya
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ef4e01ff-7588-4dcc-b809-cc67b02c50db" />
+
+
 Praya is the successor to Manokwari Desktop. Although inspired by Manokwari, Praya is a fundamentally different project in terms of system architecture and design goals. Because of these differences, it is intentionally released under a new name.
 
 Manokwari Desktop was originally built on top of WebKitGTK and designed to run smoothly on low-spec or constrained computers (komputer prihatin). Its architecture focused on lightweight web technologies to deliver a desktop-like experience.
