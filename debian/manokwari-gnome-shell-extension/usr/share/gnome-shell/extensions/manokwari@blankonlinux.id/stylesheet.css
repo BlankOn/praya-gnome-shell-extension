@@ -203,34 +203,3 @@
     font-size: 0.9em;
 }
 
-/* Context Menu Styles */
-.manokwari-context-menu {
-    background-color: #383838;
-    border-radius: 8px;
-    padding: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    min-width: 180px;
-}
-
-.manokwari-context-menu-item {
-    padding: 8px 12px;
-    border-radius: 6px;
-    transition: background-color 150ms;
-    color: #ffffff;
-}
-
-.manokwari-context-menu-item:hover {
-    background-color: #505050;
-}
-
-.manokwari-context-menu-icon {
-    padding-right: 8px;
-    color: #cccccc;
-}
-
-/* Favourite pin */
-.manokwari-favourite-pin {
-    color: #888888;
-    padding-left: 8px;
-}
-

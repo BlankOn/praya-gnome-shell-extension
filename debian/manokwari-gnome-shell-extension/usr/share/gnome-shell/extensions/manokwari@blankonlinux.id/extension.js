@@ -19,7 +19,6 @@ import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import GioUnix from 'gi://GioUnix';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
@@ -28,10 +27,7 @@ import AccountsService from 'gi://AccountsService';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
-import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
-
-const FAVOURITES_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'manokwari', 'favourites.json']);
 
 const PANEL_WIDTH = 325;
 const HEADER_HEIGHT = 50;
@@ -76,13 +72,6 @@ class ManokwariIndicator extends PanelMenu.Button {
         // Load applications data
         this._categories = {};
         this._appSystem = Shell.AppSystem.get_default();
-
-        // Favourites
-        this._favourites = [];
-        this._loadFavourites();
-
-        // Context menu for right-click
-        this._contextMenu = null;
 
         // System actions for power menu
         this._systemActions = SystemActions.getDefault();
@@ -179,205 +168,6 @@ class ManokwariIndicator extends PanelMenu.Button {
         }
     }
 
-    _loadFavourites() {
-        try {
-            let file = Gio.File.new_for_path(FAVOURITES_FILE);
-            if (file.query_exists(null)) {
-                let [success, contents] = file.load_contents(null);
-                if (success) {
-                    let decoder = new TextDecoder('utf-8');
-                    let json = decoder.decode(contents);
-                    this._favourites = JSON.parse(json);
-                }
-            }
-        } catch (e) {
-            log(`Manokwari: Error loading favourites: ${e.message}`);
-            this._favourites = [];
-        }
-    }
-
-    _saveFavourites() {
-        try {
-            let file = Gio.File.new_for_path(FAVOURITES_FILE);
-            let parent = file.get_parent();
-            if (!parent.query_exists(null)) {
-                parent.make_directory_with_parents(null);
-            }
-            let json = JSON.stringify(this._favourites);
-            let encoder = new TextEncoder();
-            let contents = encoder.encode(json);
-            file.replace_contents(contents, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-        } catch (e) {
-            log(`Manokwari: Error saving favourites: ${e.message}`);
-        }
-    }
-
-    _isFavourite(appId) {
-        return this._favourites.includes(appId);
-    }
-
-    _addFavourite(appId) {
-        if (!this._favourites.includes(appId)) {
-            this._favourites.push(appId);
-            this._saveFavourites();
-        }
-    }
-
-    _removeFavourite(appId) {
-        let index = this._favourites.indexOf(appId);
-        if (index !== -1) {
-            this._favourites.splice(index, 1);
-            this._saveFavourites();
-        }
-    }
-
-    _showContextMenu(appData, sourceActor) {
-        // Destroy existing context menu
-        if (this._contextMenu) {
-            this._contextMenu.destroy();
-            this._contextMenu = null;
-        }
-
-        // Cancel any pending hide timeout
-        if (this._hoverTimeoutId) {
-            GLib.source_remove(this._hoverTimeoutId);
-            this._hoverTimeoutId = null;
-        }
-
-        let isFav = this._isFavourite(appData.id);
-
-        // Create context menu container
-        this._contextMenu = new St.BoxLayout({
-            style_class: 'manokwari-context-menu',
-            vertical: true,
-            reactive: true,
-            track_hover: true,
-        });
-
-        // Add hover handlers to keep panel open while interacting with context menu
-        this._contextMenu.connect('enter-event', () => {
-            if (this._hoverTimeoutId) {
-                GLib.source_remove(this._hoverTimeoutId);
-                this._hoverTimeoutId = null;
-            }
-            // Cancel context menu close timeout
-            if (this._contextMenuTimeoutId) {
-                GLib.source_remove(this._contextMenuTimeoutId);
-                this._contextMenuTimeoutId = null;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-
-        this._contextMenu.connect('leave-event', () => {
-            // Close context menu when mouse leaves it
-            // Use a small delay to allow clicking on items
-            if (this._contextMenuTimeoutId) {
-                GLib.source_remove(this._contextMenuTimeoutId);
-            }
-            this._contextMenuTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-                this._contextMenuTimeoutId = null;
-                this._closeContextMenu();
-                return GLib.SOURCE_REMOVE;
-            });
-            return Clutter.EVENT_PROPAGATE;
-        });
-
-        // Create menu item
-        let menuItemText = isFav ? 'Unpin' : 'Pin to Menu';
-        let menuItemIcon = isFav ? 'view-pin-symbolic' : 'view-pin-symbolic';
-
-        let menuItem = new St.BoxLayout({
-            style_class: 'manokwari-context-menu-item',
-            reactive: true,
-            track_hover: true,
-        });
-
-        let icon = new St.Icon({
-            icon_name: menuItemIcon,
-            icon_size: 16,
-            style_class: 'manokwari-context-menu-icon',
-        });
-        menuItem.add_child(icon);
-
-        let label = new St.Label({
-            text: menuItemText,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        menuItem.add_child(label);
-
-        menuItem.connect('button-press-event', () => {
-            if (isFav) {
-                this._removeFavourite(appData.id);
-            } else {
-                this._addFavourite(appData.id);
-            }
-            this._closeContextMenu();
-            // Always reset to main menu after pin/unpin
-            this._navigationStack = [];
-            this._isSearchActive = false;
-            if (this._searchEntry) {
-                this._searchEntry.set_text('');
-            }
-            this._showMainMenu(false);
-            return Clutter.EVENT_STOP;
-        });
-
-        this._contextMenu.add_child(menuItem);
-
-        // Position the context menu near the source actor
-        let [x, y] = sourceActor.get_transformed_position();
-        let [width, height] = sourceActor.get_size();
-
-        this._contextMenu.set_position(x + width - 150, y + height / 2);
-
-        Main.layoutManager.addTopChrome(this._contextMenu);
-
-        // Close context menu when clicking elsewhere
-        this._contextMenuCaptureId = global.stage.connect('captured-event', (actor, event) => {
-            if (event.type() === Clutter.EventType.BUTTON_PRESS) {
-                let [eventX, eventY] = event.get_coords();
-                let dominated = this._contextMenu.contains(global.stage.get_actor_at_pos(Clutter.PickMode.ALL, eventX, eventY));
-                if (!dominated) {
-                    this._closeContextMenu();
-                }
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-    }
-
-    _closeContextMenu() {
-        if (this._contextMenuTimeoutId) {
-            GLib.source_remove(this._contextMenuTimeoutId);
-            this._contextMenuTimeoutId = null;
-        }
-        if (this._contextMenuCaptureId) {
-            global.stage.disconnect(this._contextMenuCaptureId);
-            this._contextMenuCaptureId = null;
-        }
-        if (this._contextMenu) {
-            Main.layoutManager.removeChrome(this._contextMenu);
-            this._contextMenu.destroy();
-            this._contextMenu = null;
-        }
-    }
-
-    _getFavouriteApps() {
-        let favouriteApps = [];
-        for (let appId of this._favourites) {
-            let appInfo = GioUnix.DesktopAppInfo.new(appId);
-            if (appInfo) {
-                let app = this._appSystem.lookup_app(appId);
-                favouriteApps.push({
-                    app: app,
-                    appInfo: appInfo,
-                    name: appInfo.get_name() || appId,
-                    id: appId,
-                });
-            }
-        }
-        return favouriteApps;
-    }
-
     _getMainCategory(categoriesStr) {
         let categories = categoriesStr.split(';');
 
@@ -446,10 +236,8 @@ class ManokwariIndicator extends PanelMenu.Button {
         // Create persistent bottom section first to measure its height
         this._bottomSection = this._createBottomSection();
 
-        // Base height for bottom section when collapsed (User ~72 + Lock 52 + LogOut 52 + Power 52 + separator ~17 + padding)
-        this._bottomSectionBaseHeight = 260;
-        // Additional height when power menu is expanded
-        this._powerOptionsHeight = 150;
+        // Fixed height for bottom section (User ~72 + Lock 52 + LogOut 52 + Power 52 + Power children 150 + separators + padding)
+        let bottomSectionHeight = 420;
 
         // Create sliding container for navigation with clipping
         this._slidingContainer = new St.Widget({
@@ -457,7 +245,7 @@ class ManokwariIndicator extends PanelMenu.Button {
             x_expand: true,
             clip_to_allocation: true,
         });
-        this._slidingContainer.set_size(PANEL_WIDTH, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
+        this._slidingContainer.set_size(PANEL_WIDTH, availableHeight - HEADER_HEIGHT - bottomSectionHeight);
 
         this._panel.add_child(this._slidingContainer);
         this._panel.add_child(this._bottomSection);
@@ -635,28 +423,17 @@ class ManokwariIndicator extends PanelMenu.Button {
     }
 
     _scheduleHidePanel() {
-        // Don't schedule hide if context menu is open
-        if (this._contextMenu) {
-            return;
-        }
-
         if (this._hoverTimeoutId) {
             GLib.source_remove(this._hoverTimeoutId);
         }
         this._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
             this._hoverTimeoutId = null;
-            // Double-check context menu isn't open when timeout fires
-            if (!this._contextMenu) {
-                this._hidePanel();
-            }
+            this._hidePanel();
             return GLib.SOURCE_REMOVE;
         });
     }
 
     _hidePanel() {
-        // Close context menu first
-        this._closeContextMenu();
-
         if (this._hoverTimeoutId) {
             GLib.source_remove(this._hoverTimeoutId);
             this._hoverTimeoutId = null;
@@ -891,34 +668,6 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         let navItems = [];
 
-        // Show favourite apps above Applications
-        let favouriteApps = this._getFavouriteApps();
-        if (favouriteApps.length > 0) {
-            for (let appData of favouriteApps) {
-                let appItem = this._createAppMenuItemFromData(appData, true);
-                appItem._hasChildren = false;
-                appItem._appData = appData;
-                appItem._activateCallback = ((data) => () => {
-                    this._launchAppFromData(data);
-                    this._hidePanel();
-                })(appData);
-                appItem.connect('button-press-event', (actor, event) => {
-                    if (event.get_button() === 3) {
-                        // Right-click - show context menu
-                        this._showContextMenu(appData, actor);
-                        return Clutter.EVENT_STOP;
-                    }
-                    // Left-click - launch app
-                    appItem._activateCallback();
-                    return Clutter.EVENT_STOP;
-                });
-                menuBox.add_child(appItem);
-                navItems.push(appItem);
-            }
-            // Separator after favourites
-            menuBox.add_child(new St.Widget({style_class: 'manokwari-separator', height: 1, x_expand: true}));
-        }
-
         // Applications item (has children)
         let appsItem = this._createMenuItem('Applications', 'view-app-grid-symbolic', true);
         appsItem._hasChildren = true;
@@ -952,11 +701,11 @@ class ManokwariIndicator extends PanelMenu.Button {
         let settingsItem = this._createMenuItem('Settings', 'preferences-system-symbolic', false);
         settingsItem._hasChildren = false;
         settingsItem._activateCallback = () => {
-            let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
+            let appInfo = Gio.DesktopAppInfo.new('gnome-control-center.desktop');
             if (appInfo) {
                 appInfo.launch([], null);
             } else {
-                appInfo = GioUnix.DesktopAppInfo.new('org.gnome.Settings.desktop');
+                appInfo = Gio.DesktopAppInfo.new('org.gnome.Settings.desktop');
                 if (appInfo)
                     appInfo.launch([], null);
             }
@@ -1116,13 +865,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                 this._launchAppFromData(data);
                 this._hidePanel();
             })(appData);
-            appItem.connect('button-press-event', (actor, event) => {
-                if (event.get_button() === 3) {
-                    // Right-click - show context menu
-                    this._showContextMenu(appData, actor);
-                    return Clutter.EVENT_STOP;
-                }
-                // Left-click - launch app
+            appItem.connect('button-press-event', () => {
                 appItem._activateCallback();
                 return Clutter.EVENT_STOP;
             });
@@ -1257,12 +1000,12 @@ class ManokwariIndicator extends PanelMenu.Button {
         if (searchText === '')
             return;
 
-        let searchResults = GioUnix.DesktopAppInfo.search(searchText);
+        let searchResults = Gio.DesktopAppInfo.search(searchText);
         if (searchResults.length === 0 || searchResults[0].length === 0)
             return;
 
         let appId = searchResults[0][0];
-        let appInfo = GioUnix.DesktopAppInfo.new(appId);
+        let appInfo = Gio.DesktopAppInfo.new(appId);
         if (!appInfo)
             return;
 
@@ -1276,15 +1019,15 @@ class ManokwariIndicator extends PanelMenu.Button {
     }
 
     _showSearchResults(query) {
-        // Use GioUnix.DesktopAppInfo.search for search results
-        let searchResults = GioUnix.DesktopAppInfo.search(query);
+        // Use Gio.DesktopAppInfo.search for search results
+        let searchResults = Gio.DesktopAppInfo.search(query);
 
         // Flatten the array of arrays and create app data objects
         let matchedApps = [];
         for (let group of searchResults) {
             for (let appId of group) {
                 // Get the desktop app info
-                let appInfo = GioUnix.DesktopAppInfo.new(appId);
+                let appInfo = Gio.DesktopAppInfo.new(appId);
                 if (!appInfo)
                     continue;
 
@@ -1344,13 +1087,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                     this._launchAppFromData(data);
                     this._hidePanel();
                 })(appData);
-                appItem.connect('button-press-event', (actor, event) => {
-                    if (event.get_button() === 3) {
-                        // Right-click - show context menu
-                        this._showContextMenu(appData, actor);
-                        return Clutter.EVENT_STOP;
-                    }
-                    // Left-click - launch app
+                appItem.connect('button-press-event', () => {
                     appItem._activateCallback();
                     return Clutter.EVENT_STOP;
                 });
@@ -1446,7 +1183,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         return item;
     }
 
-    _createAppMenuItemFromData(appData, showFavStar = false) {
+    _createAppMenuItemFromData(appData) {
         let item = new St.BoxLayout({
             style_class: 'manokwari-menu-item',
             reactive: true,
@@ -1481,21 +1218,6 @@ class ManokwariIndicator extends PanelMenu.Button {
             x_expand: true,
         });
         item.add_child(label);
-
-        // Show pin icon for favourites
-        if (showFavStar && this._isFavourite(appData.id)) {
-            let pinIcon = new St.Icon({
-                icon_name: 'view-pin-symbolic',
-                icon_size: 16,
-                style_class: 'manokwari-favourite-pin',
-            });
-            pinIcon.set_pivot_point(0.5, 0.5);
-            pinIcon.rotation_angle_z = 45;
-            item.add_child(pinIcon);
-        }
-
-        // Store appData for context menu
-        item._appData = appData;
 
         return item;
     }
@@ -1543,7 +1265,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         return item;
     }
 
-    _createSubMenuItem(text) {
+    _createSubMenuItem(text, iconName) {
         let item = new St.BoxLayout({
             style_class: 'manokwari-submenu-item',
             reactive: true,
@@ -1551,6 +1273,13 @@ class ManokwariIndicator extends PanelMenu.Button {
             height: 42,
             x_expand: true,
         });
+
+        let icon = new St.Icon({
+            icon_name: iconName,
+            style_class: 'manokwari-menu-item-icon',
+            icon_size: 20,
+        });
+        item.add_child(icon);
 
         let label = new St.Label({
             text: text,
@@ -1627,7 +1356,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                 );
             } catch (e) {
                 // Fallback: try to open settings app
-                let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
+                let appInfo = Gio.DesktopAppInfo.new('gnome-control-center.desktop');
                 if (appInfo)
                     appInfo.launch([], null);
             }
@@ -1686,7 +1415,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         powerOptionsBox._targetHeight = 150; // 3 items * 42px height + margins + padding
 
         // Suspend
-        let suspendItem = this._createSubMenuItem('Suspend');
+        let suspendItem = this._createSubMenuItem('Suspend', 'media-playback-pause-symbolic');
         suspendItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activateSuspend();
@@ -1695,7 +1424,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         powerOptionsBox.add_child(suspendItem);
 
         // Restart
-        let restartItem = this._createSubMenuItem('Restart');
+        let restartItem = this._createSubMenuItem('Restart', 'system-reboot-symbolic');
         restartItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activateRestart();
@@ -1704,7 +1433,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         powerOptionsBox.add_child(restartItem);
 
         // Power Off
-        let powerOffItem = this._createSubMenuItem('Power Off');
+        let powerOffItem = this._createSubMenuItem('Power Off', 'system-shutdown-symbolic');
         powerOffItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activatePowerOff();
@@ -1724,14 +1453,6 @@ class ManokwariIndicator extends PanelMenu.Button {
                     duration: ANIMATION_DURATION,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 });
-                // Expand sliding container
-                if (this._slidingContainer) {
-                    this._slidingContainer.ease({
-                        height: this._slidingContainer.height + this._powerOptionsHeight,
-                        duration: ANIMATION_DURATION,
-                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                    });
-                }
                 arrow.icon_name = 'go-up-symbolic';
                 powerOptionsBox._expanded = false;
             } else {
@@ -1741,14 +1462,6 @@ class ManokwariIndicator extends PanelMenu.Button {
                     duration: ANIMATION_DURATION,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 });
-                // Shrink sliding container to make room
-                if (this._slidingContainer) {
-                    this._slidingContainer.ease({
-                        height: this._slidingContainer.height - this._powerOptionsHeight,
-                        duration: ANIMATION_DURATION,
-                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                    });
-                }
                 arrow.icon_name = 'go-down-symbolic';
                 powerOptionsBox._expanded = true;
             }
@@ -1918,9 +1631,6 @@ class ManokwariIndicator extends PanelMenu.Button {
 
 export default class ManokwariExtension extends Extension {
     enable() {
-        // Save and apply gsettings
-        this._applySettings();
-
         this._indicator = new ManokwariIndicator();
         // Add to the left side of the panel
         Main.panel.addToStatusArea('manokwari-indicator', this._indicator, 0, 'left');
@@ -1973,40 +1683,6 @@ export default class ManokwariExtension extends Extension {
             global.display.ungrab_accelerator(this._acceleratorAction);
             this._acceleratorAction = null;
         }
-    }
-
-    _applySettings() {
-        // Get settings objects
-        this._interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-        this._mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
-        this._wmSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
-
-        // Save original values
-        this._originalHotCorner = this._interfaceSettings.get_boolean('enable-hot-corners');
-        this._originalOverlayKey = this._mutterSettings.get_string('overlay-key');
-        this._originalButtonLayout = this._wmSettings.get_string('button-layout');
-
-        // Apply new settings
-        this._interfaceSettings.set_boolean('enable-hot-corners', false);
-        this._mutterSettings.set_string('overlay-key', 'Alt_L');
-        this._wmSettings.set_string('button-layout', ':minimize,maximize,close');
-    }
-
-    _restoreSettings() {
-        // Restore original values
-        if (this._interfaceSettings && this._originalHotCorner !== undefined) {
-            this._interfaceSettings.set_boolean('enable-hot-corners', this._originalHotCorner);
-        }
-        if (this._mutterSettings && this._originalOverlayKey !== undefined) {
-            this._mutterSettings.set_string('overlay-key', this._originalOverlayKey);
-        }
-        if (this._wmSettings && this._originalButtonLayout !== undefined) {
-            this._wmSettings.set_string('button-layout', this._originalButtonLayout);
-        }
-
-        this._interfaceSettings = null;
-        this._mutterSettings = null;
-        this._wmSettings = null;
     }
 
     _findDock() {
@@ -2175,9 +1851,6 @@ export default class ManokwariExtension extends Extension {
     }
 
     disable() {
-        // Restore gsettings
-        this._restoreSettings();
-
         // Remove keybinding
         this._removeKeybinding();
 

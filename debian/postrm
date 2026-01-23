@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|purge)
+        # Update dconf database to remove the system-wide settings
+        if command -v dconf >/dev/null 2>&1; then
+            dconf update || true
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
