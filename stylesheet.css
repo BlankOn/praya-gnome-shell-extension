@@ -240,20 +240,30 @@
     padding: 0 8px;
 }
 
+/* Outer button container - transparent, no margin, handles clicks */
 .manokwari-taskbar-button {
-    padding: 0 8px;
+    padding: 0;
     margin: 0;
     border-radius: 0;
     background-color: transparent;
     transition: background-color 150ms;
 }
 
-.manokwari-taskbar-button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+.manokwari-taskbar-button:hover .manokwari-taskbar-button-inner {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
-.manokwari-taskbar-button-focused {
-    background-color: rgba(255, 255, 255, 0.15);
+/* Inner visual component - 4px border radius */
+.manokwari-taskbar-button-inner {
+    margin: 3px 0;
+    padding: 0 8px;
+    border-radius: 6px;
+    background-color: transparent;
+    transition: background-color 150ms;
+}
+
+.manokwari-taskbar-button-inner-focused {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 .manokwari-taskbar-button-minimized {

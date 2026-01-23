@@ -56,6 +56,7 @@ class ManokwariTaskbar extends St.BoxLayout {
         // Track window signals
         this._windowSignals = [];
         this._workspaceSignals = [];
+        this._titleSignals = [];
 
         // Connect to window events
         this._windowAddedId = global.display.connect('window-created', () => {
@@ -91,6 +92,12 @@ class ManokwariTaskbar extends St.BoxLayout {
     }
 
     _updateTaskbar() {
+        // Disconnect existing title signals
+        for (let sig of this._titleSignals) {
+            sig.window.disconnect(sig.id);
+        }
+        this._titleSignals = [];
+
         // Remove all existing children
         this.destroy_all_children();
 
@@ -113,18 +120,32 @@ class ManokwariTaskbar extends St.BoxLayout {
             let app = this._windowTracker.get_window_app(window);
             let button = this._createWindowButton(window, app, window === focusedWindow);
             this.add_child(button);
+
+            // Connect to title changes
+            let titleId = window.connect('notify::title', () => {
+                this._updateTaskbar();
+            });
+            this._titleSignals.push({ window: window, id: titleId });
         }
     }
 
     _createWindowButton(window, app, isFocused) {
+        // Outer container - black background, no margin, handles clicks
         let button = new St.BoxLayout({
             style_class: 'manokwari-taskbar-button',
             reactive: true,
             track_hover: true,
         });
 
+        // Inner visual component - 4px border radius
+        let innerBox = new St.BoxLayout({
+            style_class: 'manokwari-taskbar-button-inner',
+            y_expand: true,
+            y_align: Clutter.ActorAlign.FILL,
+        });
+
         if (isFocused) {
-            button.add_style_class_name('manokwari-taskbar-button-focused');
+            innerBox.add_style_class_name('manokwari-taskbar-button-inner-focused');
         }
 
         if (window.minimized) {
@@ -142,53 +163,23 @@ class ManokwariTaskbar extends St.BoxLayout {
             });
         }
         icon.style_class = 'manokwari-taskbar-icon';
-        // Remove right margin from icon if no label will be shown
-        if (!isFocused) {
-            icon.style = 'margin-right: 0;';
-        }
-        button.add_child(icon);
+        innerBox.add_child(icon);
 
-        // Window title - only show for focused window
+        // Window title - show for all windows
         let title = window.get_title() || (app ? app.get_name() : 'Window');
-        if (isFocused) {
-            // Truncate long titles
-            let displayTitle = title;
-            if (displayTitle.length > 20) {
-                displayTitle = displayTitle.substring(0, 18) + '...';
-            }
-            let label = new St.Label({
-                text: displayTitle,
-                style_class: 'manokwari-taskbar-label',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            button.add_child(label);
-        } else {
-            // Add immediate tooltip for non-active buttons
-            let tooltip = new St.Label({
-                text: title,
-                style_class: 'manokwari-taskbar-tooltip',
-                visible: false,
-            });
-            Main.layoutManager.addTopChrome(tooltip);
-
-            button.connect('enter-event', () => {
-                let [x, y] = button.get_transformed_position();
-                let [width, height] = button.get_size();
-                tooltip.set_position(Math.round(x), Math.round(y + height + 4));
-                tooltip.show();
-                return Clutter.EVENT_PROPAGATE;
-            });
-
-            button.connect('leave-event', () => {
-                tooltip.hide();
-                return Clutter.EVENT_PROPAGATE;
-            });
-
-            button.connect('destroy', () => {
-                Main.layoutManager.removeChrome(tooltip);
-                tooltip.destroy();
-            });
+        // Truncate long titles
+        let displayTitle = title;
+        if (displayTitle.length > 20) {
+            displayTitle = displayTitle.substring(0, 18) + '...';
         }
+        let label = new St.Label({
+            text: displayTitle,
+            style_class: 'manokwari-taskbar-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        innerBox.add_child(label);
+
+        button.add_child(innerBox);
 
         // Click handler
         button.connect('button-press-event', (actor, event) => {
@@ -216,6 +207,12 @@ class ManokwariTaskbar extends St.BoxLayout {
     }
 
     destroy() {
+        // Disconnect title signals
+        for (let sig of this._titleSignals) {
+            sig.window.disconnect(sig.id);
+        }
+        this._titleSignals = [];
+
         if (this._windowAddedId) {
             global.display.disconnect(this._windowAddedId);
             this._windowAddedId = null;
@@ -1160,19 +1157,11 @@ class ManokwariIndicator extends PanelMenu.Button {
         // Separator
         menuBox.add_child(new St.Widget({style_class: 'manokwari-separator', height: 1, x_expand: true}));
 
-        // Settings item
-        let settingsItem = this._createMenuItem('Settings', 'preferences-system-symbolic', false);
-        settingsItem._hasChildren = false;
+        // Settings item (has children)
+        let settingsItem = this._createMenuItem('Settings', 'preferences-system-symbolic', true);
+        settingsItem._hasChildren = true;
         settingsItem._activateCallback = () => {
-            let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
-            if (appInfo) {
-                appInfo.launch([], null);
-            } else {
-                appInfo = GioUnix.DesktopAppInfo.new('org.gnome.Settings.desktop');
-                if (appInfo)
-                    appInfo.launch([], null);
-            }
-            this._hidePanel();
+            if (!this._isAnimating) this._showSettingsMenu();
         };
         settingsItem.connect('button-press-event', () => {
             settingsItem._activateCallback();
@@ -1180,6 +1169,19 @@ class ManokwariIndicator extends PanelMenu.Button {
         });
         menuBox.add_child(settingsItem);
         navItems.push(settingsItem);
+
+        // About BlankOn (has children)
+        let aboutItem = this._createMenuItem('About BlankOn', 'help-about-symbolic', true);
+        aboutItem._hasChildren = true;
+        aboutItem._activateCallback = () => {
+            if (!this._isAnimating) this._showAboutBlankOn();
+        };
+        aboutItem.connect('button-press-event', () => {
+            aboutItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(aboutItem);
+        navItems.push(aboutItem);
 
         scrollView.add_child(menuBox);
         contentContainer.add_child(scrollView);
@@ -1251,7 +1253,7 @@ class ManokwariIndicator extends PanelMenu.Button {
             if (this._categories[categoryId] && this._categories[categoryId].length > 0) {
                 let info = this._getCategoryInfo(categoryId);
                 let categoryItem = this._createMenuItem(
-                    `${info.name} (${this._categories[categoryId].length})`,
+                    info.name,
                     info.icon,
                     true
                 );
@@ -1273,7 +1275,7 @@ class ManokwariIndicator extends PanelMenu.Button {
             if (!categoryOrder.includes(categoryId) && this._categories[categoryId].length > 0) {
                 let info = this._getCategoryInfo(categoryId);
                 let categoryItem = this._createMenuItem(
-                    `${info.name} (${this._categories[categoryId].length})`,
+                    info.name,
                     info.icon,
                     true
                 );
@@ -1456,6 +1458,13 @@ class ManokwariIndicator extends PanelMenu.Button {
                 this._isSearchActive = false;
                 this._navigationStack = [];
                 this._showMainMenu(true);
+                // Maintain focus on search entry after reset
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (this._searchEntry) {
+                        this._searchEntry.grab_key_focus();
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
             }
             return;
         }
@@ -2066,7 +2075,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                 if (this._categories[categoryId] && this._categories[categoryId].length > 0) {
                     let info = this._getCategoryInfo(categoryId);
                     let categoryItem = this._createMenuItem(
-                        `${info.name} (${this._categories[categoryId].length})`,
+                        info.name,
                         info.icon,
                         true
                     );
@@ -2082,7 +2091,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                 if (!categoryOrder.includes(categoryId) && this._categories[categoryId].length > 0) {
                     let info = this._getCategoryInfo(categoryId);
                     let categoryItem = this._createMenuItem(
-                        `${info.name} (${this._categories[categoryId].length})`,
+                        info.name,
                         info.icon,
                         true
                     );
@@ -2104,6 +2113,109 @@ class ManokwariIndicator extends PanelMenu.Button {
         let uri = file.get_uri();
         Gio.app_info_launch_default_for_uri(uri, null);
         this._hidePanel();
+    }
+
+    _openUrl(url) {
+        Gio.app_info_launch_default_for_uri(url, null);
+        this._hidePanel();
+    }
+
+    _showSettingsMenu() {
+        this._navigationStack.push({type: 'main'});
+        this._updateHeader('Settings', true);
+
+        let scrollView = this._createScrollView();
+
+        let menuBox = new St.BoxLayout({
+            style_class: 'manokwari-menu-box',
+            vertical: true,
+            x_expand: true,
+        });
+
+        let navItems = [];
+
+        // System Settings
+        let systemSettingsItem = this._createMenuItem('System Settings', 'preferences-system-symbolic', false);
+        systemSettingsItem._hasChildren = false;
+        systemSettingsItem._activateCallback = () => {
+            let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
+            if (appInfo) {
+                appInfo.launch([], null);
+            } else {
+                appInfo = GioUnix.DesktopAppInfo.new('org.gnome.Settings.desktop');
+                if (appInfo)
+                    appInfo.launch([], null);
+            }
+            this._hidePanel();
+        };
+        systemSettingsItem.connect('button-press-event', () => {
+            systemSettingsItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(systemSettingsItem);
+        navItems.push(systemSettingsItem);
+
+        scrollView.add_child(menuBox);
+        this._registerMenuItems(navItems, scrollView);
+        this._animateSlide(scrollView, 'forward');
+    }
+
+    _showAboutBlankOn() {
+        this._navigationStack.push({type: 'main'});
+        this._updateHeader('About BlankOn', true);
+
+        let scrollView = this._createScrollView();
+
+        let menuBox = new St.BoxLayout({
+            style_class: 'manokwari-menu-box',
+            vertical: true,
+            x_expand: true,
+        });
+
+        let navItems = [];
+
+        // BlankOn Linux
+        let blankonItem = this._createMenuItem('BlankOn Linux', 'help-about-symbolic', false);
+        blankonItem._hasChildren = false;
+        blankonItem._activateCallback = () => {
+            this._openUrl('https://blankon.github.io');
+        };
+        blankonItem.connect('button-press-event', () => {
+            blankonItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(blankonItem);
+        navItems.push(blankonItem);
+
+        // Praya Shell Extension
+        let prayaItem = this._createMenuItem('Praya Shell Extension', 'help-about-symbolic', false);
+        prayaItem._hasChildren = false;
+        prayaItem._activateCallback = () => {
+            this._openUrl('https://github.com/blankon/praya');
+        };
+        prayaItem.connect('button-press-event', () => {
+            prayaItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(prayaItem);
+        navItems.push(prayaItem);
+
+        // Donate
+        let donateItem = this._createMenuItem('Donate', 'help-about-symbolic', false);
+        donateItem._hasChildren = false;
+        donateItem._activateCallback = () => {
+            this._openUrl('https://blankon.id/donate');
+        };
+        donateItem.connect('button-press-event', () => {
+            donateItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(donateItem);
+        navItems.push(donateItem);
+
+        scrollView.add_child(menuBox);
+        this._registerMenuItems(navItems, scrollView);
+        this._animateSlide(scrollView, 'forward');
     }
 
     _launchApp(desktopId) {
@@ -2137,16 +2249,12 @@ export default class ManokwariExtension extends Extension {
         // Add to the left side of the panel
         Main.panel.addToStatusArea('manokwari-indicator', this._indicator, 0, 'left');
 
-        // Move activities/workspace to after indicator (index 1)
-        this._moveActivities();
+        // Hide activities button
+        this._hideActivities();
 
-        // Add taskbar to the left box, after activities (index 2)
+        // Add taskbar to the left box, after indicator (index 1)
         this._taskbar = new ManokwariTaskbar();
-        Main.panel._leftBox.insert_child_at_index(this._taskbar, 2);
-
-        // Make left box expand to fill available space (for unlimited taskbar width)
-        this._originalLeftBoxExpand = Main.panel._leftBox.x_expand;
-        Main.panel._leftBox.x_expand = true;
+        Main.panel._leftBox.insert_child_at_index(this._taskbar, 1);
 
         // Move date/time to the right (left of quick settings)
         this._moveDateTimeToRight();
@@ -2261,33 +2369,24 @@ export default class ManokwariExtension extends Extension {
         }
     }
 
-    _moveActivities() {
+    _hideActivities() {
         let activities = Main.panel.statusArea.activities;
         if (!activities)
             return;
 
-        let leftBox = Main.panel._leftBox;
-
-        // Remove from current position
-        if (leftBox.contains(activities.container)) {
-            leftBox.remove_child(activities.container);
-        }
-
-        // Insert at index 1 (after Manokwari indicator, before taskbar)
-        leftBox.insert_child_at_index(activities.container, 1);
+        this._originalActivitiesVisible = activities.container.visible;
+        activities.container.visible = false;
     }
 
-    _restoreActivitiesPosition() {
+    _restoreActivities() {
         let activities = Main.panel.statusArea.activities;
         if (!activities)
             return;
 
-        let leftBox = Main.panel._leftBox;
-
-        if (leftBox.contains(activities.container)) {
-            leftBox.remove_child(activities.container);
+        if (this._originalActivitiesVisible !== undefined) {
+            activities.container.visible = this._originalActivitiesVisible;
+            this._originalActivitiesVisible = undefined;
         }
-        leftBox.insert_child_at_index(activities.container, 0);
     }
 
     _moveDateTimeToRight() {
@@ -2303,6 +2402,15 @@ export default class ManokwariExtension extends Extension {
             centerBox.remove_child(dateMenu.container);
             // Add to position 0 (left of quick settings)
             rightBox.insert_child_at_index(dateMenu.container, 0);
+        }
+
+        // Remove center box from panel so left box can expand freely
+        let panelBox = centerBox.get_parent();
+        if (panelBox && panelBox.contains(centerBox)) {
+            this._centerBoxParent = panelBox;
+            this._centerBoxIndex = panelBox.get_children().indexOf(centerBox);
+            panelBox.remove_child(centerBox);
+            this._removedCenterBox = centerBox;
         }
 
         // Add hover trigger for dateMenu
@@ -2377,6 +2485,14 @@ export default class ManokwariExtension extends Extension {
         let centerBox = Main.panel._centerBox;
         let rightBox = Main.panel._rightBox;
 
+        // Restore center box to panel
+        if (this._removedCenterBox && this._centerBoxParent) {
+            this._centerBoxParent.insert_child_at_index(this._removedCenterBox, this._centerBoxIndex);
+            this._removedCenterBox = null;
+            this._centerBoxParent = null;
+            this._centerBoxIndex = undefined;
+        }
+
         if (rightBox.contains(dateMenu.container)) {
             rightBox.remove_child(dateMenu.container);
             centerBox.add_child(dateMenu.container);
@@ -2408,12 +2524,6 @@ export default class ManokwariExtension extends Extension {
         this._showDock();
         this._dock = null;
 
-        // Restore left box expansion setting
-        if (this._originalLeftBoxExpand !== undefined) {
-            Main.panel._leftBox.x_expand = this._originalLeftBoxExpand;
-            this._originalLeftBoxExpand = undefined;
-        }
-
         if (this._taskbar) {
             this._taskbar.destroy();
             this._taskbar = null;
@@ -2430,7 +2540,7 @@ export default class ManokwariExtension extends Extension {
         // Restore date/time to center
         this._restoreDateTimePosition();
 
-        // Restore activities to left
-        this._restoreActivitiesPosition();
+        // Restore activities button
+        this._restoreActivities();
     }
 }
