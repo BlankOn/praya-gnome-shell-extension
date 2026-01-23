@@ -234,3 +234,43 @@
     padding-left: 8px;
 }
 
+/* Taskbar */
+.manokwari-taskbar {
+    spacing: 4px;
+    padding: 0 8px;
+}
+
+.manokwari-taskbar-button {
+    padding: 0 8px;
+    margin: 0;
+    border-radius: 0;
+    background-color: transparent;
+    transition: background-color 150ms;
+}
+
+.manokwari-taskbar-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.manokwari-taskbar-button-focused {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.manokwari-taskbar-button-minimized {
+    opacity: 0.6;
+}
+
+.manokwari-taskbar-button-minimized .manokwari-taskbar-label {
+    font-style: italic;
+}
+
+.manokwari-taskbar-icon {
+    margin-right: 6px;
+}
+
+.manokwari-taskbar-label {
+    color: #ffffff;
+    font-size: 0.9em;
+    font-weight: normal;
+}
+

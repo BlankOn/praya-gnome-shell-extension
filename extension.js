@@ -40,6 +40,177 @@ const MARGIN_LEFT = 8;
 const MARGIN_TOP = 8;
 const MARGIN_BOTTOM = 8;
 
+const ManokwariTaskbar = GObject.registerClass(
+class ManokwariTaskbar extends St.BoxLayout {
+    _init() {
+        super._init({
+            style_class: 'manokwari-taskbar',
+            reactive: true,
+            track_hover: true,
+            x_expand: true,
+        });
+
+        this._windowTracker = Shell.WindowTracker.get_default();
+        this._appSystem = Shell.AppSystem.get_default();
+
+        // Track window signals
+        this._windowSignals = [];
+        this._workspaceSignals = [];
+
+        // Connect to window events
+        this._windowAddedId = global.display.connect('window-created', () => {
+            this._updateTaskbar();
+        });
+
+        this._windowRemovedId = global.window_manager.connect('destroy', () => {
+            this._updateTaskbar();
+        });
+
+        this._minimizeId = global.window_manager.connect('minimize', () => {
+            this._updateTaskbar();
+        });
+
+        this._unminimizeId = global.window_manager.connect('unminimize', () => {
+            this._updateTaskbar();
+        });
+
+        this._focusWindowId = global.display.connect('notify::focus-window', () => {
+            this._updateTaskbar();
+        });
+
+        // Connect to workspace switch
+        this._workspaceSwitchId = global.workspace_manager.connect('active-workspace-changed', () => {
+            this._updateTaskbar();
+        });
+
+        // Initial update with delay to ensure windows are loaded
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._updateTaskbar();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _updateTaskbar() {
+        // Remove all existing children
+        this.destroy_all_children();
+
+        // Get all windows on current workspace
+        let workspace = global.workspace_manager.get_active_workspace();
+        let windows = global.get_window_actors()
+            .map(a => a.meta_window)
+            .filter(w => {
+                return w.get_workspace() === workspace &&
+                       !w.is_skip_taskbar() &&
+                       w.get_window_type() === Meta.WindowType.NORMAL;
+            });
+
+        // Sort by user_time (most recently used first) or stable order
+        windows.sort((a, b) => a.get_stable_sequence() - b.get_stable_sequence());
+
+        let focusedWindow = global.display.focus_window;
+
+        for (let window of windows) {
+            let app = this._windowTracker.get_window_app(window);
+            let button = this._createWindowButton(window, app, window === focusedWindow);
+            this.add_child(button);
+        }
+    }
+
+    _createWindowButton(window, app, isFocused) {
+        let button = new St.BoxLayout({
+            style_class: 'manokwari-taskbar-button',
+            reactive: true,
+            track_hover: true,
+        });
+
+        if (isFocused) {
+            button.add_style_class_name('manokwari-taskbar-button-focused');
+        }
+
+        if (window.minimized) {
+            button.add_style_class_name('manokwari-taskbar-button-minimized');
+        }
+
+        // App icon
+        let icon;
+        if (app) {
+            icon = app.create_icon_texture(20);
+        } else {
+            icon = new St.Icon({
+                icon_name: 'application-x-executable-symbolic',
+                icon_size: 20,
+            });
+        }
+        icon.style_class = 'manokwari-taskbar-icon';
+        button.add_child(icon);
+
+        // Window title
+        let title = window.get_title() || (app ? app.get_name() : 'Window');
+        // Truncate long titles
+        if (title.length > 20) {
+            title = title.substring(0, 18) + '...';
+        }
+        let label = new St.Label({
+            text: title,
+            style_class: 'manokwari-taskbar-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        button.add_child(label);
+
+        // Click handler
+        button.connect('button-press-event', (actor, event) => {
+            if (event.get_button() === 1) {
+                // Left click - focus or unminimize
+                if (window.minimized) {
+                    window.unminimize();
+                    window.activate(global.get_current_time());
+                } else if (window === global.display.focus_window) {
+                    // If already focused, minimize it
+                    window.minimize();
+                } else {
+                    window.activate(global.get_current_time());
+                }
+                return Clutter.EVENT_STOP;
+            } else if (event.get_button() === 2) {
+                // Middle click - close window
+                window.delete(global.get_current_time());
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+
+        return button;
+    }
+
+    destroy() {
+        if (this._windowAddedId) {
+            global.display.disconnect(this._windowAddedId);
+            this._windowAddedId = null;
+        }
+        if (this._windowRemovedId) {
+            global.window_manager.disconnect(this._windowRemovedId);
+            this._windowRemovedId = null;
+        }
+        if (this._minimizeId) {
+            global.window_manager.disconnect(this._minimizeId);
+            this._minimizeId = null;
+        }
+        if (this._unminimizeId) {
+            global.window_manager.disconnect(this._unminimizeId);
+            this._unminimizeId = null;
+        }
+        if (this._focusWindowId) {
+            global.display.disconnect(this._focusWindowId);
+            this._focusWindowId = null;
+        }
+        if (this._workspaceSwitchId) {
+            global.workspace_manager.disconnect(this._workspaceSwitchId);
+            this._workspaceSwitchId = null;
+        }
+        super.destroy();
+    }
+});
+
 const ManokwariIndicator = GObject.registerClass(
 class ManokwariIndicator extends PanelMenu.Button {
     _init() {
@@ -189,6 +360,14 @@ class ManokwariIndicator extends PanelMenu.Button {
                     let json = decoder.decode(contents);
                     this._favourites = JSON.parse(json);
                 }
+            } else {
+                // Create file with default favourites
+                this._favourites = [
+                    'firefox.desktop',
+                    'org.gnome.Nautilus.desktop',
+                    'org.gnome.Ptyxis.desktop'
+                ];
+                this._saveFavourites();
             }
         } catch (e) {
             log(`Manokwari: Error loading favourites: ${e.message}`);
@@ -1925,14 +2104,18 @@ export default class ManokwariExtension extends Extension {
         // Add to the left side of the panel
         Main.panel.addToStatusArea('manokwari-indicator', this._indicator, 0, 'left');
 
+        // Move activities/workspace to after indicator (index 1)
+        this._moveActivities();
+
+        // Add taskbar to the left box, after activities (index 2)
+        this._taskbar = new ManokwariTaskbar();
+        Main.panel._leftBox.insert_child_at_index(this._taskbar, 2);
+
         // Move date/time to the right (left of quick settings)
         this._moveDateTimeToRight();
 
         // Setup hover trigger for quick settings
         this._setupQuickSettingsHover();
-
-        // Move activities/workspace to center
-        this._moveActivitiesToCenter();
 
         // Hide the bottom dock when extension is enabled
         this._dock = null;
@@ -2041,19 +2224,20 @@ export default class ManokwariExtension extends Extension {
         }
     }
 
-    _moveActivitiesToCenter() {
+    _moveActivities() {
         let activities = Main.panel.statusArea.activities;
         if (!activities)
             return;
 
         let leftBox = Main.panel._leftBox;
-        let centerBox = Main.panel._centerBox;
 
+        // Remove from current position
         if (leftBox.contains(activities.container)) {
             leftBox.remove_child(activities.container);
-            // Add to center box
-            centerBox.insert_child_at_index(activities.container, 0);
         }
+
+        // Insert at index 1 (after Manokwari indicator, before taskbar)
+        leftBox.insert_child_at_index(activities.container, 1);
     }
 
     _restoreActivitiesPosition() {
@@ -2062,12 +2246,11 @@ export default class ManokwariExtension extends Extension {
             return;
 
         let leftBox = Main.panel._leftBox;
-        let centerBox = Main.panel._centerBox;
 
-        if (centerBox.contains(activities.container)) {
-            centerBox.remove_child(activities.container);
-            leftBox.insert_child_at_index(activities.container, 0);
+        if (leftBox.contains(activities.container)) {
+            leftBox.remove_child(activities.container);
         }
+        leftBox.insert_child_at_index(activities.container, 0);
     }
 
     _moveDateTimeToRight() {
@@ -2187,6 +2370,11 @@ export default class ManokwariExtension extends Extension {
         // Show the dock again when extension is disabled
         this._showDock();
         this._dock = null;
+
+        if (this._taskbar) {
+            this._taskbar.destroy();
+            this._taskbar = null;
+        }
 
         if (this._indicator) {
             this._indicator.destroy();
