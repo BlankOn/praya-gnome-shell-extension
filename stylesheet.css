@@ -1,0 +1,103 @@
+/* Manokwari Menu Styling */
+
+.manokwari-panel {
+    background-color: #2d2d2d;
+    border-radius: 16px;
+}
+
+.manokwari-panel-header {
+    background-color: #383838;
+    padding: 0 12px;
+    border-bottom: 1px solid #404040;
+    border-radius: 16px 16px 0 0;
+}
+
+.manokwari-header-label {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #ffffff;
+    padding-left: 8px;
+}
+
+.manokwari-back-button {
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.manokwari-back-button:hover {
+    background-color: #505050;
+}
+
+.manokwari-sliding-container {
+    background-color: transparent;
+}
+
+.manokwari-scroll {
+    background-color: transparent;
+}
+
+.manokwari-menu-box {
+    padding: 8px 0;
+}
+
+.manokwari-menu-item {
+    padding: 0 16px;
+    border-radius: 0;
+    transition: background-color 150ms;
+    min-width: 268px;
+}
+
+.manokwari-menu-item:hover {
+    background-color: #404040;
+}
+
+.manokwari-menu-item-icon {
+    padding-right: 12px;
+}
+
+.manokwari-menu-item-label {
+    color: #ffffff;
+    font-size: 1em;
+}
+
+.manokwari-menu-item-arrow {
+    color: #888888;
+}
+
+.manokwari-separator {
+    background-color: #404040;
+    margin: 8px 16px;
+    min-width: 268px;
+}
+
+.panel-status-menu-box {
+    spacing: 6px;
+}
+
+.manokwari-content-container {
+    background-color: transparent;
+}
+
+.manokwari-power-section {
+    background-color: #2d2d2d;
+    padding: 4px 0;
+    border-radius: 0 0 16px 16px;
+}
+
+.manokwari-power-options {
+    background-color: #252525;
+    padding: 4px 0;
+    border-radius: 0 0 16px 16px;
+}
+
+.manokwari-submenu-item {
+    padding: 0 16px 0 32px;
+    border-radius: 0;
+    transition: background-color 150ms;
+    min-width: 268px;
+}
+
+.manokwari-submenu-item:hover {
+    background-color: #404040;
+}
+
