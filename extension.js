@@ -2304,33 +2304,77 @@ export default class ManokwariExtension extends Extension {
     }
 
     _applySettings() {
+        // Extension's modified values - used to detect if we're reading our own changes
+        const EXTENSION_OVERLAY_KEY = 'Alt_L';
+        const EXTENSION_BUTTON_LAYOUT = ':minimize,maximize,close';
+
+        // GNOME default values - used as fallback
+        const DEFAULT_OVERLAY_KEY = 'Super_L';
+        const DEFAULT_BUTTON_LAYOUT = 'appmenu:close';
+
         // Get settings objects
         this._interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
         this._wmSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
 
-        // Save original values
+        // Save original values, but check if they're our own modified values
+        // (can happen after shell restart while extension was enabled)
         this._originalHotCorner = this._interfaceSettings.get_boolean('enable-hot-corners');
-        this._originalOverlayKey = this._mutterSettings.get_string('overlay-key');
-        this._originalButtonLayout = this._wmSettings.get_string('button-layout');
+
+        let currentOverlayKey = this._mutterSettings.get_string('overlay-key');
+        if (currentOverlayKey === EXTENSION_OVERLAY_KEY) {
+            // We're reading our own modified value, use default
+            this._originalOverlayKey = DEFAULT_OVERLAY_KEY;
+        } else {
+            this._originalOverlayKey = currentOverlayKey;
+        }
+
+        let currentButtonLayout = this._wmSettings.get_string('button-layout');
+        if (currentButtonLayout === EXTENSION_BUTTON_LAYOUT) {
+            // We're reading our own modified value, use default
+            this._originalButtonLayout = DEFAULT_BUTTON_LAYOUT;
+        } else {
+            this._originalButtonLayout = currentButtonLayout;
+        }
 
         // Apply new settings
         this._interfaceSettings.set_boolean('enable-hot-corners', false);
-        this._mutterSettings.set_string('overlay-key', 'Alt_L');
-        this._wmSettings.set_string('button-layout', ':minimize,maximize,close');
+        this._mutterSettings.set_string('overlay-key', EXTENSION_OVERLAY_KEY);
+        this._wmSettings.set_string('button-layout', EXTENSION_BUTTON_LAYOUT);
     }
 
     _restoreSettings() {
-        // Restore original values
-        if (this._interfaceSettings && this._originalHotCorner !== undefined) {
+        // GNOME default values - used as fallback
+        const DEFAULT_OVERLAY_KEY = 'Super_L';
+        const DEFAULT_BUTTON_LAYOUT = 'appmenu:close';
+
+        // Restore original values (create settings objects if needed)
+        if (!this._interfaceSettings) {
+            this._interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        }
+        if (!this._mutterSettings) {
+            this._mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
+        }
+        if (!this._wmSettings) {
+            this._wmSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
+        }
+
+        // Restore hot corners
+        if (this._originalHotCorner !== undefined) {
             this._interfaceSettings.set_boolean('enable-hot-corners', this._originalHotCorner);
         }
-        if (this._mutterSettings && this._originalOverlayKey !== undefined) {
-            this._mutterSettings.set_string('overlay-key', this._originalOverlayKey);
-        }
-        if (this._wmSettings && this._originalButtonLayout !== undefined) {
-            this._wmSettings.set_string('button-layout', this._originalButtonLayout);
-        }
+
+        // Restore overlay key (Meta key behavior)
+        let overlayKeyToRestore = this._originalOverlayKey !== undefined
+            ? this._originalOverlayKey
+            : DEFAULT_OVERLAY_KEY;
+        this._mutterSettings.set_string('overlay-key', overlayKeyToRestore);
+
+        // Restore button layout (hide minimize button)
+        let buttonLayoutToRestore = this._originalButtonLayout !== undefined
+            ? this._originalButtonLayout
+            : DEFAULT_BUTTON_LAYOUT;
+        this._wmSettings.set_string('button-layout', buttonLayoutToRestore);
 
         this._interfaceSettings = null;
         this._mutterSettings = null;
