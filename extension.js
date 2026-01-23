@@ -142,20 +142,53 @@ class ManokwariTaskbar extends St.BoxLayout {
             });
         }
         icon.style_class = 'manokwari-taskbar-icon';
+        // Remove right margin from icon if no label will be shown
+        if (!isFocused) {
+            icon.style = 'margin-right: 0;';
+        }
         button.add_child(icon);
 
-        // Window title
+        // Window title - only show for focused window
         let title = window.get_title() || (app ? app.get_name() : 'Window');
-        // Truncate long titles
-        if (title.length > 20) {
-            title = title.substring(0, 18) + '...';
+        if (isFocused) {
+            // Truncate long titles
+            let displayTitle = title;
+            if (displayTitle.length > 20) {
+                displayTitle = displayTitle.substring(0, 18) + '...';
+            }
+            let label = new St.Label({
+                text: displayTitle,
+                style_class: 'manokwari-taskbar-label',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            button.add_child(label);
+        } else {
+            // Add immediate tooltip for non-active buttons
+            let tooltip = new St.Label({
+                text: title,
+                style_class: 'manokwari-taskbar-tooltip',
+                visible: false,
+            });
+            Main.layoutManager.addTopChrome(tooltip);
+
+            button.connect('enter-event', () => {
+                let [x, y] = button.get_transformed_position();
+                let [width, height] = button.get_size();
+                tooltip.set_position(Math.round(x), Math.round(y + height + 4));
+                tooltip.show();
+                return Clutter.EVENT_PROPAGATE;
+            });
+
+            button.connect('leave-event', () => {
+                tooltip.hide();
+                return Clutter.EVENT_PROPAGATE;
+            });
+
+            button.connect('destroy', () => {
+                Main.layoutManager.removeChrome(tooltip);
+                tooltip.destroy();
+            });
         }
-        let label = new St.Label({
-            text: title,
-            style_class: 'manokwari-taskbar-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        button.add_child(label);
 
         // Click handler
         button.connect('button-press-event', (actor, event) => {
@@ -2111,6 +2144,10 @@ export default class ManokwariExtension extends Extension {
         this._taskbar = new ManokwariTaskbar();
         Main.panel._leftBox.insert_child_at_index(this._taskbar, 2);
 
+        // Make left box expand to fill available space (for unlimited taskbar width)
+        this._originalLeftBoxExpand = Main.panel._leftBox.x_expand;
+        Main.panel._leftBox.x_expand = true;
+
         // Move date/time to the right (left of quick settings)
         this._moveDateTimeToRight();
 
@@ -2370,6 +2407,12 @@ export default class ManokwariExtension extends Extension {
         // Show the dock again when extension is disabled
         this._showDock();
         this._dock = null;
+
+        // Restore left box expansion setting
+        if (this._originalLeftBoxExpand !== undefined) {
+            Main.panel._leftBox.x_expand = this._originalLeftBoxExpand;
+            this._originalLeftBoxExpand = undefined;
+        }
 
         if (this._taskbar) {
             this._taskbar.destroy();
