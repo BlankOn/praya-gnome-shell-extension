@@ -613,8 +613,25 @@ class ManokwariIndicator extends PanelMenu.Button {
     }
 
     _showPanel() {
+        // Clean up any existing hover zone first to prevent orphaned zones
+        if (this._hoverZone) {
+            try {
+                Main.layoutManager.removeChrome(this._hoverZone);
+            } catch (e) {
+                // Ignore if already removed
+            }
+            this._hoverZone.destroy();
+            this._hoverZone = null;
+        }
+
         if (this._panel) {
+            try {
+                Main.layoutManager.removeChrome(this._panel);
+            } catch (e) {
+                // Ignore if already removed
+            }
             this._panel.destroy();
+            this._panel = null;
         }
 
         let monitor = Main.layoutManager.primaryMonitor;
@@ -921,6 +938,14 @@ class ManokwariIndicator extends PanelMenu.Button {
         this._menuBox = null;
         this._bottomSection = null;
 
+        // Immediately disable reactivity to prevent blocking clicks during animation
+        if (this._hoverZone) {
+            this._hoverZone.reactive = false;
+        }
+        if (this._panel) {
+            this._panel.reactive = false;
+        }
+
         // Clean up hover zone immediately if panel doesn't exist
         if (this._hoverZone && !this._panel) {
             Main.layoutManager.removeChrome(this._hoverZone);
@@ -937,12 +962,20 @@ class ManokwariIndicator extends PanelMenu.Button {
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: () => {
                     if (this._hoverZone) {
-                        Main.layoutManager.removeChrome(this._hoverZone);
+                        try {
+                            Main.layoutManager.removeChrome(this._hoverZone);
+                        } catch (e) {
+                            // Ignore if already removed
+                        }
                         this._hoverZone.destroy();
                         this._hoverZone = null;
                     }
                     if (this._panel) {
-                        Main.layoutManager.removeChrome(this._panel);
+                        try {
+                            Main.layoutManager.removeChrome(this._panel);
+                        } catch (e) {
+                            // Ignore if already removed
+                        }
                         this._panel.destroy();
                         this._panel = null;
                     }
