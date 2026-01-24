@@ -1,4 +1,10 @@
-praya-gnome-shell-extension (0.1.1-1) unstable; urgency=medium
+praya-gnome-shell-extension (0.1.2-1) verbeek; urgency=medium
+
+  *
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Fri, 24 Jan 2026 23:45:00 +0700
+
+praya-gnome-shell-extension (0.1.1-1) verbeek; urgency=medium
 
   * Improve taskbar UX.
 
