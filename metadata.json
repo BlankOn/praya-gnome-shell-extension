@@ -1,7 +1,7 @@
 {
-  "name": "manokwari",
-  "description": "manokwari",
-  "uuid": "manokwari@blankonlinux.id",
+  "name": "praya",
+  "description": "Praya GNOME Shell Extension for BlankOn Linux",
+  "uuid": "praya@blankonlinux.id",
   "shell-version": [
     "49"
   ]

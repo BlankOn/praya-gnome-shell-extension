@@ -1,31 +1,31 @@
-/* Manokwari Menu Styling */
+/* Praya Menu Styling */
 
-.manokwari-panel {
+.praya-panel {
     background-color: #2d2d2d;
     border-radius: 16px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-.manokwari-panel-header {
+.praya-panel-header {
     background-color: #383838;
     padding: 0 12px;
     border-bottom: 1px solid #404040;
     border-radius: 16px 16px 0 0;
 }
 
-.manokwari-header-label {
+.praya-header-label {
     font-weight: bold;
     font-size: 1.1em;
     color: #ffffff;
     padding-left: 8px;
 }
 
-.manokwari-search-icon {
+.praya-search-icon {
     color: #888888;
     padding-left: 8px;
 }
 
-.manokwari-search-entry {
+.praya-search-entry {
     background-color: #404040;
     border: none;
     border-radius: 8px;
@@ -35,24 +35,24 @@
     caret-color: #ffffff;
 }
 
-.manokwari-search-entry:focus {
+.praya-search-entry:focus {
     background-color: #505050;
     border: none;
     box-shadow: none;
     outline: none;
 }
 
-.manokwari-search-entry StLabel {
+.praya-search-entry StLabel {
     color: #888888;
 }
 
-.manokwari-no-results {
+.praya-no-results {
     color: #888888;
     font-size: 1em;
     padding: 24px 16px;
 }
 
-.manokwari-back-button {
+.praya-back-button {
     padding: 0;
     border-radius: 25px;
     min-width: 50px;
@@ -61,50 +61,50 @@
     height: 50px;
 }
 
-.manokwari-back-button:hover {
+.praya-back-button:hover {
     background-color: #505050;
     border-radius: 25px;
 }
 
-.manokwari-sliding-container {
+.praya-sliding-container {
     background-color: transparent;
 }
 
-.manokwari-scroll {
+.praya-scroll {
     background-color: transparent;
 }
 
-.manokwari-menu-box {
+.praya-menu-box {
     padding: 8px;
 }
 
-.manokwari-menu-item {
+.praya-menu-item {
     padding: 0 16px;
     margin: 2px 0;
     border-radius: 8px;
     transition: background-color 150ms;
 }
 
-.manokwari-menu-item:hover,
-.manokwari-menu-item-focused {
+.praya-menu-item:hover,
+.praya-menu-item-focused {
     background-color: #404040;
     border-radius: 8px;
 }
 
-.manokwari-menu-item-icon {
+.praya-menu-item-icon {
     padding-right: 12px;
 }
 
-.manokwari-menu-item-label {
+.praya-menu-item-label {
     color: #ffffff;
     font-size: 1em;
 }
 
-.manokwari-menu-item-arrow {
+.praya-menu-item-arrow {
     color: #888888;
 }
 
-.manokwari-separator {
+.praya-separator {
     background-color: #404040;
     margin: 8px 16px;
     min-width: 268px;
@@ -115,7 +115,7 @@
     spacing: 6px;
 }
 
-.manokwari-panel-logo {
+.praya-panel-logo {
     background-image: url("assets/logo-white.png");
     background-size: contain;
     background-repeat: no-repeat;
@@ -125,64 +125,64 @@
     margin: 0 5px;
 }
 
-.manokwari-content-container {
+.praya-content-container {
     background-color: transparent;
 }
 
-.manokwari-power-section {
+.praya-power-section {
     background-color: #2d2d2d;
     padding: 4px 0;
     border-radius: 0 0 16px 16px;
 }
 
-.manokwari-power-options {
+.praya-power-options {
     background-color: #252525;
     padding: 4px 0;
     border-radius: 8px;
     margin: 4px 8px;
 }
 
-.manokwari-submenu-item {
+.praya-submenu-item {
     padding: 0 16px 0 32px;
     margin: 2px 8px;
     border-radius: 8px;
     transition: background-color 150ms;
 }
 
-.manokwari-submenu-item:hover,
-.manokwari-submenu-item.manokwari-menu-item-focused {
+.praya-submenu-item:hover,
+.praya-submenu-item.praya-menu-item-focused {
     background-color: #404040;
     border-radius: 8px;
 }
 
-.manokwari-bottom-section {
+.praya-bottom-section {
     background-color: #2d2d2d;
     padding: 4px 0;
     border-radius: 0 0 16px 16px;
 }
 
-.manokwari-bottom-section .manokwari-menu-item {
+.praya-bottom-section .praya-menu-item {
     margin: 2px 8px;
     border-radius: 8px;
 }
 
-.manokwari-bottom-section .manokwari-menu-item:hover {
+.praya-bottom-section .praya-menu-item:hover {
     background-color: #404040;
     border-radius: 8px;
 }
 
-.manokwari-user-item {
+.praya-user-item {
     padding: 12px 16px;
     background-color: #2d2d2d;
     transition: background-color 150ms;
     box-shadow: 0 -3px 6px -3px rgba(0, 0, 0, 0.25);
 }
 
-.manokwari-user-item:hover {
+.praya-user-item:hover {
     background-color: #404040;
 }
 
-.manokwari-user-avatar {
+.praya-user-avatar {
     width: 48px;
     height: 48px;
     border-radius: 24px;
@@ -192,19 +192,19 @@
     background-color: #505050;
 }
 
-.manokwari-user-fullname {
+.praya-user-fullname {
     color: #ffffff;
     font-size: 1.1em;
     font-weight: bold;
 }
 
-.manokwari-user-username {
+.praya-user-username {
     color: #888888;
     font-size: 0.9em;
 }
 
 /* Context Menu Styles */
-.manokwari-context-menu {
+.praya-context-menu {
     background-color: #383838;
     border-radius: 8px;
     padding: 4px;
@@ -212,36 +212,36 @@
     min-width: 180px;
 }
 
-.manokwari-context-menu-item {
+.praya-context-menu-item {
     padding: 8px 12px;
     border-radius: 6px;
     transition: background-color 150ms;
     color: #ffffff;
 }
 
-.manokwari-context-menu-item:hover {
+.praya-context-menu-item:hover {
     background-color: #505050;
 }
 
-.manokwari-context-menu-icon {
+.praya-context-menu-icon {
     padding-right: 8px;
     color: #cccccc;
 }
 
 /* Favourite pin */
-.manokwari-favourite-pin {
+.praya-favourite-pin {
     color: #888888;
     padding-left: 8px;
 }
 
 /* Taskbar */
-.manokwari-taskbar {
+.praya-taskbar {
     spacing: 4px;
     padding: 0 8px;
 }
 
 /* Outer button container - transparent, no margin, handles clicks */
-.manokwari-taskbar-button {
+.praya-taskbar-button {
     padding: 0;
     margin: 0;
     border-radius: 0;
@@ -249,12 +249,12 @@
     transition: background-color 150ms;
 }
 
-.manokwari-taskbar-button:hover .manokwari-taskbar-button-inner {
+.praya-taskbar-button:hover .praya-taskbar-button-inner {
     background-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Inner visual component - 4px border radius */
-.manokwari-taskbar-button-inner {
+.praya-taskbar-button-inner {
     margin: 3px 0;
     padding: 0 8px;
     border-radius: 6px;
@@ -262,29 +262,29 @@
     transition: background-color 150ms;
 }
 
-.manokwari-taskbar-button-inner-focused {
+.praya-taskbar-button-inner-focused {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
-.manokwari-taskbar-button-minimized {
+.praya-taskbar-button-minimized {
     opacity: 0.6;
 }
 
-.manokwari-taskbar-button-minimized .manokwari-taskbar-label {
+.praya-taskbar-button-minimized .praya-taskbar-label {
     font-style: italic;
 }
 
-.manokwari-taskbar-icon {
+.praya-taskbar-icon {
     margin-right: 6px;
 }
 
-.manokwari-taskbar-label {
+.praya-taskbar-label {
     color: #ffffff;
     font-size: 0.9em;
     font-weight: normal;
 }
 
-.manokwari-taskbar-tooltip {
+.praya-taskbar-tooltip {
     background-color: #2d2d2d;
     color: #ffffff;
     padding: 4px 8px;

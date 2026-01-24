@@ -4,14 +4,14 @@
 	dh $@
 
 override_dh_auto_install:
-	install -d $(CURDIR)/debian/manokwari-gnome-shell-extension/usr/share/gnome-shell/extensions/manokwari@blankonlinux.id
-	install -m 644 extension.js $(CURDIR)/debian/manokwari-gnome-shell-extension/usr/share/gnome-shell/extensions/manokwari@blankonlinux.id/
-	install -m 644 metadata.json $(CURDIR)/debian/manokwari-gnome-shell-extension/usr/share/gnome-shell/extensions/manokwari@blankonlinux.id/
-	install -m 644 stylesheet.css $(CURDIR)/debian/manokwari-gnome-shell-extension/usr/share/gnome-shell/extensions/manokwari@blankonlinux.id/
-	install -d $(CURDIR)/debian/manokwari-gnome-shell-extension/usr/share/gnome-shell/extensions/manokwari@blankonlinux.id/assets
-	install -m 644 assets/logo-white.png $(CURDIR)/debian/manokwari-gnome-shell-extension/usr/share/gnome-shell/extensions/manokwari@blankonlinux.id/assets/
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id
+	install -m 644 extension.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
+	install -m 644 metadata.json $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
+	install -m 644 stylesheet.css $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets
+	install -m 644 assets/logo-white.png $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets/
 	# Install dconf settings for global user configuration
-	install -d $(CURDIR)/debian/manokwari-gnome-shell-extension/etc/dconf/db/local.d
-	install -m 644 debian/dconf/db/local.d/00-manokwari-global-behaviours $(CURDIR)/debian/manokwari-gnome-shell-extension/etc/dconf/db/local.d/
-	install -d $(CURDIR)/debian/manokwari-gnome-shell-extension/etc/dconf/profile
-	install -m 644 debian/dconf/profile/user $(CURDIR)/debian/manokwari-gnome-shell-extension/etc/dconf/profile/
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/db/local.d
+	install -m 644 debian/dconf/db/local.d/00-praya-global-behaviours $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/db/local.d/
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/profile
+	install -m 644 debian/dconf/profile/user $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/profile/

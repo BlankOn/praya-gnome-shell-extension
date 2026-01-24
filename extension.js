@@ -31,7 +31,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 
-const FAVOURITES_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'manokwari', 'favourites.json']);
+const FAVOURITES_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'praya', 'favourites.json']);
 
 const PANEL_WIDTH = 325;
 const HEADER_HEIGHT = 50;
@@ -40,11 +40,11 @@ const MARGIN_LEFT = 8;
 const MARGIN_TOP = 8;
 const MARGIN_BOTTOM = 8;
 
-const ManokwariTaskbar = GObject.registerClass(
-class ManokwariTaskbar extends St.BoxLayout {
+const PrayaTaskbar = GObject.registerClass(
+class PrayaTaskbar extends St.BoxLayout {
     _init() {
         super._init({
-            style_class: 'manokwari-taskbar',
+            style_class: 'praya-taskbar',
             reactive: true,
             track_hover: true,
             x_expand: true,
@@ -132,24 +132,24 @@ class ManokwariTaskbar extends St.BoxLayout {
     _createWindowButton(window, app, isFocused) {
         // Outer container - black background, no margin, handles clicks
         let button = new St.BoxLayout({
-            style_class: 'manokwari-taskbar-button',
+            style_class: 'praya-taskbar-button',
             reactive: true,
             track_hover: true,
         });
 
         // Inner visual component - 4px border radius
         let innerBox = new St.BoxLayout({
-            style_class: 'manokwari-taskbar-button-inner',
+            style_class: 'praya-taskbar-button-inner',
             y_expand: true,
             y_align: Clutter.ActorAlign.FILL,
         });
 
         if (isFocused) {
-            innerBox.add_style_class_name('manokwari-taskbar-button-inner-focused');
+            innerBox.add_style_class_name('praya-taskbar-button-inner-focused');
         }
 
         if (window.minimized) {
-            button.add_style_class_name('manokwari-taskbar-button-minimized');
+            button.add_style_class_name('praya-taskbar-button-minimized');
         }
 
         // App icon
@@ -162,7 +162,7 @@ class ManokwariTaskbar extends St.BoxLayout {
                 icon_size: 20,
             });
         }
-        icon.style_class = 'manokwari-taskbar-icon';
+        icon.style_class = 'praya-taskbar-icon';
         innerBox.add_child(icon);
 
         // Window title - show for all windows
@@ -174,7 +174,7 @@ class ManokwariTaskbar extends St.BoxLayout {
         }
         let label = new St.Label({
             text: displayTitle,
-            style_class: 'manokwari-taskbar-label',
+            style_class: 'praya-taskbar-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
         innerBox.add_child(label);
@@ -241,17 +241,17 @@ class ManokwariTaskbar extends St.BoxLayout {
     }
 });
 
-const ManokwariIndicator = GObject.registerClass(
-class ManokwariIndicator extends PanelMenu.Button {
+const PrayaIndicator = GObject.registerClass(
+class PrayaIndicator extends PanelMenu.Button {
     _init() {
-        super._init(0.0, 'Manokwari Menu');
+        super._init(0.0, 'Praya Menu');
 
         // Create a box to hold the logo
         let box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
 
         // Add logo using St.Widget with CSS background
         let logo = new St.Widget({
-            style_class: 'manokwari-panel-logo',
+            style_class: 'praya-panel-logo',
             y_align: Clutter.ActorAlign.CENTER,
         });
         box.add_child(logo);
@@ -400,7 +400,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                 this._saveFavourites();
             }
         } catch (e) {
-            log(`Manokwari: Error loading favourites: ${e.message}`);
+            log(`Praya: Error loading favourites: ${e.message}`);
             this._favourites = [];
         }
     }
@@ -417,7 +417,7 @@ class ManokwariIndicator extends PanelMenu.Button {
             let contents = encoder.encode(json);
             file.replace_contents(contents, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
         } catch (e) {
-            log(`Manokwari: Error saving favourites: ${e.message}`);
+            log(`Praya: Error saving favourites: ${e.message}`);
         }
     }
 
@@ -457,7 +457,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Create context menu container
         this._contextMenu = new St.BoxLayout({
-            style_class: 'manokwari-context-menu',
+            style_class: 'praya-context-menu',
             vertical: true,
             reactive: true,
             track_hover: true,
@@ -496,7 +496,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let menuItemIcon = isFav ? 'view-pin-symbolic' : 'view-pin-symbolic';
 
         let menuItem = new St.BoxLayout({
-            style_class: 'manokwari-context-menu-item',
+            style_class: 'praya-context-menu-item',
             reactive: true,
             track_hover: true,
         });
@@ -504,7 +504,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let icon = new St.Icon({
             icon_name: menuItemIcon,
             icon_size: 16,
-            style_class: 'manokwari-context-menu-icon',
+            style_class: 'praya-context-menu-icon',
         });
         menuItem.add_child(icon);
 
@@ -650,7 +650,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Create the main panel container - below top bar with margins
         this._panel = new St.BoxLayout({
-            style_class: 'manokwari-panel',
+            style_class: 'praya-panel',
             vertical: true,
             reactive: true,
             track_hover: true,
@@ -662,7 +662,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Create header (will be populated by _showMainMenu -> _updateHeader)
         this._header = new St.BoxLayout({
-            style_class: 'manokwari-panel-header',
+            style_class: 'praya-panel-header',
             height: HEADER_HEIGHT,
             x_expand: true,
         });
@@ -679,7 +679,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Create sliding container for navigation with clipping
         this._slidingContainer = new St.Widget({
-            style_class: 'manokwari-sliding-container',
+            style_class: 'praya-sliding-container',
             x_expand: true,
             clip_to_allocation: true,
         });
@@ -986,7 +986,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
     _createScrollView(height = null) {
         let scrollView = new St.ScrollView({
-            style_class: 'manokwari-scroll',
+            style_class: 'praya-scroll',
             hscrollbar_policy: St.PolicyType.NEVER,
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
             x_expand: true,
@@ -1021,7 +1021,7 @@ class ManokwariIndicator extends PanelMenu.Button {
     _setFocusedIndex(index) {
         // Remove highlight from previous item
         if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
-            this._menuItems[this._focusedIndex].remove_style_class_name('manokwari-menu-item-focused');
+            this._menuItems[this._focusedIndex].remove_style_class_name('praya-menu-item-focused');
         }
 
         this._focusedIndex = index;
@@ -1029,7 +1029,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         // Add highlight to new item
         if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
             let item = this._menuItems[this._focusedIndex];
-            item.add_style_class_name('manokwari-menu-item-focused');
+            item.add_style_class_name('praya-menu-item-focused');
 
             // Scroll item into view if needed
             if (this._currentScrollView) {
@@ -1110,7 +1110,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Create a container for the whole view
         let contentContainer = new St.BoxLayout({
-            style_class: 'manokwari-content-container',
+            style_class: 'praya-content-container',
             vertical: true,
             x_expand: true,
             y_expand: true,
@@ -1118,7 +1118,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Scroll view takes remaining space (y_expand)
         let scrollView = new St.ScrollView({
-            style_class: 'manokwari-scroll',
+            style_class: 'praya-scroll',
             hscrollbar_policy: St.PolicyType.NEVER,
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
             x_expand: true,
@@ -1126,7 +1126,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         });
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -1158,7 +1158,7 @@ class ManokwariIndicator extends PanelMenu.Button {
                 navItems.push(appItem);
             }
             // Separator after favourites
-            menuBox.add_child(new St.Widget({style_class: 'manokwari-separator', height: 1, x_expand: true}));
+            menuBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
         }
 
         // Applications item (has children)
@@ -1188,7 +1188,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         navItems.push(placesItem);
 
         // Separator
-        menuBox.add_child(new St.Widget({style_class: 'manokwari-separator', height: 1, x_expand: true}));
+        menuBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
 
         // Settings item (has children)
         let settingsItem = this._createMenuItem('Settings', 'preferences-system-symbolic', true);
@@ -1267,7 +1267,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let scrollView = this._createScrollView();
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -1329,7 +1329,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         if (menuBox.get_n_children() === 0) {
             let noAppsLabel = new St.Label({
                 text: 'No applications found.\nCategories: ' + Object.keys(this._categories).length,
-                style_class: 'manokwari-no-results',
+                style_class: 'praya-no-results',
                 x_align: Clutter.ActorAlign.CENTER,
             });
             menuBox.add_child(noAppsLabel);
@@ -1348,7 +1348,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let scrollView = this._createScrollView();
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -1389,7 +1389,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let scrollView = this._createScrollView();
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -1559,7 +1559,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let containerHeight = this._slidingContainer.height;
 
         let scrollView = new St.ScrollView({
-            style_class: 'manokwari-scroll',
+            style_class: 'praya-scroll',
             hscrollbar_policy: St.PolicyType.NEVER,
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
             x_expand: true,
@@ -1568,7 +1568,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         scrollView.set_size(PANEL_WIDTH, containerHeight);
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -1578,7 +1578,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         if (matchedApps.length === 0) {
             let noResultsLabel = new St.Label({
                 text: 'No applications found',
-                style_class: 'manokwari-no-results',
+                style_class: 'praya-no-results',
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             });
@@ -1642,7 +1642,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
     _createMenuItem(text, iconName, hasChildren) {
         let item = new St.BoxLayout({
-            style_class: 'manokwari-menu-item',
+            style_class: 'praya-menu-item',
             reactive: true,
             track_hover: true,
             height: 48,
@@ -1651,14 +1651,14 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         let icon = new St.Icon({
             icon_name: iconName,
-            style_class: 'manokwari-menu-item-icon',
+            style_class: 'praya-menu-item-icon',
             icon_size: 24,
         });
         item.add_child(icon);
 
         let label = new St.Label({
             text: text,
-            style_class: 'manokwari-menu-item-label',
+            style_class: 'praya-menu-item-label',
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -1667,7 +1667,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         if (hasChildren) {
             let arrow = new St.Icon({
                 icon_name: 'go-next-symbolic',
-                style_class: 'manokwari-menu-item-arrow',
+                style_class: 'praya-menu-item-arrow',
                 icon_size: 16,
             });
             item.add_child(arrow);
@@ -1678,7 +1678,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
     _createAppMenuItem(app) {
         let item = new St.BoxLayout({
-            style_class: 'manokwari-menu-item',
+            style_class: 'praya-menu-item',
             reactive: true,
             track_hover: true,
             height: 48,
@@ -1686,12 +1686,12 @@ class ManokwariIndicator extends PanelMenu.Button {
         });
 
         let icon = app.create_icon_texture(24);
-        icon.style_class = 'manokwari-menu-item-icon';
+        icon.style_class = 'praya-menu-item-icon';
         item.add_child(icon);
 
         let label = new St.Label({
             text: app.get_name(),
-            style_class: 'manokwari-menu-item-label',
+            style_class: 'praya-menu-item-label',
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -1702,7 +1702,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
     _createAppMenuItemFromData(appData, showFavStar = false) {
         let item = new St.BoxLayout({
-            style_class: 'manokwari-menu-item',
+            style_class: 'praya-menu-item',
             reactive: true,
             track_hover: true,
             height: 48,
@@ -1725,12 +1725,12 @@ class ManokwariIndicator extends PanelMenu.Button {
                 icon_size: 24,
             });
         }
-        icon.style_class = 'manokwari-menu-item-icon';
+        icon.style_class = 'praya-menu-item-icon';
         item.add_child(icon);
 
         let label = new St.Label({
             text: appData.name,
-            style_class: 'manokwari-menu-item-label',
+            style_class: 'praya-menu-item-label',
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -1741,7 +1741,7 @@ class ManokwariIndicator extends PanelMenu.Button {
             let pinIcon = new St.Icon({
                 icon_name: 'view-pin-symbolic',
                 icon_size: 16,
-                style_class: 'manokwari-favourite-pin',
+                style_class: 'praya-favourite-pin',
             });
             pinIcon.set_pivot_point(0.5, 0.5);
             pinIcon.rotation_angle_z = 45;
@@ -1764,7 +1764,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
     _createExpandableMenuItem(text, iconName) {
         let item = new St.BoxLayout({
-            style_class: 'manokwari-menu-item',
+            style_class: 'praya-menu-item',
             reactive: true,
             track_hover: true,
             height: 48,
@@ -1773,14 +1773,14 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         let icon = new St.Icon({
             icon_name: iconName,
-            style_class: 'manokwari-menu-item-icon',
+            style_class: 'praya-menu-item-icon',
             icon_size: 24,
         });
         item.add_child(icon);
 
         let label = new St.Label({
             text: text,
-            style_class: 'manokwari-menu-item-label',
+            style_class: 'praya-menu-item-label',
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -1789,7 +1789,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         // Up arrow (collapsed state)
         let arrow = new St.Icon({
             icon_name: 'go-up-symbolic',
-            style_class: 'manokwari-menu-item-arrow',
+            style_class: 'praya-menu-item-arrow',
             icon_size: 16,
         });
         item.add_child(arrow);
@@ -1799,7 +1799,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
     _createSubMenuItem(text) {
         let item = new St.BoxLayout({
-            style_class: 'manokwari-submenu-item',
+            style_class: 'praya-submenu-item',
             reactive: true,
             track_hover: true,
             height: 42,
@@ -1808,7 +1808,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         let label = new St.Label({
             text: text,
-            style_class: 'manokwari-menu-item-label',
+            style_class: 'praya-menu-item-label',
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -1823,7 +1823,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let user = userManager.get_user(GLib.get_user_name());
 
         let item = new St.BoxLayout({
-            style_class: 'manokwari-user-item',
+            style_class: 'praya-user-item',
             reactive: true,
             track_hover: true,
             x_expand: true,
@@ -1834,12 +1834,12 @@ class ManokwariIndicator extends PanelMenu.Button {
         let avatar;
         if (avatarFile && GLib.file_test(avatarFile, GLib.FileTest.EXISTS)) {
             avatar = new St.Bin({
-                style_class: 'manokwari-user-avatar',
+                style_class: 'praya-user-avatar',
                 style: `background-image: url("${avatarFile}");`,
             });
         } else {
             avatar = new St.Bin({
-                style_class: 'manokwari-user-avatar',
+                style_class: 'praya-user-avatar',
                 child: new St.Icon({
                     icon_name: 'avatar-default-symbolic',
                     icon_size: 32,
@@ -1858,14 +1858,14 @@ class ManokwariIndicator extends PanelMenu.Button {
         let fullName = user.get_real_name() || GLib.get_user_name();
         let fullNameLabel = new St.Label({
             text: fullName,
-            style_class: 'manokwari-user-fullname',
+            style_class: 'praya-user-fullname',
         });
         nameBox.add_child(fullNameLabel);
 
         let username = GLib.get_user_name();
         let usernameLabel = new St.Label({
             text: username,
-            style_class: 'manokwari-user-username',
+            style_class: 'praya-user-username',
         });
         nameBox.add_child(usernameLabel);
 
@@ -1894,7 +1894,7 @@ class ManokwariIndicator extends PanelMenu.Button {
     _createBottomSection() {
         // Bottom section - sticks to bottom (User + Lock + Log Out + Power)
         let bottomSection = new St.BoxLayout({
-            style_class: 'manokwari-bottom-section',
+            style_class: 'praya-bottom-section',
             vertical: true,
             x_expand: true,
         });
@@ -1904,7 +1904,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         bottomSection.add_child(userItem);
 
         // Separator between user and session actions
-        bottomSection.add_child(new St.Widget({style_class: 'manokwari-separator', height: 1, x_expand: true}));
+        bottomSection.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
 
         // Lock item (same level as Power)
         let lockItem = this._createMenuItem('Lock', 'system-lock-screen-symbolic', false);
@@ -1930,7 +1930,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
         // Power options container (initially hidden with 0 height for animation)
         let powerOptionsBox = new St.BoxLayout({
-            style_class: 'manokwari-power-options',
+            style_class: 'praya-power-options',
             vertical: true,
             x_expand: true,
             clip_to_allocation: true,
@@ -2018,7 +2018,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         if (showBack) {
             // Show back button with title label (no search entry)
             let backButton = new St.Button({
-                style_class: 'manokwari-back-button',
+                style_class: 'praya-back-button',
                 child: new St.Icon({
                     icon_name: 'go-previous-symbolic',
                     icon_size: 20,
@@ -2033,7 +2033,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
             let headerLabel = new St.Label({
                 text: title,
-                style_class: 'manokwari-header-label',
+                style_class: 'praya-header-label',
                 y_align: Clutter.ActorAlign.CENTER,
                 x_expand: true,
             });
@@ -2041,7 +2041,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         } else {
             // Show search entry (main menu view) - entry first, icon on right
             this._searchEntry = new St.Entry({
-                style_class: 'manokwari-search-entry',
+                style_class: 'praya-search-entry',
                 hint_text: 'Search applications...',
                 can_focus: true,
                 x_expand: true,
@@ -2068,7 +2068,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
             let searchIcon = new St.Icon({
                 icon_name: 'edit-find-symbolic',
-                style_class: 'manokwari-search-icon',
+                style_class: 'praya-search-icon',
                 icon_size: 16,
             });
             this._header.add_child(searchIcon);
@@ -2093,7 +2093,7 @@ class ManokwariIndicator extends PanelMenu.Button {
 
             let scrollView = this._createScrollView();
             let menuBox = new St.BoxLayout({
-                style_class: 'manokwari-menu-box',
+                style_class: 'praya-menu-box',
                 vertical: true,
                 x_expand: true,
             });
@@ -2160,7 +2160,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let scrollView = this._createScrollView();
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -2200,7 +2200,7 @@ class ManokwariIndicator extends PanelMenu.Button {
         let scrollView = this._createScrollView();
 
         let menuBox = new St.BoxLayout({
-            style_class: 'manokwari-menu-box',
+            style_class: 'praya-menu-box',
             vertical: true,
             x_expand: true,
         });
@@ -2273,20 +2273,20 @@ class ManokwariIndicator extends PanelMenu.Button {
     }
 });
 
-export default class ManokwariExtension extends Extension {
+export default class PrayaExtension extends Extension {
     enable() {
         // Save and apply gsettings
         this._applySettings();
 
-        this._indicator = new ManokwariIndicator();
+        this._indicator = new PrayaIndicator();
         // Add to the left side of the panel
-        Main.panel.addToStatusArea('manokwari-indicator', this._indicator, 0, 'left');
+        Main.panel.addToStatusArea('praya-indicator', this._indicator, 0, 'left');
 
         // Hide activities button
         this._hideActivities();
 
         // Add taskbar to the left box, after indicator (index 1)
-        this._taskbar = new ManokwariTaskbar();
+        this._taskbar = new PrayaTaskbar();
         Main.panel._leftBox.insert_child_at_index(this._taskbar, 1);
 
         // Move date/time to the right (left of quick settings)
