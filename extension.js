@@ -1190,11 +1190,19 @@ class PrayaIndicator extends PanelMenu.Button {
         // Separator
         menuBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
 
-        // Settings item (has children)
-        let settingsItem = this._createMenuItem('Settings', 'preferences-system-symbolic', true);
-        settingsItem._hasChildren = true;
+        // System Settings item (opens GNOME Settings directly)
+        let settingsItem = this._createMenuItem('System Settings', 'preferences-system-symbolic', false);
+        settingsItem._hasChildren = false;
         settingsItem._activateCallback = () => {
-            if (!this._isAnimating) this._showSettingsMenu();
+            let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
+            if (appInfo) {
+                appInfo.launch([], null);
+            } else {
+                appInfo = GioUnix.DesktopAppInfo.new('org.gnome.Settings.desktop');
+                if (appInfo)
+                    appInfo.launch([], null);
+            }
+            this._hidePanel();
         };
         settingsItem.connect('button-press-event', () => {
             settingsItem._activateCallback();
