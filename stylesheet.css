@@ -496,6 +496,7 @@
 
 .praya-chatbot-input StLabel {
     color: #888888;
+    padding-top: 0;
 }
 
 .praya-chatbot-send-btn {
