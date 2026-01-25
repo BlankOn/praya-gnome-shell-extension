@@ -46,12 +46,6 @@
     color: #888888;
 }
 
-.praya-no-results {
-    color: #888888;
-    font-size: 1em;
-    padding: 24px 16px;
-}
-
 .praya-back-button {
     padding: 0;
     border-radius: 25px;
@@ -291,5 +285,228 @@
     border-radius: 4px;
     font-size: 0.9em;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Praya Preferences Dialog */
+.praya-preferences-dialog .modal-dialog {
+    background-color: #2d2d2d;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.praya-preferences-box {
+    padding: 24px;
+    min-width: 400px;
+    min-height: 200px;
+}
+
+.praya-preferences-title {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 16px;
+}
+
+.praya-preferences-content {
+    font-size: 1em;
+    color: #888888;
+    margin-top: 24px;
+}
+
+.praya-preferences-section-header {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #cccccc;
+    margin-top: 16px;
+    margin-bottom: 12px;
+}
+
+.praya-preferences-row {
+    margin: 8px 0;
+    spacing: 12px;
+}
+
+.praya-preferences-label {
+    color: #cccccc;
+    font-size: 1em;
+    min-width: 80px;
+}
+
+.praya-preferences-combo {
+    background-color: #404040;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 1em;
+}
+
+.praya-preferences-combo:hover {
+    background-color: #505050;
+}
+
+.praya-preferences-entry {
+    background-color: #404040;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 1em;
+    caret-color: #ffffff;
+}
+
+.praya-preferences-entry:focus {
+    background-color: #505050;
+}
+
+.praya-preferences-toggle-btn {
+    background-color: #404040;
+    border-radius: 6px;
+    padding: 8px;
+    margin-left: 8px;
+}
+
+.praya-preferences-toggle-btn:hover {
+    background-color: #505050;
+}
+
+/* No results text - centered */
+.praya-no-results {
+    color: #888888;
+    font-size: 1em;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+/* Chatbot Panel Styles */
+.praya-chatbot-panel {
+    background-color: #2d2d2d;
+    border-radius: 16px;
+}
+
+.praya-chatbot-header {
+    background-color: #383838;
+    padding: 12px 16px;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 1px solid #404040;
+}
+
+.praya-chatbot-icon {
+    color: #62a0ea;
+    margin-right: 8px;
+}
+
+.praya-chatbot-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.praya-chatbot-model {
+    font-size: 0.8em;
+    color: #888888;
+}
+
+.praya-chatbot-close-btn {
+    background-color: transparent;
+    border-radius: 20px;
+    padding: 8px;
+}
+
+.praya-chatbot-close-btn:hover {
+    background-color: #505050;
+}
+
+.praya-chatbot-scroll-container {
+    background-color: transparent;
+}
+
+.praya-chatbot-scroll {
+    background-color: transparent;
+}
+
+.praya-chatbot-scroll StScrollBar {
+    padding: 4px;
+    margin-right: 2px;
+}
+
+.praya-chatbot-messages {
+    padding: 12px;
+    spacing: 8px;
+}
+
+.praya-chatbot-messages > * {
+    /* Ensure each message row doesn't shrink */
+    min-height: 20px;
+}
+
+.praya-chatbot-message-user {
+    background-color: #3584e4;
+    border-radius: 12px 12px 4px 12px;
+    padding: 10px 14px;
+    margin-left: 60px;
+    margin-right: 8px;
+}
+
+.praya-chatbot-message-assistant {
+    background-color: #404040;
+    border-radius: 12px 12px 12px 4px;
+    padding: 10px 14px;
+    margin-right: 60px;
+    margin-left: 8px;
+}
+
+.praya-chatbot-message-text {
+    color: #ffffff;
+    font-size: 0.95em;
+}
+
+/* Allow text selection */
+.praya-chatbot-message-text:focus {
+    background-color: transparent;
+}
+
+.praya-chatbot-typing {
+    opacity: 0.7;
+}
+
+.praya-chatbot-typing-text {
+    font-style: italic;
+}
+
+.praya-chatbot-input-area {
+    background-color: #383838;
+    padding: 8px 12px;
+    border-radius: 0 0 16px 16px;
+    border-top: 1px solid #404040;
+    spacing: 8px;
+}
+
+.praya-chatbot-input {
+    background-color: #404040;
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-size: 1em;
+    caret-color: #ffffff;
+    min-height: 48px;
+}
+
+.praya-chatbot-input:focus {
+    background-color: #505050;
+}
+
+.praya-chatbot-input StLabel {
+    color: #888888;
+}
+
+.praya-chatbot-send-btn {
+    background-color: #3584e4;
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 48px;
+    min-width: 48px;
+}
+
+.praya-chatbot-send-btn:hover {
+    background-color: #4a90e2;
 }
 

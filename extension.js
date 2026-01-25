@@ -24,14 +24,30 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import AccountsService from 'gi://AccountsService';
+import Soup from 'gi://Soup?version=3.0';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 const FAVOURITES_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'praya', 'favourites.json']);
+const CHATBOT_SETTINGS_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'praya', 'chatbot.json']);
+const CHATBOT_PANEL_WIDTH = 400;
+const PROVIDERS = {
+    anthropic: {
+        name: 'Anthropic',
+        models: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-haiku-20241022'],
+        endpoint: 'https://api.anthropic.com/v1/messages'
+    },
+    openai: {
+        name: 'ChatGPT',
+        models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+        endpoint: 'https://api.openai.com/v1/chat/completions'
+    }
+};
 
 const PANEL_WIDTH = 325;
 const HEADER_HEIGHT = 50;
@@ -39,6 +55,672 @@ const ANIMATION_DURATION = 200;
 const MARGIN_LEFT = 8;
 const MARGIN_TOP = 8;
 const MARGIN_BOTTOM = 8;
+
+// ChatbotSettings class for managing chatbot configuration
+class ChatbotSettings {
+    constructor() {
+        this._settings = {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-20250514',
+            apiKey: ''
+        };
+        this._load();
+    }
+
+    _load() {
+        try {
+            let file = Gio.File.new_for_path(CHATBOT_SETTINGS_FILE);
+            if (file.query_exists(null)) {
+                let [success, contents] = file.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let json = decoder.decode(contents);
+                    let parsed = JSON.parse(json);
+                    this._settings = {...this._settings, ...parsed};
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading chatbot settings: ${e.message}`);
+        }
+    }
+
+    save() {
+        try {
+            let file = Gio.File.new_for_path(CHATBOT_SETTINGS_FILE);
+            let parent = file.get_parent();
+            if (!parent.query_exists(null)) {
+                parent.make_directory_with_parents(null);
+            }
+            let json = JSON.stringify(this._settings);
+            let encoder = new TextEncoder();
+            let contents = encoder.encode(json);
+            file.replace_contents(contents, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+        } catch (e) {
+            log(`Praya: Error saving chatbot settings: ${e.message}`);
+        }
+    }
+
+    get provider() { return this._settings.provider; }
+    set provider(value) { this._settings.provider = value; }
+
+    get model() { return this._settings.model; }
+    set model(value) { this._settings.model = value; }
+
+    get apiKey() { return this._settings.apiKey; }
+    set apiKey(value) { this._settings.apiKey = value; }
+
+    isConfigured() {
+        return this._settings.apiKey && this._settings.apiKey.length > 0;
+    }
+
+    reload() {
+        this._load();
+    }
+}
+
+// ChatbotAPI class for making API calls
+class ChatbotAPI {
+    constructor(settings) {
+        this._settings = settings;
+        this._session = new Soup.Session();
+    }
+
+    sendMessage(messages, callback) {
+        let provider = this._settings.provider;
+        let providerConfig = PROVIDERS[provider];
+
+        if (!providerConfig) {
+            callback(null, 'Invalid provider');
+            return;
+        }
+
+        let message = new Soup.Message({
+            method: 'POST',
+            uri: GLib.Uri.parse(providerConfig.endpoint, GLib.UriFlags.NONE),
+        });
+
+        let requestBody;
+        if (provider === 'anthropic') {
+            requestBody = JSON.stringify({
+                model: this._settings.model,
+                max_tokens: 1024,
+                messages: messages.map(m => ({
+                    role: m.role === 'user' ? 'user' : 'assistant',
+                    content: m.content
+                }))
+            });
+            message.request_headers.append('x-api-key', this._settings.apiKey);
+            message.request_headers.append('anthropic-version', '2023-06-01');
+            message.request_headers.append('content-type', 'application/json');
+        } else {
+            requestBody = JSON.stringify({
+                model: this._settings.model,
+                messages: messages.map(m => ({
+                    role: m.role,
+                    content: m.content
+                }))
+            });
+            message.request_headers.append('Authorization', `Bearer ${this._settings.apiKey}`);
+            message.request_headers.append('Content-Type', 'application/json');
+        }
+
+        message.set_request_body_from_bytes('application/json',
+            new GLib.Bytes(new TextEncoder().encode(requestBody)));
+
+        this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (session, result) => {
+            try {
+                let bytes = session.send_and_read_finish(result);
+                let decoder = new TextDecoder('utf-8');
+                let responseText = decoder.decode(bytes.get_data());
+                let response = JSON.parse(responseText);
+
+                if (message.get_status() !== Soup.Status.OK) {
+                    let errorMsg = response.error?.message || `HTTP ${message.get_status()}`;
+                    callback(null, errorMsg);
+                    return;
+                }
+
+                let content;
+                if (provider === 'anthropic') {
+                    content = response.content?.[0]?.text || '';
+                } else {
+                    content = response.choices?.[0]?.message?.content || '';
+                }
+                callback(content, null);
+            } catch (e) {
+                callback(null, e.message);
+            }
+        });
+    }
+}
+
+const PrayaPreferencesDialog = GObject.registerClass(
+class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
+    _init() {
+        super._init({
+            styleClass: 'praya-preferences-dialog',
+            destroyOnClose: true,
+        });
+
+        this._chatbotSettings = new ChatbotSettings();
+
+        // Dialog title
+        let titleLabel = new St.Label({
+            text: 'Praya Preferences',
+            style_class: 'praya-preferences-title',
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+
+        // Build content box
+        let contentBox = new St.BoxLayout({
+            vertical: true,
+            style_class: 'praya-preferences-box',
+            x_expand: true,
+            y_expand: true,
+        });
+        contentBox.add_child(titleLabel);
+
+        // AI Chatbot section header
+        let chatbotHeader = new St.Label({
+            text: 'AI Chatbot Settings',
+            style_class: 'praya-preferences-section-header',
+        });
+        contentBox.add_child(chatbotHeader);
+
+        // Provider selection
+        let providerBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let providerLabel = new St.Label({
+            text: 'Provider:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        providerBox.add_child(providerLabel);
+
+        this._providerCombo = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: PROVIDERS[this._chatbotSettings.provider]?.name || 'Anthropic',
+            x_expand: true,
+        });
+        this._currentProvider = this._chatbotSettings.provider;
+        this._providerCombo.connect('clicked', () => {
+            // Toggle between providers
+            this._currentProvider = this._currentProvider === 'anthropic' ? 'openai' : 'anthropic';
+            this._providerCombo.label = PROVIDERS[this._currentProvider].name;
+            this._updateModelCombo();
+        });
+        providerBox.add_child(this._providerCombo);
+        contentBox.add_child(providerBox);
+
+        // Model selection
+        let modelBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let modelLabel = new St.Label({
+            text: 'Model:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        modelBox.add_child(modelLabel);
+
+        this._modelCombo = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: this._chatbotSettings.model,
+            x_expand: true,
+        });
+        this._currentModelIndex = 0;
+        let models = PROVIDERS[this._currentProvider].models;
+        for (let i = 0; i < models.length; i++) {
+            if (models[i] === this._chatbotSettings.model) {
+                this._currentModelIndex = i;
+                break;
+            }
+        }
+        this._modelCombo.connect('clicked', () => {
+            let models = PROVIDERS[this._currentProvider].models;
+            this._currentModelIndex = (this._currentModelIndex + 1) % models.length;
+            this._modelCombo.label = models[this._currentModelIndex];
+        });
+        modelBox.add_child(this._modelCombo);
+        contentBox.add_child(modelBox);
+
+        // API Key input
+        let apiKeyBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let apiKeyLabel = new St.Label({
+            text: 'API Key:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        apiKeyBox.add_child(apiKeyLabel);
+
+        this._apiKeyEntry = new St.Entry({
+            style_class: 'praya-preferences-entry',
+            hint_text: 'Enter your API key',
+            can_focus: true,
+            x_expand: true,
+        });
+        this._apiKeyEntry.clutter_text.set_password_char('\u25cf');
+        if (this._chatbotSettings.apiKey) {
+            this._apiKeyEntry.set_text(this._chatbotSettings.apiKey);
+        }
+        apiKeyBox.add_child(this._apiKeyEntry);
+
+        // Show/hide toggle button
+        this._showKeyButton = new St.Button({
+            style_class: 'praya-preferences-toggle-btn',
+            child: new St.Icon({
+                icon_name: 'view-reveal-symbolic',
+                icon_size: 16,
+            }),
+        });
+        this._keyVisible = false;
+        this._showKeyButton.connect('clicked', () => {
+            this._keyVisible = !this._keyVisible;
+            this._apiKeyEntry.clutter_text.set_password_char(this._keyVisible ? '' : '\u25cf');
+            this._showKeyButton.child.icon_name = this._keyVisible ? 'view-conceal-symbolic' : 'view-reveal-symbolic';
+        });
+        apiKeyBox.add_child(this._showKeyButton);
+        contentBox.add_child(apiKeyBox);
+
+        this.contentLayout.add_child(contentBox);
+
+        // Add Save and Cancel buttons
+        this.addButton({
+            label: 'Cancel',
+            action: () => this.close(),
+        });
+        this.addButton({
+            label: 'Save',
+            action: () => this._save(),
+            default: true,
+        });
+    }
+
+    _updateModelCombo() {
+        let models = PROVIDERS[this._currentProvider].models;
+        this._currentModelIndex = 0;
+        this._modelCombo.label = models[0];
+    }
+
+    _save() {
+        this._chatbotSettings.provider = this._currentProvider;
+        this._chatbotSettings.model = PROVIDERS[this._currentProvider].models[this._currentModelIndex];
+        this._chatbotSettings.apiKey = this._apiKeyEntry.get_text();
+        this._chatbotSettings.save();
+        this.close();
+    }
+});
+
+// PrayaChatbotPanel - Full chat interface
+const CHATBOT_HEADER_HEIGHT = 60;
+const CHATBOT_INPUT_HEIGHT = 80; // Height for 2-line textarea
+
+const PrayaChatbotPanel = GObject.registerClass(
+class PrayaChatbotPanel extends St.BoxLayout {
+    _init(settings, onClose, panelHeight) {
+        super._init({
+            style_class: 'praya-chatbot-panel',
+            vertical: true,
+            x_expand: true,
+            y_expand: true,
+        });
+
+        this._settings = settings;
+        this._onClose = onClose;
+        this._api = new ChatbotAPI(settings);
+        this._messages = [];
+        this._isWaiting = false;
+        this._panelHeight = panelHeight || 600;
+
+        // Header with fixed height
+        let header = new St.BoxLayout({
+            style_class: 'praya-chatbot-header',
+            x_expand: true,
+            height: CHATBOT_HEADER_HEIGHT,
+        });
+
+        let titleBox = new St.BoxLayout({
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        let aiIcon = new St.Icon({
+            icon_name: 'user-available-symbolic',
+            icon_size: 20,
+            style_class: 'praya-chatbot-icon',
+        });
+        titleBox.add_child(aiIcon);
+
+        let titleContainer = new St.BoxLayout({
+            vertical: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        let titleLabel = new St.Label({
+            text: 'Artificial Intelligence',
+            style_class: 'praya-chatbot-title',
+        });
+        titleContainer.add_child(titleLabel);
+
+        let modelLabel = new St.Label({
+            text: settings.model,
+            style_class: 'praya-chatbot-model',
+        });
+        titleContainer.add_child(modelLabel);
+
+        titleBox.add_child(titleContainer);
+        header.add_child(titleBox);
+
+        let closeButton = new St.Button({
+            style_class: 'praya-chatbot-close-btn',
+            child: new St.Icon({
+                icon_name: 'window-close-symbolic',
+                icon_size: 16,
+            }),
+        });
+        closeButton.connect('clicked', () => {
+            // Defer the callback to allow click event to complete before destroying UI
+            if (this._onClose) {
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._onClose();
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        });
+        header.add_child(closeButton);
+
+        this.add_child(header);
+
+        // Calculate scroll view height (total height - header - input)
+        let scrollHeight = this._panelHeight - CHATBOT_HEADER_HEIGHT - CHATBOT_INPUT_HEIGHT;
+
+        // Create a container for the scroll view with fixed height
+        let scrollContainer = new St.Widget({
+            style_class: 'praya-chatbot-scroll-container',
+            x_expand: true,
+            y_expand: false,
+            height: scrollHeight,
+            clip_to_allocation: true,
+        });
+
+        // Message history scroll view
+        this._scrollView = new St.ScrollView({
+            style_class: 'praya-chatbot-scroll',
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            x_expand: true,
+            y_expand: true,
+            enable_mouse_scrolling: true,
+        });
+        this._scrollView.set_size(CHATBOT_PANEL_WIDTH, scrollHeight);
+
+        this._messagesBox = new St.BoxLayout({
+            style_class: 'praya-chatbot-messages',
+            vertical: true,
+            x_expand: true,
+            y_expand: false,
+        });
+
+        this._scrollView.set_child(this._messagesBox);
+        scrollContainer.add_child(this._scrollView);
+        this.add_child(scrollContainer);
+
+        // Input area with fixed height for 2-line textarea
+        let inputArea = new St.BoxLayout({
+            style_class: 'praya-chatbot-input-area',
+            x_expand: true,
+            height: CHATBOT_INPUT_HEIGHT,
+        });
+
+        this._inputEntry = new St.Entry({
+            style_class: 'praya-chatbot-input',
+            hint_text: 'Type a message... (Shift+Enter for new line)',
+            can_focus: true,
+            x_expand: true,
+        });
+        // Enable multi-line input
+        this._inputEntry.clutter_text.set_single_line_mode(false);
+        this._inputEntry.clutter_text.set_line_wrap(true);
+        this._inputEntry.clutter_text.set_line_wrap_mode(0); // WORD
+        this._inputEntry.clutter_text.connect('key-press-event', (actor, event) => {
+            let symbol = event.get_key_symbol();
+            let state = event.get_state();
+            let shiftPressed = (state & Clutter.ModifierType.SHIFT_MASK) !== 0;
+
+            if ((symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter) && !shiftPressed) {
+                // Enter without Shift sends the message
+                this._sendCurrentMessage();
+                return Clutter.EVENT_STOP;
+            }
+            // Shift+Enter allows new line (default behavior)
+            return Clutter.EVENT_PROPAGATE;
+        });
+        inputArea.add_child(this._inputEntry);
+
+        let sendButton = new St.Button({
+            style_class: 'praya-chatbot-send-btn',
+            child: new St.Icon({
+                icon_name: 'mail-send-symbolic',
+                icon_size: 16,
+            }),
+            y_align: Clutter.ActorAlign.END,
+        });
+        sendButton.connect('clicked', () => this._sendCurrentMessage());
+        inputArea.add_child(sendButton);
+
+        this.add_child(inputArea);
+    }
+
+    sendInitialMessage(message) {
+        if (message && message.trim() !== '') {
+            this._addMessage('user', message);
+            this._sendToAPI();
+
+            // Focus input after initial message
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._inputEntry.grab_key_focus();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    focusInput() {
+        this._inputEntry.grab_key_focus();
+    }
+
+    getMessages() {
+        return [...this._messages];
+    }
+
+    restoreMessages(messages) {
+        if (!messages || messages.length === 0) return;
+
+        // Restore messages to both internal array and UI
+        this._messages = [...messages];
+
+        for (let msg of messages) {
+            this._addMessageToUI(msg.role, msg.content);
+        }
+    }
+
+    _addMessageToUI(role, content) {
+        // Calculate max width for message bubble (panel width - margins)
+        let maxWidth = CHATBOT_PANEL_WIDTH - 80;
+
+        let messageContainer = new St.BoxLayout({
+            x_expand: true,
+            y_expand: false,
+            x_align: role === 'user' ? Clutter.ActorAlign.END : Clutter.ActorAlign.START,
+        });
+
+        let messageBox = new St.BoxLayout({
+            style_class: role === 'user' ? 'praya-chatbot-message-user' : 'praya-chatbot-message-assistant',
+            vertical: true,
+            x_expand: false,
+            y_expand: false,
+        });
+        messageBox.set_style(`max-width: ${maxWidth}px;`);
+
+        // Parse markdown to Pango markup for styling
+        let formattedContent = this._parseMarkdown(content);
+
+        let messageLabel = new St.Label({
+            style_class: 'praya-chatbot-message-text',
+            x_expand: false,
+            y_expand: false,
+        });
+        // Use markup for styled text
+        messageLabel.clutter_text.set_markup(formattedContent);
+        messageLabel.clutter_text.set_line_wrap(true);
+        messageLabel.clutter_text.set_line_wrap_mode(0); // WORD
+        // Allow text selection and copying
+        messageLabel.clutter_text.set_selectable(true);
+        messageLabel.clutter_text.set_reactive(true);
+        messageBox.add_child(messageLabel);
+
+        messageContainer.add_child(messageBox);
+        this._messagesBox.add_child(messageContainer);
+
+        // Scroll to bottom after layout update
+        this._scrollToBottom();
+    }
+
+    _scrollToBottom() {
+        // Use multiple attempts to ensure scroll happens after layout
+        let attempts = 0;
+        let scrollFunc = () => {
+            if (this._scrollView && this._scrollView.vscroll) {
+                let adjustment = this._scrollView.vscroll.adjustment;
+                let maxScroll = adjustment.upper - adjustment.page_size;
+                if (maxScroll > 0) {
+                    adjustment.set_value(maxScroll);
+                }
+            }
+            attempts++;
+            // Try a few times to ensure layout is complete
+            if (attempts < 3) {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, scrollFunc);
+            }
+            return GLib.SOURCE_REMOVE;
+        };
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, scrollFunc);
+    }
+
+    _parseMarkdown(text) {
+        // Escape special Pango markup characters first
+        let escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // Parse code blocks (```code```) - must be done before inline code
+        escaped = escaped.replace(/```([\s\S]*?)```/g, '<tt>$1</tt>');
+
+        // Parse inline code (`code`)
+        escaped = escaped.replace(/`([^`]+)`/g, '<tt>$1</tt>');
+
+        // Parse bold (**text** or __text__) - must be done before italic
+        escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        escaped = escaped.replace(/__(.+?)__/g, '<b>$1</b>');
+
+        // Parse italic (*text* or _text_)
+        escaped = escaped.replace(/\*(.+?)\*/g, '<i>$1</i>');
+        escaped = escaped.replace(/\b_(.+?)_\b/g, '<i>$1</i>');
+
+        return escaped;
+    }
+
+    _sendCurrentMessage() {
+        if (this._isWaiting) return;
+
+        let text = this._inputEntry.get_text().trim();
+        if (text === '') return;
+
+        this._inputEntry.set_text('');
+        this._addMessage('user', text);
+        this._sendToAPI();
+    }
+
+    _addMessage(role, content) {
+        this._messages.push({role, content});
+        this._addMessageToUI(role, content);
+    }
+
+    _addTypingIndicator() {
+        this._typingContainer = new St.BoxLayout({
+            x_expand: true,
+            y_expand: false,
+            x_align: Clutter.ActorAlign.START,
+        });
+
+        this._typingBox = new St.BoxLayout({
+            style_class: 'praya-chatbot-message-assistant praya-chatbot-typing',
+            x_expand: false,
+            y_expand: false,
+        });
+
+        this._typingLabel = new St.Label({
+            text: 'Thinking.',
+            style_class: 'praya-chatbot-message-text praya-chatbot-typing-text',
+        });
+        this._typingBox.add_child(this._typingLabel);
+
+        this._typingContainer.add_child(this._typingBox);
+        this._messagesBox.add_child(this._typingContainer);
+
+        // Animate the dots
+        this._typingDotCount = 1;
+        this._typingAnimationId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            if (!this._typingLabel) {
+                this._typingAnimationId = null;
+                return GLib.SOURCE_REMOVE;
+            }
+            this._typingDotCount = (this._typingDotCount % 3) + 1;
+            let dots = '.'.repeat(this._typingDotCount);
+            this._typingLabel.set_text(`Thinking${dots}`);
+            return GLib.SOURCE_CONTINUE;
+        });
+
+        // Scroll to bottom
+        this._scrollToBottom();
+    }
+
+    _removeTypingIndicator() {
+        // Stop the animation timer
+        if (this._typingAnimationId) {
+            GLib.source_remove(this._typingAnimationId);
+            this._typingAnimationId = null;
+        }
+        this._typingLabel = null;
+        this._typingBox = null;
+        if (this._typingContainer) {
+            this._typingContainer.destroy();
+            this._typingContainer = null;
+        }
+    }
+
+    _sendToAPI() {
+        this._isWaiting = true;
+        this._addTypingIndicator();
+
+        this._api.sendMessage(this._messages, (response, error) => {
+            this._removeTypingIndicator();
+            this._isWaiting = false;
+
+            if (error) {
+                this._addMessage('assistant', `Error: ${error}`);
+            } else if (response) {
+                this._addMessage('assistant', response);
+            }
+        });
+    }
+});
 
 const PrayaTaskbar = GObject.registerClass(
 class PrayaTaskbar extends St.BoxLayout {
@@ -287,6 +969,13 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // System actions for power menu
         this._systemActions = SystemActions.getDefault();
+
+        // Chatbot state
+        this._chatbotSettings = new ChatbotSettings();
+        this._isChatbotMode = false;
+        this._chatbotPanel = null;
+        this._chatbotMessages = []; // Preserve messages across panel hide/show
+        this._isTransitioningChatbot = false; // Prevent panel hide during transition
 
         // Delay initial load to ensure shell is ready (1 second)
         this._loadAppsTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -688,9 +1377,15 @@ class PrayaIndicator extends PanelMenu.Button {
         this._panel.add_child(this._slidingContainer);
         this._panel.add_child(this._bottomSection);
 
-        // Show main menu
-        this._navigationStack = [];
-        this._showMainMenu(false);
+        // Check if we should restore chatbot mode
+        if (this._isChatbotMode) {
+            // Restore chatbot mode
+            this._restoreChatbotMode();
+        } else {
+            // Show main menu
+            this._navigationStack = [];
+            this._showMainMenu(false);
+        }
 
         // Start with opacity 0 and off-screen to the left for slide-in animation
         this._panel.opacity = 0;
@@ -701,14 +1396,17 @@ class PrayaIndicator extends PanelMenu.Button {
         this._panelVisible = true;
 
         // Fade in + slide to right animation
+        let targetWidth = this._isChatbotMode ? CHATBOT_PANEL_WIDTH : PANEL_WIDTH;
         this._panel.ease({
             opacity: 255,
             x: MARGIN_LEFT,
             duration: 200,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onComplete: () => {
-                // Grab keyboard focus to prevent app windows from stealing input
-                if (this._searchEntry) {
+                // Grab keyboard focus
+                if (this._isChatbotMode && this._chatbotPanel) {
+                    this._chatbotPanel.focusInput();
+                } else if (this._searchEntry) {
                     this._searchEntry.grab_key_focus();
                 }
             }
@@ -832,7 +1530,9 @@ class PrayaIndicator extends PanelMenu.Button {
                 }
 
                 // Check if click is outside the panel (with margins)
-                let panelRight = MARGIN_LEFT + PANEL_WIDTH;
+                // Use actual panel width to handle chatbot mode (400px) vs normal mode (325px)
+                let currentPanelWidth = this._panel ? this._panel.width : PANEL_WIDTH;
+                let panelRight = MARGIN_LEFT + currentPanelWidth;
                 let panelTop = Main.panel.height + MARGIN_TOP;
                 let panelBottom = panelTop + this._panel.height;
 
@@ -861,8 +1561,8 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _scheduleHidePanel() {
-        // Don't schedule hide if context menu is open
-        if (this._contextMenu) {
+        // Don't schedule hide if context menu is open or transitioning chatbot
+        if (this._contextMenu || this._isTransitioningChatbot) {
             return;
         }
 
@@ -871,8 +1571,8 @@ class PrayaIndicator extends PanelMenu.Button {
         }
         this._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
             this._hoverTimeoutId = null;
-            // Double-check context menu isn't open when timeout fires
-            if (!this._contextMenu) {
+            // Double-check context menu isn't open and not transitioning when timeout fires
+            if (!this._contextMenu && !this._isTransitioningChatbot) {
                 this._hidePanel();
             }
             return GLib.SOURCE_REMOVE;
@@ -882,6 +1582,13 @@ class PrayaIndicator extends PanelMenu.Button {
     _hidePanel() {
         // Close context menu first
         this._closeContextMenu();
+
+        // Preserve chatbot messages before destroying panel (keep _isChatbotMode flag)
+        if (this._chatbotPanel) {
+            this._chatbotMessages = this._chatbotPanel.getMessages();
+            this._chatbotPanel.destroy();
+            this._chatbotPanel = null;
+        }
 
         if (this._hoverTimeoutId) {
             GLib.source_remove(this._hoverTimeoutId);
@@ -1211,6 +1918,21 @@ class PrayaIndicator extends PanelMenu.Button {
         menuBox.add_child(settingsItem);
         navItems.push(settingsItem);
 
+        // Praya Preferences item (opens preferences dialog)
+        let prefsItem = this._createMenuItem('Praya Preferences', 'preferences-other-symbolic', false);
+        prefsItem._hasChildren = false;
+        prefsItem._activateCallback = () => {
+            this._hidePanel();
+            let dialog = new PrayaPreferencesDialog();
+            dialog.open(global.get_current_time());
+        };
+        prefsItem.connect('button-press-event', () => {
+            prefsItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(prefsItem);
+        navItems.push(prefsItem);
+
         // About BlankOn (has children)
         let aboutItem = this._createMenuItem('About BlankOn', 'help-about-symbolic', true);
         aboutItem._hasChildren = true;
@@ -1520,8 +2242,15 @@ class PrayaIndicator extends PanelMenu.Button {
             return;
 
         let searchResults = GioUnix.DesktopAppInfo.search(searchText);
-        if (searchResults.length === 0 || searchResults[0].length === 0)
+        if (searchResults.length === 0 || searchResults[0].length === 0) {
+            // No results found - enter chatbot mode if configured
+            // Reload settings to pick up any recent changes
+            this._chatbotSettings.reload();
+            if (this._chatbotSettings.isConfigured()) {
+                this._enterChatbotMode(searchText);
+            }
             return;
+        }
 
         let appId = searchResults[0][0];
         let appInfo = GioUnix.DesktopAppInfo.new(appId);
@@ -1584,12 +2313,19 @@ class PrayaIndicator extends PanelMenu.Button {
         let navItems = [];
 
         if (matchedApps.length === 0) {
+            // Reload settings to pick up any recent changes
+            this._chatbotSettings.reload();
+            let isChatbotConfigured = this._chatbotSettings.isConfigured();
+            let noResultsText = isChatbotConfigured
+                ? 'No applications found.\nPress Enter to chat with AI...'
+                : 'No applications found';
             let noResultsLabel = new St.Label({
-                text: 'No applications found',
+                text: noResultsText,
                 style_class: 'praya-no-results',
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             });
+            noResultsLabel.clutter_text.set_line_alignment(1); // Center alignment
             noResultsLabel.opacity = 0;
             menuBox.add_child(noResultsLabel);
             noResultsLabel.ease({
@@ -2050,7 +2786,7 @@ class PrayaIndicator extends PanelMenu.Button {
             // Show search entry (main menu view) - entry first, icon on right
             this._searchEntry = new St.Entry({
                 style_class: 'praya-search-entry',
-                hint_text: 'Search applications...',
+                hint_text: 'Search or ask...',
                 can_focus: true,
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
@@ -2265,6 +3001,175 @@ class PrayaIndicator extends PanelMenu.Button {
         if (app) {
             app.activate();
         }
+    }
+
+    _enterChatbotMode(initialMessage) {
+        if (this._isChatbotMode) return;
+
+        this._isChatbotMode = true;
+
+        // Hide header search and bottom section
+        if (this._header) {
+            this._header.hide();
+        }
+        if (this._bottomSection) {
+            this._bottomSection.hide();
+        }
+
+        // Clear the sliding container
+        if (this._slidingContainer) {
+            this._slidingContainer.destroy_all_children();
+        }
+
+        // Get available height for chatbot panel
+        let monitor = Main.layoutManager.primaryMonitor;
+        let panelHeight = Main.panel.height;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+
+        // Create chatbot panel with calculated height
+        this._chatbotPanel = new PrayaChatbotPanel(this._chatbotSettings, () => {
+            this._exitChatbotMode();
+        }, availableHeight);
+
+        // Hide sliding container
+        this._slidingContainer.hide();
+
+        // Animate panel width from 325px to 400px with slow slide animation
+        let chatbotAnimationDuration = 400;
+        this._panel.ease({
+            width: CHATBOT_PANEL_WIDTH,
+            duration: chatbotAnimationDuration,
+            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+        });
+
+        // Update hover zone width
+        if (this._hoverZone) {
+            this._hoverZone.ease({
+                width: CHATBOT_PANEL_WIDTH + MARGIN_LEFT * 2,
+                duration: chatbotAnimationDuration,
+                mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+            });
+        }
+
+        // Add chatbot panel directly to main panel (after header, which is hidden)
+        this._chatbotPanel.set_width(CHATBOT_PANEL_WIDTH);
+        this._panel.add_child(this._chatbotPanel);
+
+        // Send initial message if provided
+        if (initialMessage) {
+            this._chatbotPanel.sendInitialMessage(initialMessage);
+        } else {
+            // Focus input
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (this._chatbotPanel) {
+                    this._chatbotPanel.focusInput();
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    _restoreChatbotMode() {
+        // Hide header and bottom section
+        if (this._header) {
+            this._header.hide();
+        }
+        if (this._bottomSection) {
+            this._bottomSection.hide();
+        }
+
+        // Hide sliding container
+        if (this._slidingContainer) {
+            this._slidingContainer.hide();
+        }
+
+        // Get available height for chatbot panel
+        let monitor = Main.layoutManager.primaryMonitor;
+        let panelHeight = Main.panel.height;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+
+        // Create chatbot panel with calculated height
+        this._chatbotPanel = new PrayaChatbotPanel(this._chatbotSettings, () => {
+            this._exitChatbotMode();
+        }, availableHeight);
+
+        // Set panel width immediately (no animation on restore)
+        this._panel.width = CHATBOT_PANEL_WIDTH;
+        if (this._hoverZone) {
+            this._hoverZone.width = CHATBOT_PANEL_WIDTH + MARGIN_LEFT * 2;
+        }
+
+        // Add chatbot panel directly to main panel
+        this._chatbotPanel.set_width(CHATBOT_PANEL_WIDTH);
+        this._panel.add_child(this._chatbotPanel);
+
+        // Restore previous messages
+        if (this._chatbotMessages && this._chatbotMessages.length > 0) {
+            this._chatbotPanel.restoreMessages(this._chatbotMessages);
+        }
+    }
+
+    _exitChatbotMode() {
+        if (!this._isChatbotMode) return;
+
+        // Set flag to prevent panel from hiding during transition
+        this._isTransitioningChatbot = true;
+
+        this._isChatbotMode = false;
+        this._chatbotMessages = []; // Clear saved messages
+
+        // Destroy chatbot panel
+        if (this._chatbotPanel) {
+            this._chatbotPanel.destroy();
+            this._chatbotPanel = null;
+        }
+
+        // Show header and bottom section
+        if (this._header) {
+            this._header.show();
+        }
+        if (this._bottomSection) {
+            this._bottomSection.show();
+        }
+
+        // Get available height
+        let monitor = Main.layoutManager.primaryMonitor;
+        let panelHeight = Main.panel.height;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+
+        // Animate panel width back to 325px
+        this._panel.ease({
+            width: PANEL_WIDTH,
+            duration: ANIMATION_DURATION,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        // Update hover zone width
+        if (this._hoverZone) {
+            this._hoverZone.ease({
+                width: PANEL_WIDTH + MARGIN_LEFT * 2,
+                duration: ANIMATION_DURATION,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
+
+        // Show and reset sliding container
+        this._slidingContainer.show();
+        this._slidingContainer.set_size(PANEL_WIDTH, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
+
+        // Show main menu (this will recreate the search entry)
+        this._navigationStack = [];
+        this._isSearchActive = false;
+        this._showMainMenu(false);
+
+        // Focus search entry and clear transition flag after transition
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._isTransitioningChatbot = false;
+            if (this._searchEntry) {
+                this._searchEntry.grab_key_focus();
+            }
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     destroy() {
