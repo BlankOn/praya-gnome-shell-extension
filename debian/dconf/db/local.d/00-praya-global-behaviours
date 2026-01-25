@@ -1,5 +1,8 @@
 # Praya GNOME Shell Extension global settings
 
+[org/gnome/shell]
+enabled-extensions=['praya@blankonlinux.id']
+
 [org/gnome/desktop/wm/preferences]
 button-layout='appmenu:minimize,maximize,close'
 
