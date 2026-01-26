@@ -292,19 +292,45 @@
     background-color: #2d2d2d;
     border-radius: 16px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: 0;
+}
+
+.praya-preferences-dialog .modal-dialog-content-box {
+    padding: 0;
+    margin: 0;
 }
 
 .praya-preferences-box {
-    padding: 24px;
+    padding: 8px 16px;
     min-width: 400px;
     min-height: 200px;
+}
+
+.praya-preferences-header {
+    margin-bottom: 16px;
 }
 
 .praya-preferences-title {
     font-size: 1.4em;
     font-weight: bold;
     color: #ffffff;
-    margin-bottom: 16px;
+}
+
+.praya-preferences-close-btn {
+    background-color: #404040;
+    border-radius: 16px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+}
+
+.praya-preferences-close-btn:hover {
+    background-color: #505050;
+}
+
+.praya-preferences-close-btn:active {
+    background-color: #606060;
 }
 
 .praya-preferences-content {
@@ -366,6 +392,52 @@
 
 .praya-preferences-toggle-btn:hover {
     background-color: #505050;
+}
+
+/* Posture Settings Styles */
+.praya-posture-toggle {
+    background-color: #404040;
+    transition: background-color 150ms;
+}
+
+.praya-posture-toggle-enabled {
+    background-color: #26a269;
+}
+
+.praya-posture-toggle-enabled:hover {
+    background-color: #2ec27e;
+}
+
+.praya-preferences-record-value {
+    color: #cccccc;
+    font-size: 0.95em;
+    font-family: monospace;
+    padding: 8px 12px;
+    background-color: #353535;
+    border-radius: 6px;
+}
+
+.praya-posture-good {
+    color: #8ff0a4;
+}
+
+.praya-posture-bad {
+    color: #f66151;
+}
+
+/* Posture Bar */
+.praya-posture-bar-container {
+    background-color: #353535;
+    border-radius: 4px;
+    height: 12px;
+    margin: 4px 0;
+}
+
+.praya-posture-bar-fill {
+    border-radius: 4px;
+    height: 12px;
+    min-width: 0;
+    transition: width 200ms ease-out;
 }
 
 /* No results text - centered */
@@ -509,5 +581,20 @@
 
 .praya-chatbot-send-btn:hover {
     background-color: #4a90e2;
+}
+
+/* Bad Posture Overlay Styles */
+.praya-overlay-disable-btn {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #cccccc;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    margin-bottom: 40px;
+}
+
+.praya-overlay-disable-btn:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
 }
 
