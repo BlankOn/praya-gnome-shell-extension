@@ -1,7 +1,6 @@
-# Praya
-
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ef4e01ff-7588-4dcc-b809-cc67b02c50db" />
 
+# Praya
 
 Praya is the successor to Manokwari Desktop. Although inspired by Manokwari, Praya is a fundamentally different project in terms of system architecture and design goals. Because of these differences, it is intentionally released under a new name.
 
