@@ -84,6 +84,9 @@ class PrayaIndicator extends PanelMenu.Button {
         this._chatbotMessages = []; // Preserve messages across panel hide/show
         this._isTransitioningChatbot = false; // Prevent panel hide during transition
 
+        // Multi-monitor support - track which monitor the panel is on
+        this._currentMonitor = null;
+
         // Delay initial load to ensure shell is ready (1 second)
         this._loadAppsTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
             this._loadApplicationsData();
@@ -430,28 +433,32 @@ class PrayaIndicator extends PanelMenu.Button {
             this._panel = null;
         }
 
-        let monitor = Main.layoutManager.primaryMonitor;
+        // Use the monitor where the pointer currently is (where user clicked the indicator)
+        this._currentMonitor = Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor;
         let panelHeight = Main.panel.height;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
 
         // Create invisible hover zone that includes margins
+        // Position relative to the current monitor's coordinates
         this._hoverZone = new St.Widget({
             reactive: true,
             track_hover: true,
-            x: 0,
-            y: panelHeight,
+            x: monitor.x,
+            y: monitor.y + panelHeight,
             width: PANEL_WIDTH + MARGIN_LEFT * 2,
             height: availableHeight + MARGIN_TOP + MARGIN_BOTTOM,
         });
 
         // Create the main panel container - below top bar with margins
+        // Position relative to the current monitor's coordinates
         this._panel = new St.BoxLayout({
             style_class: 'praya-panel',
             vertical: true,
             reactive: true,
             track_hover: true,
-            x: MARGIN_LEFT,
-            y: panelHeight + MARGIN_TOP,
+            x: monitor.x + MARGIN_LEFT,
+            y: monitor.y + panelHeight + MARGIN_TOP,
             width: PANEL_WIDTH,
             height: availableHeight,
         });
@@ -496,7 +503,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Start with opacity 0 and off-screen to the left for slide-in animation
         this._panel.opacity = 0;
-        this._panel.x = MARGIN_LEFT - PANEL_WIDTH;
+        this._panel.x = monitor.x + MARGIN_LEFT - PANEL_WIDTH;
 
         Main.layoutManager.addTopChrome(this._hoverZone);
         Main.layoutManager.addTopChrome(this._panel);
@@ -506,7 +513,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let targetWidth = this._isChatbotMode ? CHATBOT_PANEL_WIDTH : PANEL_WIDTH;
         this._panel.ease({
             opacity: 255,
-            x: MARGIN_LEFT,
+            x: monitor.x + MARGIN_LEFT,
             duration: 200,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onComplete: () => {
@@ -752,6 +759,9 @@ class PrayaIndicator extends PanelMenu.Button {
         this._menuBox = null;
         this._bottomSection = null;
 
+        // Get the monitor offset for animation (use stored monitor or fall back to current)
+        let monitorX = this._currentMonitor ? this._currentMonitor.x : 0;
+
         // Immediately disable reactivity to prevent blocking clicks during animation
         if (this._hoverZone) {
             this._hoverZone.reactive = false;
@@ -771,7 +781,7 @@ class PrayaIndicator extends PanelMenu.Button {
             // Fade out + slide to left animation
             this._panel.ease({
                 opacity: 0,
-                x: MARGIN_LEFT - PANEL_WIDTH,
+                x: monitorX + MARGIN_LEFT - PANEL_WIDTH,
                 duration: 150,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: () => {
@@ -793,6 +803,8 @@ class PrayaIndicator extends PanelMenu.Button {
                         this._panel.destroy();
                         this._panel = null;
                     }
+                    // Clear the stored monitor reference
+                    this._currentMonitor = null;
                 }
             });
         }
@@ -920,7 +932,8 @@ class PrayaIndicator extends PanelMenu.Button {
     _showMainMenu(animate = true) {
         this._updateHeader('Menu', false);
 
-        let monitor = Main.layoutManager.primaryMonitor;
+        // Use stored monitor from when panel was opened
+        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
 
         // Create a container for the whole view
         let contentContainer = new St.BoxLayout({
@@ -1030,8 +1043,22 @@ class PrayaIndicator extends PanelMenu.Button {
         prefsItem._hasChildren = false;
         prefsItem._activateCallback = () => {
             this._hidePanel();
+
+            // Pause posture polling while preferences is open
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj?.pausePosturePolling) {
+                ext.stateObj.pausePosturePolling();
+            }
+
             let dialog = new PrayaPreferencesDialog();
             dialog.open(global.get_current_time());
+
+            // Resume polling when dialog closes
+            dialog.connect('destroy', () => {
+                if (ext?.stateObj?.resumePosturePolling) {
+                    ext.stateObj.resumePosturePolling();
+                }
+            });
         };
         prefsItem.connect('button-press-event', () => {
             prefsItem._activateCallback();
@@ -2129,7 +2156,8 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Get available height for chatbot panel
-        let monitor = Main.layoutManager.primaryMonitor;
+        // Use stored monitor from when panel was opened
+        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
         let panelHeight = Main.panel.height;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
 
@@ -2191,7 +2219,8 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Get available height for chatbot panel
-        let monitor = Main.layoutManager.primaryMonitor;
+        // Use stored monitor from when panel was opened
+        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
         let panelHeight = Main.panel.height;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
 
@@ -2240,7 +2269,8 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Get available height
-        let monitor = Main.layoutManager.primaryMonitor;
+        // Use stored monitor from when panel was opened
+        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
         let panelHeight = Main.panel.height;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
 
