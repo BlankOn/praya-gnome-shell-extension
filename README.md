@@ -12,9 +12,14 @@ One core philosophy remains the same between Manokwari and Praya: to aim to lowe
 
 While Praya is technically a new project, it still aims to follow the UX style and interaction patterns of Manokwari Desktop. The goal is to preserve the familiar feel, simplicity, and workflow of Manokwari, while re-implementing it using a modern and more maintainable GNOME Shell–based architecture.
 
-# ⚠️ Project Status
-Praya is still under heavy development. Please expect bugs, incomplete features, and major breaking changes as the project evolves.
+## Services
 
-# License
+A few of Praya's features are depend on Praya Service (https://github.com/BlankOn/praya-service).
+
+## Project Status
+
+⚠️ Praya is still under heavy development. Please expect bugs, incomplete features, and major breaking changes as the project evolves.
+
+## License
 
 Praya is licensed under the MIT License.
