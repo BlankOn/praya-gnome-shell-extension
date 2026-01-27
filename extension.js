@@ -35,6 +35,9 @@ const POSTURE_SERVICE_PATH = '/com/github/blankon/Praya/Posture';
 
 export default class PrayaExtension extends Extension {
     enable() {
+        // Load services configuration
+        this._loadServicesConfig();
+
         // Start praya services
         this._startPrayaServices();
 
@@ -76,18 +79,69 @@ export default class PrayaExtension extends Extension {
         this._autoCloseTimeoutId = null;
         this._autoCloseTolerance = 0.1; // Cancel auto-close if score exceeds this
 
-        // Setup D-Bus connection for posture status
-        this._initPostureDBus();
+        // Only initialize posture features if enabled in config
+        if (this._servicesConfig.posture) {
+            // Setup D-Bus connection for posture status
+            this._initPostureDBus();
 
-        // Pause posture evaluation during initial delay
-        this._postureEvalPaused = true;
+            // Pause posture evaluation during initial delay
+            this._postureEvalPaused = true;
 
-        // Start posture polling loop (similar to Praya Preferences)
-        this._startPosturePolling();
+            // Start posture polling loop (similar to Praya Preferences)
+            this._startPosturePolling();
+        }
+    }
+
+    _loadServicesConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+        let configPath = GLib.build_filenamev([configDir, 'services.json']);
+
+        // Default config
+        let defaultConfig = {
+            ai: false,
+            posture: false
+        };
+
+        try {
+            // Ensure config directory exists
+            let dir = Gio.File.new_for_path(configDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            let configFile = Gio.File.new_for_path(configPath);
+
+            if (!configFile.query_exists(null)) {
+                // Create default config file
+                let content = JSON.stringify(defaultConfig, null, 2) + '\n';
+                configFile.replace_contents(
+                    content,
+                    null,
+                    false,
+                    Gio.FileCreateFlags.NONE,
+                    null
+                );
+                this._servicesConfig = defaultConfig;
+            } else {
+                // Load existing config
+                let [success, contents] = configFile.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let jsonStr = decoder.decode(contents);
+                    this._servicesConfig = JSON.parse(jsonStr);
+                } else {
+                    this._servicesConfig = defaultConfig;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading services config: ${e.message}`);
+            this._servicesConfig = defaultConfig;
+        }
     }
 
     _startPrayaServices() {
-        // Start praya systemd user service silently
+        // Start praya systemd user service silently (always runs)
         try {
             let proc = Gio.Subprocess.new(
                 ['systemctl', '--user', 'start', 'praya'],
@@ -98,27 +152,53 @@ export default class PrayaExtension extends Extension {
             // Silent failure as requested
         }
 
-        // Enable posture service via D-Bus
+        // Enable feature services based on config
         try {
             let connection = Gio.bus_get_sync(Gio.BusType.SESSION, null);
-            connection.call(
-                'com.github.blankon.praya',
-                '/com/github/blankon/Praya',
-                'com.github.blankon.Praya',
-                'EnableService',
-                new GLib.Variant('(s)', ['posture']),
-                null,
-                Gio.DBusCallFlags.NONE,
-                -1,
-                null,
-                (conn, result) => {
-                    try {
-                        conn.call_finish(result);
-                    } catch (e) {
-                        // Silent failure
+
+            // Enable posture service if configured
+            if (this._servicesConfig.posture) {
+                connection.call(
+                    'com.github.blankon.praya',
+                    '/com/github/blankon/Praya',
+                    'com.github.blankon.Praya',
+                    'EnableService',
+                    new GLib.Variant('(s)', ['posture']),
+                    null,
+                    Gio.DBusCallFlags.NONE,
+                    -1,
+                    null,
+                    (conn, result) => {
+                        try {
+                            conn.call_finish(result);
+                        } catch (e) {
+                            // Silent failure
+                        }
                     }
-                }
-            );
+                );
+            }
+
+            // Enable AI service if configured
+            if (this._servicesConfig.ai) {
+                connection.call(
+                    'com.github.blankon.praya',
+                    '/com/github/blankon/Praya',
+                    'com.github.blankon.Praya',
+                    'EnableService',
+                    new GLib.Variant('(s)', ['ai']),
+                    null,
+                    Gio.DBusCallFlags.NONE,
+                    -1,
+                    null,
+                    (conn, result) => {
+                        try {
+                            conn.call_finish(result);
+                        } catch (e) {
+                            // Silent failure
+                        }
+                    }
+                );
+            }
         } catch (e) {
             // Silent failure
         }
@@ -392,11 +472,59 @@ export default class PrayaExtension extends Extension {
         this._autoCloseAnimating = false;
     }
 
+    _logPostureEvent() {
+        try {
+            // Get home directory and construct log path
+            let homeDir = GLib.get_home_dir();
+            let logDir = GLib.build_filenamev([homeDir, '.local', 'share', 'praya']);
+            let logPath = GLib.build_filenamev([logDir, 'posture.log']);
+
+            // Ensure directory exists
+            let dir = Gio.File.new_for_path(logDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            // Check if file exists to determine if we need to write header
+            let logFile = Gio.File.new_for_path(logPath);
+            let needsHeader = !logFile.query_exists(null);
+
+            // Open file in append mode
+            let stream = logFile.append_to(Gio.FileCreateFlags.NONE, null);
+
+            // Write header if file is new
+            if (needsHeader) {
+                let header = 'timestamp,status,score,tolerance,delay\n';
+                stream.write(header, null);
+            }
+
+            // Get current timestamp in ISO format
+            let now = GLib.DateTime.new_now_local();
+            let timestamp = now.format('%Y-%m-%d %H:%M:%S');
+
+            // Get posture data
+            let status = this._currentPostureStatus || 'unknown';
+            let score = this._currentPostureScore || 0;
+            let tolerance = this._currentPostureTolerance || 0;
+            let delay = 10000; // The pause delay in ms
+
+            // Write CSV line
+            let line = `${timestamp},${status},${score.toFixed(4)},${tolerance.toFixed(4)},${delay}\n`;
+            stream.write(line, null);
+            stream.close(null);
+        } catch (e) {
+            log(`Praya: Error logging posture event: ${e.message}`);
+        }
+    }
+
     _showBlurOverlay() {
         // Don't create duplicates if already showing
         if (this._blurOverlays && this._blurOverlays.length > 0) {
             return;
         }
+
+        // Log the posture event to CSV
+        this._logPostureEvent();
 
         // Close the panel if it's open - users shouldn't browse apps with bad posture
         if (this._indicator && this._indicator._panelVisible) {

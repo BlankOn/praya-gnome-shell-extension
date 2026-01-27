@@ -32,6 +32,9 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         this._chatbotSettings = new ChatbotSettings();
 
+        // Load services configuration
+        this._loadServicesConfig();
+
         // Build content box
         let contentBox = new St.BoxLayout({
             vertical: true,
@@ -327,11 +330,9 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         // Start posture polling
         this._startPosturePolling();
 
-        // Get initial posture enabled state (with small delay to ensure D-Bus is ready)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-            this._getPostureEnabled();
-            return GLib.SOURCE_REMOVE;
-        });
+        // Set initial posture enabled state from services config
+        this._postureEnabled = this._servicesConfig.posture || false;
+        this._updatePostureToggleUI();
 
         this.contentLayout.add_child(contentBox);
     }
@@ -393,6 +394,80 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
     }
 
+    _loadServicesConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+        let configPath = GLib.build_filenamev([configDir, 'services.json']);
+
+        // Default config
+        let defaultConfig = {
+            ai: false,
+            posture: false
+        };
+
+        try {
+            // Ensure config directory exists
+            let dir = Gio.File.new_for_path(configDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            let configFile = Gio.File.new_for_path(configPath);
+
+            if (!configFile.query_exists(null)) {
+                // Create default config file
+                let content = JSON.stringify(defaultConfig, null, 2) + '\n';
+                configFile.replace_contents(
+                    content,
+                    null,
+                    false,
+                    Gio.FileCreateFlags.NONE,
+                    null
+                );
+                this._servicesConfig = defaultConfig;
+            } else {
+                // Load existing config
+                let [success, contents] = configFile.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let jsonStr = decoder.decode(contents);
+                    this._servicesConfig = JSON.parse(jsonStr);
+                } else {
+                    this._servicesConfig = defaultConfig;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading services config: ${e.message}`);
+            this._servicesConfig = defaultConfig;
+        }
+    }
+
+    _saveServicesConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+        let configPath = GLib.build_filenamev([configDir, 'services.json']);
+
+        try {
+            // Ensure config directory exists
+            let dir = Gio.File.new_for_path(configDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            let configFile = Gio.File.new_for_path(configPath);
+            let content = JSON.stringify(this._servicesConfig, null, 2) + '\n';
+            configFile.replace_contents(
+                content,
+                null,
+                false,
+                Gio.FileCreateFlags.NONE,
+                null
+            );
+        } catch (e) {
+            log(`Praya: Error saving services config: ${e.message}`);
+        }
+    }
+
     _updatePostureToggleUI() {
         if (this._postureEnabled) {
             this._postureToggleButton.label = 'Enabled';
@@ -403,47 +478,11 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
     }
 
-    _getPostureEnabled() {
-        if (!this._dbusConnection) return;
-
-        // Use ListServices to check if posture service is enabled
-        // Response format: (a(ssb)) - array of tuples (name, description, enabled)
-        this._dbusConnection.call(
-            POSTURE_BUS_NAME,
-            POSTURE_MAIN_PATH,
-            POSTURE_MAIN_INTERFACE,
-            'ListServices',
-            null,
-            GLib.VariantType.new('(a(ssb))'),
-            Gio.DBusCallFlags.NONE,
-            -1,
-            null,
-            (conn, result) => {
-                try {
-                    let reply = conn.call_finish(result);
-                    let servicesArray = reply.get_child_value(0);
-                    let nServices = servicesArray.n_children();
-
-                    this._postureEnabled = false;
-                    for (let i = 0; i < nServices; i++) {
-                        let serviceTuple = servicesArray.get_child_value(i);
-                        let serviceName = serviceTuple.get_child_value(0).get_string()[0];
-                        let serviceEnabled = serviceTuple.get_child_value(2).get_boolean();
-
-                        if (serviceName === 'posture') {
-                            this._postureEnabled = serviceEnabled;
-                            break;
-                        }
-                    }
-                    this._updatePostureToggleUI();
-                } catch (e) {
-                    log(`Praya: Error getting posture enabled state: ${e.message}`);
-                }
-            }
-        );
-    }
-
     _setPostureEnabled(enabled) {
+        // Update services config
+        this._servicesConfig.posture = enabled;
+        this._saveServicesConfig();
+
         if (!this._dbusConnection) return;
 
         let methodName = enabled ? 'EnableService' : 'DisableService';
@@ -463,8 +502,10 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                     conn.call_finish(result);
                 } catch (e) {
                     log(`Praya: Error setting posture enabled: ${e.message}`);
-                    // Revert UI state on error
+                    // Revert UI state and config on error
                     this._postureEnabled = !enabled;
+                    this._servicesConfig.posture = !enabled;
+                    this._saveServicesConfig();
                     this._updatePostureToggleUI();
                 }
             }
