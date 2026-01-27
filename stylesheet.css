@@ -347,6 +347,23 @@
     margin-bottom: 12px;
 }
 
+.praya-preferences-section-header-box {
+    margin-top: 16px;
+    margin-bottom: 12px;
+    spacing: 8px;
+}
+
+.praya-preferences-section-header-box .praya-preferences-section-header {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.praya-preferences-experimental-label {
+    font-size: 0.9em;
+    font-style: italic;
+    color: #f5c211;
+}
+
 .praya-preferences-row {
     margin: 8px 0;
     spacing: 12px;
@@ -406,6 +423,15 @@
 
 .praya-posture-toggle-enabled:hover {
     background-color: #2ec27e;
+}
+
+.praya-toggle-disabled {
+    background-color: #555555;
+    color: #888888;
+}
+
+.praya-toggle-disabled:hover {
+    background-color: #555555;
 }
 
 .praya-preferences-record-value {
@@ -501,7 +527,7 @@
 }
 
 .praya-chatbot-messages {
-    padding: 12px;
+    padding: 12px 12px 24px 12px;
     spacing: 8px;
 }
 
