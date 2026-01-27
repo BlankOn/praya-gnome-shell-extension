@@ -32,6 +32,12 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         this._chatbotSettings = new ChatbotSettings();
 
+        // Load services configuration
+        this._loadServicesConfig();
+
+        // Service running state - assume not running until checked
+        this._serviceRunning = false;
+
         // Build content box
         let contentBox = new St.BoxLayout({
             vertical: true,
@@ -110,12 +116,169 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         // Check initial service status
         this._checkPrayaServiceStatus();
 
-        // AI Chatbot section header
+        // Initialize posture D-Bus connection
+        this._initPostureDBus();
+
+        // Posture section header
+        let postureHeader = new St.Label({
+            text: 'Posture Monitoring',
+            style_class: 'praya-preferences-section-header',
+        });
+        contentBox.add_child(postureHeader);
+
+        // Enable/Disable toggle for Posture
+        let postureEnableBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let postureEnableLabel = new St.Label({
+            text: 'Status:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        postureEnableBox.add_child(postureEnableLabel);
+
+        this._postureEnabled = false;
+        this._postureToggleButton = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle praya-toggle-disabled',
+            label: 'Disabled',
+            x_expand: true,
+            reactive: false,
+        });
+        this._postureToggleButton.connect('clicked', () => {
+            if (!this._serviceRunning) return;
+            this._postureEnabled = !this._postureEnabled;
+            this._updatePostureToggleUI();
+            this._setPostureEnabled(this._postureEnabled);
+        });
+        postureEnableBox.add_child(this._postureToggleButton);
+        contentBox.add_child(postureEnableBox);
+
+        // Recalibrate button
+        let recalibrateBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let recalibrateLabel = new St.Label({
+            text: 'Calibration:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        recalibrateBox.add_child(recalibrateLabel);
+
+        this._recalibrateButton = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: 'Recalibrate',
+            x_expand: true,
+        });
+        this._recalibrateButton.connect('clicked', () => {
+            this._recalibrate();
+        });
+        recalibrateBox.add_child(this._recalibrateButton);
+        contentBox.add_child(recalibrateBox);
+
+        // Posture record display
+        let recordBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let recordLabel = new St.Label({
+            text: 'Current:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        recordBox.add_child(recordLabel);
+
+        this._postureRecordLabel = new St.Label({
+            text: 'Waiting for data...',
+            style_class: 'praya-preferences-record-value',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        recordBox.add_child(this._postureRecordLabel);
+        contentBox.add_child(recordBox);
+
+        // Posture value bar (0 = green/good, 1 = red/bad)
+        let barRow = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let barLabel = new St.Label({
+            text: 'Level:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        barRow.add_child(barLabel);
+
+        this._postureBarContainer = new St.BoxLayout({
+            style_class: 'praya-posture-bar-container',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._postureBarFill = new St.Widget({
+            style_class: 'praya-posture-bar-fill',
+            x_expand: false,
+            width: 0,
+        });
+        this._postureBarContainer.add_child(this._postureBarFill);
+        barRow.add_child(this._postureBarContainer);
+        contentBox.add_child(barRow);
+
+        // Start posture polling
+        this._startPosturePolling();
+
+        // Set initial posture enabled state from services config
+        this._postureEnabled = this._servicesConfig.posture || false;
+        this._updatePostureToggleUI();
+
+        // AI Chatbot section header with (Experimental) label
+        let chatbotHeaderBox = new St.BoxLayout({
+            style_class: 'praya-preferences-section-header-box',
+            x_expand: true,
+        });
         let chatbotHeader = new St.Label({
             text: 'Artificial Intelligence',
             style_class: 'praya-preferences-section-header',
         });
-        contentBox.add_child(chatbotHeader);
+        chatbotHeaderBox.add_child(chatbotHeader);
+        let experimentalLabel = new St.Label({
+            text: '(Experimental)',
+            style_class: 'praya-preferences-experimental-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        chatbotHeaderBox.add_child(experimentalLabel);
+        contentBox.add_child(chatbotHeaderBox);
+
+        // Enable/Disable toggle for AI
+        let aiEnableBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let aiEnableLabel = new St.Label({
+            text: 'Status:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        aiEnableBox.add_child(aiEnableLabel);
+
+        this._aiEnabled = this._servicesConfig.ai || false;
+        this._aiToggleButton = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle praya-toggle-disabled',
+            label: this._aiEnabled ? 'Enabled' : 'Disabled',
+            x_expand: true,
+            reactive: false,
+        });
+        if (this._aiEnabled) {
+            this._aiToggleButton.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._aiToggleButton.connect('clicked', () => {
+            if (!this._serviceRunning) return;
+            this._aiEnabled = !this._aiEnabled;
+            this._updateAIToggleUI();
+            this._setAIEnabled(this._aiEnabled);
+        });
+        aiEnableBox.add_child(this._aiToggleButton);
+        contentBox.add_child(aiEnableBox);
 
         // Provider selection
         let providerBox = new St.BoxLayout({
@@ -218,121 +381,6 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         apiKeyBox.add_child(this._showKeyButton);
         contentBox.add_child(apiKeyBox);
 
-        // Posture section header
-        let postureHeader = new St.Label({
-            text: 'Posture Monitoring',
-            style_class: 'praya-preferences-section-header',
-        });
-        contentBox.add_child(postureHeader);
-
-        // Initialize posture D-Bus connection
-        this._initPostureDBus();
-
-        // Enable/Disable toggle
-        let postureEnableBox = new St.BoxLayout({
-            style_class: 'praya-preferences-row',
-            x_expand: true,
-        });
-        let postureEnableLabel = new St.Label({
-            text: 'Enabled:',
-            style_class: 'praya-preferences-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        postureEnableBox.add_child(postureEnableLabel);
-
-        this._postureEnabled = false;
-        this._postureToggleButton = new St.Button({
-            style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: 'Disabled',
-            x_expand: true,
-        });
-        this._postureToggleButton.connect('clicked', () => {
-            this._postureEnabled = !this._postureEnabled;
-            this._updatePostureToggleUI();
-            this._setPostureEnabled(this._postureEnabled);
-        });
-        postureEnableBox.add_child(this._postureToggleButton);
-        contentBox.add_child(postureEnableBox);
-
-        // Recalibrate button
-        let recalibrateBox = new St.BoxLayout({
-            style_class: 'praya-preferences-row',
-            x_expand: true,
-        });
-        let recalibrateLabel = new St.Label({
-            text: 'Calibration:',
-            style_class: 'praya-preferences-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        recalibrateBox.add_child(recalibrateLabel);
-
-        this._recalibrateButton = new St.Button({
-            style_class: 'praya-preferences-combo',
-            label: 'Recalibrate',
-            x_expand: true,
-        });
-        this._recalibrateButton.connect('clicked', () => {
-            this._recalibrate();
-        });
-        recalibrateBox.add_child(this._recalibrateButton);
-        contentBox.add_child(recalibrateBox);
-
-        // Posture record display
-        let recordBox = new St.BoxLayout({
-            style_class: 'praya-preferences-row',
-            x_expand: true,
-        });
-        let recordLabel = new St.Label({
-            text: 'Current:',
-            style_class: 'praya-preferences-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        recordBox.add_child(recordLabel);
-
-        this._postureRecordLabel = new St.Label({
-            text: 'Waiting for data...',
-            style_class: 'praya-preferences-record-value',
-            x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        recordBox.add_child(this._postureRecordLabel);
-        contentBox.add_child(recordBox);
-
-        // Posture value bar (0 = green/good, 1 = red/bad)
-        let barRow = new St.BoxLayout({
-            style_class: 'praya-preferences-row',
-            x_expand: true,
-        });
-        let barLabel = new St.Label({
-            text: 'Level:',
-            style_class: 'praya-preferences-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        barRow.add_child(barLabel);
-
-        this._postureBarContainer = new St.BoxLayout({
-            style_class: 'praya-posture-bar-container',
-            x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this._postureBarFill = new St.Widget({
-            style_class: 'praya-posture-bar-fill',
-            x_expand: false,
-            width: 0,
-        });
-        this._postureBarContainer.add_child(this._postureBarFill);
-        barRow.add_child(this._postureBarContainer);
-        contentBox.add_child(barRow);
-
-        // Start posture polling
-        this._startPosturePolling();
-
-        // Get initial posture enabled state (with small delay to ensure D-Bus is ready)
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-            this._getPostureEnabled();
-            return GLib.SOURCE_REMOVE;
-        });
-
         this.contentLayout.add_child(contentBox);
     }
 
@@ -354,6 +402,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._serviceStatusValue.text = 'Checking...';
         this._serviceStatusValue.remove_style_class_name('praya-posture-good');
         this._serviceStatusValue.remove_style_class_name('praya-posture-bad');
+        this._serviceRunning = false;
 
         try {
             let proc = Gio.Subprocess.new(
@@ -369,18 +418,42 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                     if (status === 'active') {
                         this._serviceStatusValue.text = 'Running';
                         this._serviceStatusValue.add_style_class_name('praya-posture-good');
+                        this._serviceRunning = true;
                     } else if (status === 'inactive') {
                         this._serviceStatusValue.text = 'Stopped';
                         this._serviceStatusValue.add_style_class_name('praya-posture-bad');
+                        this._serviceRunning = false;
                     } else {
                         this._serviceStatusValue.text = status || 'Unknown';
+                        this._serviceRunning = false;
                     }
+                    this._updateFeatureTogglesState();
                 } catch (e) {
                     this._serviceStatusValue.text = 'Error checking status';
+                    this._serviceRunning = false;
+                    this._updateFeatureTogglesState();
                 }
             });
         } catch (e) {
             this._serviceStatusValue.text = 'Service not found';
+            this._serviceRunning = false;
+            this._updateFeatureTogglesState();
+        }
+    }
+
+    _updateFeatureTogglesState() {
+        if (this._serviceRunning) {
+            // Enable toggles
+            this._postureToggleButton.reactive = true;
+            this._postureToggleButton.remove_style_class_name('praya-toggle-disabled');
+            this._aiToggleButton.reactive = true;
+            this._aiToggleButton.remove_style_class_name('praya-toggle-disabled');
+        } else {
+            // Disable toggles and show as disabled
+            this._postureToggleButton.reactive = false;
+            this._postureToggleButton.add_style_class_name('praya-toggle-disabled');
+            this._aiToggleButton.reactive = false;
+            this._aiToggleButton.add_style_class_name('praya-toggle-disabled');
         }
     }
 
@@ -390,6 +463,80 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         } catch (e) {
             log(`Praya: Error initializing posture D-Bus: ${e.message}`);
             this._dbusConnection = null;
+        }
+    }
+
+    _loadServicesConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+        let configPath = GLib.build_filenamev([configDir, 'services.json']);
+
+        // Default config
+        let defaultConfig = {
+            ai: false,
+            posture: false
+        };
+
+        try {
+            // Ensure config directory exists
+            let dir = Gio.File.new_for_path(configDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            let configFile = Gio.File.new_for_path(configPath);
+
+            if (!configFile.query_exists(null)) {
+                // Create default config file
+                let content = JSON.stringify(defaultConfig, null, 2) + '\n';
+                configFile.replace_contents(
+                    content,
+                    null,
+                    false,
+                    Gio.FileCreateFlags.NONE,
+                    null
+                );
+                this._servicesConfig = defaultConfig;
+            } else {
+                // Load existing config
+                let [success, contents] = configFile.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let jsonStr = decoder.decode(contents);
+                    this._servicesConfig = JSON.parse(jsonStr);
+                } else {
+                    this._servicesConfig = defaultConfig;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading services config: ${e.message}`);
+            this._servicesConfig = defaultConfig;
+        }
+    }
+
+    _saveServicesConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+        let configPath = GLib.build_filenamev([configDir, 'services.json']);
+
+        try {
+            // Ensure config directory exists
+            let dir = Gio.File.new_for_path(configDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            let configFile = Gio.File.new_for_path(configPath);
+            let content = JSON.stringify(this._servicesConfig, null, 2) + '\n';
+            configFile.replace_contents(
+                content,
+                null,
+                false,
+                Gio.FileCreateFlags.NONE,
+                null
+            );
+        } catch (e) {
+            log(`Praya: Error saving services config: ${e.message}`);
         }
     }
 
@@ -403,47 +550,27 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
     }
 
-    _getPostureEnabled() {
-        if (!this._dbusConnection) return;
+    _updateAIToggleUI() {
+        if (this._aiEnabled) {
+            this._aiToggleButton.label = 'Enabled';
+            this._aiToggleButton.add_style_class_name('praya-posture-toggle-enabled');
+        } else {
+            this._aiToggleButton.label = 'Disabled';
+            this._aiToggleButton.remove_style_class_name('praya-posture-toggle-enabled');
+        }
+    }
 
-        // Use ListServices to check if posture service is enabled
-        // Response format: (a(ssb)) - array of tuples (name, description, enabled)
-        this._dbusConnection.call(
-            POSTURE_BUS_NAME,
-            POSTURE_MAIN_PATH,
-            POSTURE_MAIN_INTERFACE,
-            'ListServices',
-            null,
-            GLib.VariantType.new('(a(ssb))'),
-            Gio.DBusCallFlags.NONE,
-            -1,
-            null,
-            (conn, result) => {
-                try {
-                    let reply = conn.call_finish(result);
-                    let servicesArray = reply.get_child_value(0);
-                    let nServices = servicesArray.n_children();
-
-                    this._postureEnabled = false;
-                    for (let i = 0; i < nServices; i++) {
-                        let serviceTuple = servicesArray.get_child_value(i);
-                        let serviceName = serviceTuple.get_child_value(0).get_string()[0];
-                        let serviceEnabled = serviceTuple.get_child_value(2).get_boolean();
-
-                        if (serviceName === 'posture') {
-                            this._postureEnabled = serviceEnabled;
-                            break;
-                        }
-                    }
-                    this._updatePostureToggleUI();
-                } catch (e) {
-                    log(`Praya: Error getting posture enabled state: ${e.message}`);
-                }
-            }
-        );
+    _setAIEnabled(enabled) {
+        // Update services config
+        this._servicesConfig.ai = enabled;
+        this._saveServicesConfig();
     }
 
     _setPostureEnabled(enabled) {
+        // Update services config
+        this._servicesConfig.posture = enabled;
+        this._saveServicesConfig();
+
         if (!this._dbusConnection) return;
 
         let methodName = enabled ? 'EnableService' : 'DisableService';
@@ -463,8 +590,10 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                     conn.call_finish(result);
                 } catch (e) {
                     log(`Praya: Error setting posture enabled: ${e.message}`);
-                    // Revert UI state on error
+                    // Revert UI state and config on error
                     this._postureEnabled = !enabled;
+                    this._servicesConfig.posture = !enabled;
+                    this._saveServicesConfig();
                     this._updatePostureToggleUI();
                 }
             }

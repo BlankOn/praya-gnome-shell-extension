@@ -165,7 +165,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
             style_class: 'praya-chatbot-panel',
             vertical: true,
             x_expand: true,
-            y_expand: true,
+            y_expand: false,
         });
 
         this._settings = settings;
@@ -173,7 +173,12 @@ class PrayaChatbotPanel extends St.BoxLayout {
         this._api = new ChatbotAPI(settings);
         this._messages = [];
         this._isWaiting = false;
+        this._scrollTimeoutId = null;
+        this._redrawTimerId = null;
         this._panelHeight = panelHeight || 600;
+
+        // Set explicit height on the panel
+        this.set_height(this._panelHeight);
 
         // Header with fixed height
         let header = new St.BoxLayout({
@@ -234,39 +239,38 @@ class PrayaChatbotPanel extends St.BoxLayout {
 
         this.add_child(header);
 
-        // Calculate scroll view height (total height - header - input)
-        let scrollHeight = this._panelHeight - CHATBOT_HEADER_HEIGHT - CHATBOT_INPUT_HEIGHT;
-
-        // Create a container for the scroll view with fixed height
-        let scrollContainer = new St.Widget({
-            style_class: 'praya-chatbot-scroll-container',
-            x_expand: true,
-            y_expand: false,
-            height: scrollHeight,
-            clip_to_allocation: true,
-        });
-
         // Message history scroll view
         this._scrollView = new St.ScrollView({
             style_class: 'praya-chatbot-scroll',
             hscrollbar_policy: St.PolicyType.NEVER,
-            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            vscrollbar_policy: St.PolicyType.ALWAYS,
             x_expand: true,
             y_expand: true,
-            enable_mouse_scrolling: true,
+            clip_to_allocation: true,
         });
-        this._scrollView.set_size(CHATBOT_PANEL_WIDTH, scrollHeight);
 
+        // Create messages container - y_expand: false ensures it doesn't fill the viewport
         this._messagesBox = new St.BoxLayout({
             style_class: 'praya-chatbot-messages',
             vertical: true,
-            x_expand: true,
+            x_expand: false,
             y_expand: false,
         });
+        // Set fixed width so text labels can calculate wrapped height correctly
+        this._messagesBox.set_width(CHATBOT_PANEL_WIDTH);
 
+        // Use set_child() for proper StScrollable interface implementation
         this._scrollView.set_child(this._messagesBox);
-        scrollContainer.add_child(this._scrollView);
-        this.add_child(scrollContainer);
+        this.add_child(this._scrollView);
+
+        // Periodic redraw to reduce scrolling artifacts
+        this._redrawTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+            if (this._scrollView) {
+                this._scrollView.queue_redraw();
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+
 
         // Input area with fixed height for 2-line textarea
         let inputArea = new St.BoxLayout({
@@ -361,23 +365,23 @@ class PrayaChatbotPanel extends St.BoxLayout {
         let messageBox = new St.BoxLayout({
             style_class: role === 'user' ? 'praya-chatbot-message-user' : 'praya-chatbot-message-assistant',
             vertical: true,
-            x_expand: false,
             y_expand: false,
         });
-        messageBox.set_style(`max-width: ${maxWidth}px;`);
+        messageBox.set_width(maxWidth);
 
         // Parse markdown to Pango markup for styling
         let formattedContent = this._parseMarkdown(content);
 
         let messageLabel = new St.Label({
             style_class: 'praya-chatbot-message-text',
-            x_expand: false,
             y_expand: false,
         });
         // Use markup for styled text
         messageLabel.clutter_text.set_markup(formattedContent);
         messageLabel.clutter_text.set_line_wrap(true);
         messageLabel.clutter_text.set_line_wrap_mode(0); // WORD
+        // Set width for proper line wrap height calculation (maxWidth minus padding)
+        messageLabel.set_width(maxWidth - 28);
         // Allow text selection and copying
         messageLabel.clutter_text.set_selectable(true);
         messageLabel.clutter_text.set_reactive(true);
@@ -386,29 +390,72 @@ class PrayaChatbotPanel extends St.BoxLayout {
         messageContainer.add_child(messageBox);
         this._messagesBox.add_child(messageContainer);
 
+        // Force height calculation after layout
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            if (messageLabel && messageLabel.get_parent()) {
+                // Get the natural height of the label and lock it
+                let [, natHeight] = messageLabel.get_preferred_height(maxWidth - 28);
+                if (natHeight > 0) {
+                    messageLabel.set_height(natHeight);
+                    // Also set container heights
+                    let boxHeight = natHeight + 20; // padding
+                    messageBox.set_height(boxHeight);
+                    messageContainer.set_height(boxHeight);
+                }
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+
         // Scroll to bottom after layout update
         this._scrollToBottom();
     }
 
     _scrollToBottom() {
-        // Use multiple attempts to ensure scroll happens after layout
-        let attempts = 0;
-        let scrollFunc = () => {
-            if (this._scrollView && this._scrollView.vscroll) {
-                let adjustment = this._scrollView.vscroll.adjustment;
-                let maxScroll = adjustment.upper - adjustment.page_size;
-                if (maxScroll > 0) {
-                    adjustment.set_value(maxScroll);
-                }
+        // Cancel any pending scroll operation
+        if (this._scrollTimeoutId) {
+            GLib.source_remove(this._scrollTimeoutId);
+            this._scrollTimeoutId = null;
+        }
+
+        // Use idle_add to wait for layout completion, then scroll
+        this._scrollTimeoutId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._scrollTimeoutId = null;
+
+            if (!this._scrollView || !this._scrollView.vscroll) {
+                return GLib.SOURCE_REMOVE;
             }
-            attempts++;
-            // Try a few times to ensure layout is complete
-            if (attempts < 3) {
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, scrollFunc);
+
+            let vscroll = this._scrollView.vscroll;
+            let adjustment = vscroll.adjustment;
+
+            // Validate adjustment values are ready
+            if (adjustment.upper <= 0) {
+                // Layout not ready, retry after a short delay
+                this._scrollTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                    this._scrollTimeoutId = null;
+                    this._scrollToBottom();
+                    return GLib.SOURCE_REMOVE;
+                });
+                return GLib.SOURCE_REMOVE;
             }
+
+            let maxScroll = adjustment.upper - adjustment.page_size;
+            if (maxScroll > 0) {
+                // Animated scroll to bottom
+                adjustment.ease(maxScroll, {
+                    duration: 300,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    onComplete: () => {
+                        // Force redraw to reduce artifacts
+                        if (this._scrollView) {
+                            this._scrollView.queue_redraw();
+                        }
+                    },
+                });
+            }
+
             return GLib.SOURCE_REMOVE;
-        };
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, scrollFunc);
+        });
     }
 
     _parseMarkdown(text) {
@@ -460,7 +507,6 @@ class PrayaChatbotPanel extends St.BoxLayout {
 
         this._typingBox = new St.BoxLayout({
             style_class: 'praya-chatbot-message-assistant praya-chatbot-typing',
-            x_expand: false,
             y_expand: false,
         });
 
@@ -518,5 +564,22 @@ class PrayaChatbotPanel extends St.BoxLayout {
                 this._addMessage('assistant', response);
             }
         });
+    }
+
+    destroy() {
+        // Clean up timers
+        if (this._redrawTimerId) {
+            GLib.source_remove(this._redrawTimerId);
+            this._redrawTimerId = null;
+        }
+        if (this._scrollTimeoutId) {
+            GLib.source_remove(this._scrollTimeoutId);
+            this._scrollTimeoutId = null;
+        }
+        if (this._typingAnimationId) {
+            GLib.source_remove(this._typingAnimationId);
+            this._typingAnimationId = null;
+        }
+        super.destroy();
     }
 });

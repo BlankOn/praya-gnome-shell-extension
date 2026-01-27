@@ -83,6 +83,7 @@ class PrayaIndicator extends PanelMenu.Button {
         this._chatbotPanel = null;
         this._chatbotMessages = []; // Preserve messages across panel hide/show
         this._isTransitioningChatbot = false; // Prevent panel hide during transition
+        this._servicesConfig = this._loadServicesConfig(); // Load AI enabled state
 
         // Multi-monitor support - track which monitor the panel is on
         this._currentMonitor = null;
@@ -1377,10 +1378,10 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let searchResults = GioUnix.DesktopAppInfo.search(searchText);
         if (searchResults.length === 0 || searchResults[0].length === 0) {
-            // No results found - enter chatbot mode if configured
+            // No results found - enter chatbot mode if AI is enabled and configured
             // Reload settings to pick up any recent changes
             this._chatbotSettings.reload();
-            if (this._chatbotSettings.isConfigured()) {
+            if (this._isAIEnabled() && this._chatbotSettings.isConfigured()) {
                 this._enterChatbotMode(searchText);
             }
             return;
@@ -1449,8 +1450,8 @@ class PrayaIndicator extends PanelMenu.Button {
         if (matchedApps.length === 0) {
             // Reload settings to pick up any recent changes
             this._chatbotSettings.reload();
-            let isChatbotConfigured = this._chatbotSettings.isConfigured();
-            let noResultsText = isChatbotConfigured
+            let isChatbotAvailable = this._isAIEnabled() && this._chatbotSettings.isConfigured();
+            let noResultsText = isChatbotAvailable
                 ? 'No applications found.\nPress Enter to chat with AI...'
                 : 'No applications found';
             let noResultsLabel = new St.Label({
@@ -2307,6 +2308,34 @@ class PrayaIndicator extends PanelMenu.Button {
             }
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _loadServicesConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
+
+        let defaultConfig = { ai: false, posture: false };
+
+        try {
+            let configFile = Gio.File.new_for_path(configPath);
+            if (configFile.query_exists(null)) {
+                let [success, contents] = configFile.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let jsonStr = decoder.decode(contents);
+                    return JSON.parse(jsonStr);
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading services config: ${e.message}`);
+        }
+        return defaultConfig;
+    }
+
+    _isAIEnabled() {
+        // Reload config to get latest state
+        this._servicesConfig = this._loadServicesConfig();
+        return this._servicesConfig.ai || false;
     }
 
     destroy() {
