@@ -646,12 +646,15 @@ class PrayaIndicator extends PanelMenu.Button {
 
                 // Check if click is outside the panel (with margins)
                 // Use actual panel width to handle chatbot mode (400px) vs normal mode (325px)
+                // Account for monitor offset for multi-monitor setups
+                let monitor = this._currentMonitor;
                 let currentPanelWidth = this._panel ? this._panel.width : PANEL_WIDTH;
-                let panelRight = MARGIN_LEFT + currentPanelWidth;
-                let panelTop = Main.panel.height + MARGIN_TOP;
+                let panelLeft = monitor.x + MARGIN_LEFT;
+                let panelRight = panelLeft + currentPanelWidth;
+                let panelTop = monitor.y + Main.panel.height + MARGIN_TOP;
                 let panelBottom = panelTop + this._panel.height;
 
-                if (x < MARGIN_LEFT || x > panelRight || y < panelTop || y > panelBottom) {
+                if (x < panelLeft || x > panelRight || y < panelTop || y > panelBottom) {
                     this._hidePanel();
                     return Clutter.EVENT_STOP;
                 }
