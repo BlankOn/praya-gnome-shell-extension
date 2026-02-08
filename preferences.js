@@ -116,6 +116,51 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         // Check initial service status
         this._checkPrayaServiceStatus();
 
+        // App Menu Option section header with (Experimental) label
+        let appMenuHeaderBox = new St.BoxLayout({
+            style_class: 'praya-preferences-section-header-box',
+            x_expand: true,
+        });
+        let appMenuHeader = new St.Label({
+            text: 'App Menu Option',
+            style_class: 'praya-preferences-section-header',
+        });
+        appMenuHeaderBox.add_child(appMenuHeader);
+        let appMenuExperimentalLabel = new St.Label({
+            text: '(Experimental)',
+            style_class: 'praya-preferences-experimental-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        appMenuHeaderBox.add_child(appMenuExperimentalLabel);
+        contentBox.add_child(appMenuHeaderBox);
+
+        // Layout toggle row
+        let layoutBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let layoutLabel = new St.Label({
+            text: 'Layout:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        layoutBox.add_child(layoutLabel);
+
+        this._appMenuLayout = this._servicesConfig.appMenuLayout || 'list';
+        this._layoutToggleButton = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: this._appMenuLayout === 'grid' ? 'Grid' : 'List',
+            x_expand: true,
+        });
+        this._layoutToggleButton.connect('clicked', () => {
+            this._appMenuLayout = this._appMenuLayout === 'list' ? 'grid' : 'list';
+            this._layoutToggleButton.label = this._appMenuLayout === 'grid' ? 'Grid' : 'List';
+            this._servicesConfig.appMenuLayout = this._appMenuLayout;
+            this._saveServicesConfig();
+        });
+        layoutBox.add_child(this._layoutToggleButton);
+        contentBox.add_child(layoutBox);
+
         // Initialize posture D-Bus connection
         this._initPostureDBus();
 
@@ -474,7 +519,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         // Default config
         let defaultConfig = {
             ai: false,
-            posture: false
+            posture: false,
+            appMenuLayout: 'list'
         };
 
         try {

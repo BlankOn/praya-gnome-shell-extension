@@ -440,6 +440,8 @@ class PrayaIndicator extends PanelMenu.Button {
         let panelHeight = Main.panel.height;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
 
+        let effectiveWidth = this._getEffectivePanelWidth();
+
         // Create invisible hover zone that includes margins
         // Position relative to the current monitor's coordinates
         this._hoverZone = new St.Widget({
@@ -447,7 +449,7 @@ class PrayaIndicator extends PanelMenu.Button {
             track_hover: true,
             x: monitor.x,
             y: monitor.y + panelHeight,
-            width: PANEL_WIDTH + MARGIN_LEFT * 2,
+            width: effectiveWidth + MARGIN_LEFT * 2,
             height: availableHeight + MARGIN_TOP + MARGIN_BOTTOM,
         });
 
@@ -460,7 +462,7 @@ class PrayaIndicator extends PanelMenu.Button {
             track_hover: true,
             x: monitor.x + MARGIN_LEFT,
             y: monitor.y + panelHeight + MARGIN_TOP,
-            width: PANEL_WIDTH,
+            width: effectiveWidth,
             height: availableHeight,
         });
 
@@ -487,7 +489,7 @@ class PrayaIndicator extends PanelMenu.Button {
             x_expand: true,
             clip_to_allocation: true,
         });
-        this._slidingContainer.set_size(PANEL_WIDTH, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
+        this._slidingContainer.set_size(effectiveWidth, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
 
         this._panel.add_child(this._slidingContainer);
         this._panel.add_child(this._bottomSection);
@@ -504,14 +506,14 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Start with opacity 0 and off-screen to the left for slide-in animation
         this._panel.opacity = 0;
-        this._panel.x = monitor.x + MARGIN_LEFT - PANEL_WIDTH;
+        this._panel.x = monitor.x + MARGIN_LEFT - effectiveWidth;
 
         Main.layoutManager.addTopChrome(this._hoverZone);
         Main.layoutManager.addTopChrome(this._panel);
         this._panelVisible = true;
 
         // Fade in + slide to right animation
-        let targetWidth = this._isChatbotMode ? CHATBOT_PANEL_WIDTH : PANEL_WIDTH;
+        let targetWidth = this._isChatbotMode ? CHATBOT_PANEL_WIDTH : effectiveWidth;
         this._panel.ease({
             opacity: 255,
             x: monitor.x + MARGIN_LEFT,
@@ -785,7 +787,7 @@ class PrayaIndicator extends PanelMenu.Button {
             // Fade out + slide to left animation
             this._panel.ease({
                 opacity: 0,
-                x: monitorX + MARGIN_LEFT - PANEL_WIDTH,
+                x: monitorX + MARGIN_LEFT - this._getEffectivePanelWidth(),
                 duration: 150,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: () => {
@@ -824,7 +826,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         // Use sliding container height which already accounts for bottom section
         let containerHeight = this._slidingContainer ? this._slidingContainer.height : 400;
-        scrollView.set_size(PANEL_WIDTH, height || containerHeight);
+        scrollView.set_size(this._getEffectivePanelWidth(), height || containerHeight);
         return scrollView;
     }
 
@@ -899,6 +901,8 @@ class PrayaIndicator extends PanelMenu.Button {
         if (this._isAnimating) return;
         this._isAnimating = true;
 
+        let panelWidth = this._getEffectivePanelWidth();
+
         // Use sliding container's actual height (already accounts for bottom section)
         let containerHeight = this._slidingContainer.height;
 
@@ -906,14 +910,14 @@ class PrayaIndicator extends PanelMenu.Button {
         let currentContent = this._slidingContainer.get_first_child();
 
         // Set initial position for new content
-        newContent.set_position(direction === 'forward' ? PANEL_WIDTH : -PANEL_WIDTH, 0);
-        newContent.set_size(PANEL_WIDTH, containerHeight);
+        newContent.set_position(direction === 'forward' ? panelWidth : -panelWidth, 0);
+        newContent.set_size(panelWidth, containerHeight);
         this._slidingContainer.add_child(newContent);
 
         // Animate current content out
         if (currentContent) {
             currentContent.ease({
-                x: direction === 'forward' ? -PANEL_WIDTH : PANEL_WIDTH,
+                x: direction === 'forward' ? -panelWidth : panelWidth,
                 duration: ANIMATION_DURATION,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: () => {
@@ -964,29 +968,55 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let navItems = [];
 
+        // Read layout preference
+        this._servicesConfig = this._loadServicesConfig();
+        let useGrid = this._servicesConfig.appMenuLayout === 'grid';
+
         // Show favourite apps above Applications
         let favouriteApps = this._getFavouriteApps();
         if (favouriteApps.length > 0) {
-            for (let appData of favouriteApps) {
-                let appItem = this._createAppMenuItemFromData(appData, true);
-                appItem._hasChildren = false;
-                appItem._appData = appData;
-                appItem._activateCallback = ((data) => () => {
-                    this._launchAppFromData(data);
-                    this._hidePanel();
-                })(appData);
-                appItem.connect('button-press-event', (actor, event) => {
-                    if (event.get_button() === 3) {
-                        // Right-click - show context menu
-                        this._showContextMenu(appData, actor);
+            if (useGrid) {
+                let gridContainer = this._createAppGridContainer();
+                for (let appData of favouriteApps) {
+                    let gridItem = this._createAppGridItem(appData, true);
+                    gridItem._hasChildren = false;
+                    gridItem._appData = appData;
+                    gridItem._activateCallback = ((data) => () => {
+                        this._launchAppFromData(data);
+                        this._hidePanel();
+                    })(appData);
+                    gridItem.connect('button-press-event', (actor, event) => {
+                        if (event.get_button() === 3) {
+                            this._showContextMenu(appData, actor);
+                            return Clutter.EVENT_STOP;
+                        }
+                        gridItem._activateCallback();
                         return Clutter.EVENT_STOP;
-                    }
-                    // Left-click - launch app
-                    appItem._activateCallback();
-                    return Clutter.EVENT_STOP;
-                });
-                menuBox.add_child(appItem);
-                navItems.push(appItem);
+                    });
+                    gridContainer._addGridItem(gridItem);
+                    navItems.push(gridItem);
+                }
+                menuBox.add_child(gridContainer);
+            } else {
+                for (let appData of favouriteApps) {
+                    let appItem = this._createAppMenuItemFromData(appData, true);
+                    appItem._hasChildren = false;
+                    appItem._appData = appData;
+                    appItem._activateCallback = ((data) => () => {
+                        this._launchAppFromData(data);
+                        this._hidePanel();
+                    })(appData);
+                    appItem.connect('button-press-event', (actor, event) => {
+                        if (event.get_button() === 3) {
+                            this._showContextMenu(appData, actor);
+                            return Clutter.EVENT_STOP;
+                        }
+                        appItem._activateCallback();
+                        return Clutter.EVENT_STOP;
+                    });
+                    menuBox.add_child(appItem);
+                    navItems.push(appItem);
+                }
             }
             // Separator after favourites
             menuBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
@@ -1097,7 +1127,7 @@ class PrayaIndicator extends PanelMenu.Button {
             let containerHeight = this._slidingContainer.height;
             this._slidingContainer.destroy_all_children();
             contentContainer.set_position(0, 0);
-            contentContainer.set_size(PANEL_WIDTH, containerHeight);
+            contentContainer.set_size(this._getEffectivePanelWidth(), containerHeight);
             this._slidingContainer.add_child(contentContainer);
         }
     }
@@ -1132,6 +1162,8 @@ class PrayaIndicator extends PanelMenu.Button {
             this._loadApplicationsData();
         }
 
+        let useGrid = this._servicesConfig.appMenuLayout === 'grid';
+
         let scrollView = this._createScrollView();
 
         let menuBox = new St.BoxLayout({
@@ -1142,65 +1174,113 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let navItems = [];
 
-        // Define the order of categories
-        const categoryOrder = [
-            'Network', 'Office', 'Graphics', 'AudioVideo', 'Video', 'Audio',
-            'Development', 'Game', 'Education', 'Science', 'System',
-            'Utility', 'Settings', 'Other'
-        ];
-
-        // Show categories that have apps
-        for (let categoryId of categoryOrder) {
-            if (this._categories[categoryId] && this._categories[categoryId].length > 0) {
-                let info = this._getCategoryInfo(categoryId);
-                let categoryItem = this._createMenuItem(
-                    info.name,
-                    info.icon,
-                    true
-                );
-                categoryItem._hasChildren = true;
-                categoryItem._activateCallback = ((catId) => () => {
-                    if (!this._isAnimating) this._showCategoryApps(catId);
-                })(categoryId);
-                categoryItem.connect('button-press-event', () => {
-                    categoryItem._activateCallback();
-                    return Clutter.EVENT_STOP;
-                });
-                menuBox.add_child(categoryItem);
-                navItems.push(categoryItem);
+        if (useGrid) {
+            // Grid mode: flatten all apps, sort alphabetically, render as grid
+            let allApps = [];
+            for (let categoryId in this._categories) {
+                for (let appData of this._categories[categoryId]) {
+                    allApps.push(appData);
+                }
             }
-        }
-
-        // Check for any categories not in the predefined order
-        for (let categoryId in this._categories) {
-            if (!categoryOrder.includes(categoryId) && this._categories[categoryId].length > 0) {
-                let info = this._getCategoryInfo(categoryId);
-                let categoryItem = this._createMenuItem(
-                    info.name,
-                    info.icon,
-                    true
-                );
-                categoryItem._hasChildren = true;
-                categoryItem._activateCallback = ((catId) => () => {
-                    if (!this._isAnimating) this._showCategoryApps(catId);
-                })(categoryId);
-                categoryItem.connect('button-press-event', () => {
-                    categoryItem._activateCallback();
-                    return Clutter.EVENT_STOP;
-                });
-                menuBox.add_child(categoryItem);
-                navItems.push(categoryItem);
-            }
-        }
-
-        // Show message if no categories found
-        if (menuBox.get_n_children() === 0) {
-            let noAppsLabel = new St.Label({
-                text: 'No applications found.\nCategories: ' + Object.keys(this._categories).length,
-                style_class: 'praya-no-results',
-                x_align: Clutter.ActorAlign.CENTER,
+            // Deduplicate by app id
+            let seen = new Set();
+            allApps = allApps.filter(app => {
+                if (seen.has(app.id)) return false;
+                seen.add(app.id);
+                return true;
             });
-            menuBox.add_child(noAppsLabel);
+            allApps.sort((a, b) => a.name.localeCompare(b.name));
+
+            if (allApps.length > 0) {
+                let gridContainer = this._createAppGridContainer();
+                for (let appData of allApps) {
+                    let gridItem = this._createAppGridItem(appData);
+                    gridItem._hasChildren = false;
+                    gridItem._appData = appData;
+                    gridItem._activateCallback = ((data) => () => {
+                        this._launchAppFromData(data);
+                        this._hidePanel();
+                    })(appData);
+                    gridItem.connect('button-press-event', (actor, event) => {
+                        if (event.get_button() === 3) {
+                            this._showContextMenu(appData, actor);
+                            return Clutter.EVENT_STOP;
+                        }
+                        gridItem._activateCallback();
+                        return Clutter.EVENT_STOP;
+                    });
+                    gridContainer._addGridItem(gridItem);
+                    navItems.push(gridItem);
+                }
+                menuBox.add_child(gridContainer);
+            } else {
+                let noAppsLabel = new St.Label({
+                    text: 'No applications found.',
+                    style_class: 'praya-no-results',
+                    x_align: Clutter.ActorAlign.CENTER,
+                });
+                menuBox.add_child(noAppsLabel);
+            }
+        } else {
+            // List mode: show category tree (original behavior)
+            const categoryOrder = [
+                'Network', 'Office', 'Graphics', 'AudioVideo', 'Video', 'Audio',
+                'Development', 'Game', 'Education', 'Science', 'System',
+                'Utility', 'Settings', 'Other'
+            ];
+
+            for (let categoryId of categoryOrder) {
+                if (this._categories[categoryId] && this._categories[categoryId].length > 0) {
+                    let info = this._getCategoryInfo(categoryId);
+                    let categoryItem = this._createMenuItem(
+                        info.name,
+                        info.icon,
+                        true
+                    );
+                    categoryItem._hasChildren = true;
+                    categoryItem._activateCallback = ((catId) => () => {
+                        if (!this._isAnimating) this._showCategoryApps(catId);
+                    })(categoryId);
+                    categoryItem.connect('button-press-event', () => {
+                        categoryItem._activateCallback();
+                        return Clutter.EVENT_STOP;
+                    });
+                    menuBox.add_child(categoryItem);
+                    navItems.push(categoryItem);
+                }
+            }
+
+            // Check for any categories not in the predefined order
+            for (let categoryId in this._categories) {
+                if (!categoryOrder.includes(categoryId) && this._categories[categoryId].length > 0) {
+                    let info = this._getCategoryInfo(categoryId);
+                    let categoryItem = this._createMenuItem(
+                        info.name,
+                        info.icon,
+                        true
+                    );
+                    categoryItem._hasChildren = true;
+                    categoryItem._activateCallback = ((catId) => () => {
+                        if (!this._isAnimating) this._showCategoryApps(catId);
+                    })(categoryId);
+                    categoryItem.connect('button-press-event', () => {
+                        categoryItem._activateCallback();
+                        return Clutter.EVENT_STOP;
+                    });
+                    menuBox.add_child(categoryItem);
+                    navItems.push(categoryItem);
+                }
+            }
+
+            // Show message if no categories found
+            if (menuBox.get_n_children() === 0) {
+                let noAppsLabel = new St.Label({
+                    text: 'No applications found.\nCategories: ' + Object.keys(this._categories).length,
+                    style_class: 'praya-no-results',
+                    x_align: Clutter.ActorAlign.CENTER,
+                });
+                menuBox.add_child(noAppsLabel);
+            }
         }
 
         scrollView.add_child(menuBox);
@@ -1440,7 +1520,7 @@ class PrayaIndicator extends PanelMenu.Button {
             x_expand: true,
             y_expand: true,
         });
-        scrollView.set_size(PANEL_WIDTH, containerHeight);
+        scrollView.set_size(this._getEffectivePanelWidth(), containerHeight);
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
@@ -1472,9 +1552,18 @@ class PrayaIndicator extends PanelMenu.Button {
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
         } else {
+            let useGrid = this._servicesConfig.appMenuLayout === 'grid';
+            let gridContainer = useGrid ? this._createAppGridContainer() : null;
+
             for (let i = 0; i < matchedApps.length; i++) {
                 let appData = matchedApps[i];
-                let appItem = this._createAppMenuItemFromData(appData);
+                let appItem;
+
+                if (useGrid) {
+                    appItem = this._createAppGridItem(appData);
+                } else {
+                    appItem = this._createAppMenuItemFromData(appData);
+                }
                 appItem._hasChildren = false;
                 appItem._activateCallback = ((data) => () => {
                     this._launchAppFromData(data);
@@ -1494,7 +1583,12 @@ class PrayaIndicator extends PanelMenu.Button {
                 // Start with opacity 0 and slide in from left
                 appItem.opacity = 0;
                 appItem.translation_x = -20;
-                menuBox.add_child(appItem);
+
+                if (useGrid) {
+                    gridContainer._addGridItem(appItem);
+                } else {
+                    menuBox.add_child(appItem);
+                }
                 navItems.push(appItem);
 
                 // Staggered fade-in and slide animation
@@ -1508,6 +1602,10 @@ class PrayaIndicator extends PanelMenu.Button {
                     });
                     return GLib.SOURCE_REMOVE;
                 });
+            }
+
+            if (useGrid && gridContainer) {
+                menuBox.add_child(gridContainer);
             }
         }
 
@@ -1634,6 +1732,93 @@ class PrayaIndicator extends PanelMenu.Button {
         item._appData = appData;
 
         return item;
+    }
+
+    _createAppGridItem(appData, showFavStar = false) {
+        let item = new St.BoxLayout({
+            style_class: 'praya-grid-item',
+            vertical: true,
+            reactive: true,
+            track_hover: true,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+
+        // Create 64px icon
+        let icon;
+        if (appData.app) {
+            icon = appData.app.create_icon_texture(64);
+        } else if (appData.appInfo) {
+            let gicon = appData.appInfo.get_icon();
+            icon = new St.Icon({
+                gicon: gicon,
+                icon_size: 64,
+            });
+        } else {
+            icon = new St.Icon({
+                icon_name: 'application-x-executable-symbolic',
+                icon_size: 64,
+            });
+        }
+        icon.style_class = 'praya-grid-item-icon';
+        item.add_child(icon);
+
+        let label = new St.Label({
+            text: appData.name,
+            style_class: 'praya-grid-item-label',
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        label.clutter_text.set_line_wrap(false);
+        label.clutter_text.set_ellipsize(3); // Pango.EllipsizeMode.END
+        label.set_width(88);
+        item.add_child(label);
+
+        if (showFavStar && this._isFavourite(appData.id)) {
+            let pinIcon = new St.Icon({
+                icon_name: 'view-pin-symbolic',
+                icon_size: 12,
+                style_class: 'praya-favourite-pin',
+            });
+            pinIcon.set_pivot_point(0.5, 0.5);
+            pinIcon.rotation_angle_z = 45;
+            item.add_child(pinIcon);
+        }
+
+        item._appData = appData;
+        return item;
+    }
+
+    _createAppGridContainer() {
+        // Calculate how many columns fit in effective width
+        let itemWidth = 96;
+        let spacing = 4;
+        let padding = 16; // menu-box + grid-container padding
+        let availableWidth = this._getEffectivePanelWidth() - padding;
+        let columns = Math.max(1, Math.floor((availableWidth + spacing) / (itemWidth + spacing)));
+
+        // Vertical box that holds horizontal rows
+        let container = new St.BoxLayout({
+            style_class: 'praya-grid-container',
+            vertical: true,
+            x_expand: true,
+        });
+        container._gridRow = null;
+        container._gridCount = 0;
+        container._columns = columns;
+
+        // Auto-arrange items into rows
+        container._addGridItem = function(child) {
+            if (this._gridCount % this._columns === 0) {
+                this._gridRow = new St.BoxLayout({
+                    x_expand: true,
+                    x_align: Clutter.ActorAlign.START,
+                });
+                St.BoxLayout.prototype.add_child.call(this, this._gridRow);
+            }
+            this._gridRow.add_child(child);
+            this._gridCount++;
+        };
+
+        return container;
     }
 
     _launchAppFromData(appData) {
@@ -2278,9 +2463,11 @@ class PrayaIndicator extends PanelMenu.Button {
         let panelHeight = Main.panel.height;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
 
-        // Animate panel width back to 325px
+        let effectiveWidth = this._getEffectivePanelWidth();
+
+        // Animate panel width back to menu width
         this._panel.ease({
-            width: PANEL_WIDTH,
+            width: effectiveWidth,
             duration: ANIMATION_DURATION,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
@@ -2288,7 +2475,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Update hover zone width
         if (this._hoverZone) {
             this._hoverZone.ease({
-                width: PANEL_WIDTH + MARGIN_LEFT * 2,
+                width: effectiveWidth + MARGIN_LEFT * 2,
                 duration: ANIMATION_DURATION,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
@@ -2296,7 +2483,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Show and reset sliding container
         this._slidingContainer.show();
-        this._slidingContainer.set_size(PANEL_WIDTH, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
+        this._slidingContainer.set_size(effectiveWidth, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
 
         // Show main menu (this will recreate the search entry)
         this._navigationStack = [];
@@ -2317,7 +2504,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'list' };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -2326,7 +2513,10 @@ class PrayaIndicator extends PanelMenu.Button {
                 if (success) {
                     let decoder = new TextDecoder('utf-8');
                     let jsonStr = decoder.decode(contents);
-                    return JSON.parse(jsonStr);
+                    let config = JSON.parse(jsonStr);
+                    // Ensure appMenuLayout has a default
+                    if (!config.appMenuLayout) config.appMenuLayout = 'list';
+                    return config;
                 }
             }
         } catch (e) {
@@ -2339,6 +2529,12 @@ class PrayaIndicator extends PanelMenu.Button {
         // Reload config to get latest state
         this._servicesConfig = this._loadServicesConfig();
         return this._servicesConfig.ai || false;
+    }
+
+    _getEffectivePanelWidth() {
+        return this._servicesConfig.appMenuLayout === 'grid'
+            ? PANEL_WIDTH + 20
+            : PANEL_WIDTH;
     }
 
     destroy() {

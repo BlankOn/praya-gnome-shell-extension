@@ -474,6 +474,33 @@
     text-align: center;
 }
 
+/* Grid Layout Styles */
+.praya-grid-container {
+    padding: 4px;
+}
+
+.praya-grid-item {
+    width: 96px;
+    padding: 8px 4px;
+    border-radius: 8px;
+    transition: background-color 150ms;
+}
+
+.praya-grid-item:hover,
+.praya-grid-item.praya-menu-item-focused {
+    background-color: #404040;
+}
+
+.praya-grid-item-icon {
+    margin-bottom: 4px;
+}
+
+.praya-grid-item-label {
+    color: #ffffff;
+    font-size: 0.8em;
+    text-align: center;
+}
+
 /* Chatbot Panel Styles */
 .praya-chatbot-panel {
     background-color: #2d2d2d;
