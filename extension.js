@@ -55,6 +55,58 @@ export default class PrayaExtension extends Extension {
         this._taskbar = new PrayaTaskbar();
         Main.panel._leftBox.insert_child_at_index(this._taskbar, 1);
 
+        // Add show desktop button to far right of panel
+        // Outer: black hover area, no margin, fills panel height
+        this._showDesktopHoverArea = new St.Bin({
+            style_class: 'praya-show-desktop-hover-area',
+            reactive: true,
+            track_hover: true,
+        });
+        // Inner: wallpaper thumbnail with margin
+        this._showDesktopButton = new St.Bin({
+            style_class: 'praya-show-desktop-button',
+            reactive: false,
+        });
+        this._showDesktopOverlay = new St.Widget({
+            style_class: 'praya-show-desktop-overlay',
+            x_expand: true,
+            y_expand: true,
+            reactive: false,
+        });
+        this._showDesktopButton.add_child(this._showDesktopOverlay);
+        this._showDesktopHoverArea.set_child(this._showDesktopButton);
+        this._setShowDesktopWallpaper();
+        this._showDesktopActive = false;
+        this._showDesktopHoverHandled = false;
+        this._showDesktopHoverArea.connect('notify::hover', (actor) => {
+            if (actor.hover && !this._showDesktopHoverHandled) {
+                this._showDesktopHoverHandled = true;
+                this._toggleShowDesktop();
+                this._showDesktopOverlay.ease({
+                    opacity: this._showDesktopActive ? 0 : 76,
+                    duration: 150,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            } else if (!actor.hover) {
+                this._showDesktopHoverHandled = false;
+                this._showDesktopOverlay.ease({
+                    opacity: this._showDesktopActive ? 0 : 76,
+                    duration: 150,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            }
+        });
+        Main.panel._rightBox.add_child(this._showDesktopHoverArea);
+
+        // Listen for wallpaper changes
+        this._bgSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
+        this._bgChangedId = this._bgSettings.connect('changed::picture-uri', () => {
+            this._setShowDesktopWallpaper();
+        });
+        this._bgDarkChangedId = this._bgSettings.connect('changed::picture-uri-dark', () => {
+            this._setShowDesktopWallpaper();
+        });
+
         // Move date/time to the right (left of quick settings)
         this._moveDateTimeToRight();
 
@@ -1046,6 +1098,46 @@ export default class PrayaExtension extends Extension {
         }
     }
 
+    _setShowDesktopWallpaper() {
+        try {
+            let settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
+            let uri = settings.get_string('picture-uri-dark') || settings.get_string('picture-uri');
+            if (uri) {
+                let path = uri.replace('file://', '');
+                this._showDesktopButton.set_style(`background-image: url("${path}");`);
+            }
+        } catch (e) {
+            log(`Praya: Error setting wallpaper on show desktop button: ${e.message}`);
+        }
+    }
+
+    _toggleShowDesktop() {
+        let workspace = global.workspace_manager.get_active_workspace();
+        let windows = global.get_window_actors()
+            .map(a => a.meta_window)
+            .filter(w => {
+                return w.get_workspace() === workspace &&
+                       !w.is_skip_taskbar() &&
+                       w.get_window_type() === Meta.WindowType.NORMAL;
+            });
+
+        if (this._showDesktopActive) {
+            // Restore all windows
+            for (let w of windows) {
+                w.unminimize();
+            }
+            this._showDesktopActive = false;
+        } else {
+            // Minimize all windows
+            for (let w of windows) {
+                if (!w.minimized) {
+                    w.minimize();
+                }
+            }
+            this._showDesktopActive = true;
+        }
+    }
+
     disable() {
         // Restore gsettings
         this._restoreSettings();
@@ -1065,6 +1157,23 @@ export default class PrayaExtension extends Extension {
         // Show the dock again when extension is disabled
         this._showDock();
         this._dock = null;
+
+        if (this._bgChangedId && this._bgSettings) {
+            this._bgSettings.disconnect(this._bgChangedId);
+            this._bgChangedId = null;
+        }
+        if (this._bgDarkChangedId && this._bgSettings) {
+            this._bgSettings.disconnect(this._bgDarkChangedId);
+            this._bgDarkChangedId = null;
+        }
+        this._bgSettings = null;
+
+        if (this._showDesktopHoverArea) {
+            this._showDesktopHoverArea.destroy();
+            this._showDesktopHoverArea = null;
+            this._showDesktopButton = null;
+            this._showDesktopOverlay = null;
+        }
 
         if (this._taskbar) {
             this._taskbar.destroy();

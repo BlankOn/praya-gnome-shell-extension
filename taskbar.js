@@ -6,6 +6,7 @@
  */
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
@@ -23,6 +24,8 @@ class PrayaTaskbar extends St.BoxLayout {
 
         this._windowTracker = Shell.WindowTracker.get_default();
         this._appSystem = Shell.AppSystem.get_default();
+        this._hoverActivate = this._loadHoverActivate();
+        this._hoverInProgress = false;
 
         // Track window signals
         this._windowSignals = [];
@@ -63,11 +66,23 @@ class PrayaTaskbar extends St.BoxLayout {
     }
 
     _updateTaskbar() {
+        // Skip updates while hover animation is in progress
+        if (this._hoverInProgress)
+            return;
+
         // Disconnect existing title signals
         for (let sig of this._titleSignals) {
             sig.window.disconnect(sig.id);
         }
         this._titleSignals = [];
+
+        // Clean up hover timeouts
+        for (let child of this.get_children()) {
+            if (child._hoverTimeoutId) {
+                GLib.source_remove(child._hoverTimeoutId);
+                child._hoverTimeoutId = null;
+            }
+        }
 
         // Remove all existing children
         this.destroy_all_children();
@@ -98,6 +113,9 @@ class PrayaTaskbar extends St.BoxLayout {
             });
             this._titleSignals.push({ window: window, id: titleId });
         }
+
+        // Reset hover lock after rebuild so next hover can proceed
+        this._hoverInProgress = false;
     }
 
     _createWindowButton(window, app, isFocused) {
@@ -152,8 +170,39 @@ class PrayaTaskbar extends St.BoxLayout {
 
         button.add_child(innerBox);
 
-        // Click handler
+        // Hover handler - minimize immediately, open after 100ms, ignore until mouse leaves
+        button._hoverTimeoutId = null;
+        button.connect('notify::hover', (actor) => {
+            if (this._hoverActivate && actor.hover && !this._hoverInProgress &&
+                window !== global.display.focus_window) {
+                this._hoverInProgress = true;
+                if (!window.minimized) {
+                    window.minimize();
+                }
+                button._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+                    button._hoverTimeoutId = null;
+                    window.unminimize();
+                    window.activate(global.get_current_time());
+                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                        this._updateTaskbar();
+                        return GLib.SOURCE_REMOVE;
+                    });
+                    return GLib.SOURCE_REMOVE;
+                });
+            } else if (!actor.hover) {
+                this._hoverInProgress = false;
+                if (button._hoverTimeoutId) {
+                    GLib.source_remove(button._hoverTimeoutId);
+                    button._hoverTimeoutId = null;
+                }
+            }
+        });
+
+        // Click handler (disabled when hover activate is on)
         button.connect('button-press-event', (actor, event) => {
+            if (this._hoverActivate)
+                return Clutter.EVENT_STOP;
+
             if (event.get_button() === 1) {
                 // Left click - focus or unminimize
                 if (window.minimized) {
@@ -177,7 +226,36 @@ class PrayaTaskbar extends St.BoxLayout {
         return button;
     }
 
+    _loadHoverActivate() {
+        try {
+            let configPath = GLib.build_filenamev([GLib.get_home_dir(), '.config', 'praya', 'services.json']);
+            let configFile = Gio.File.new_for_path(configPath);
+            if (configFile.query_exists(null)) {
+                let [success, contents] = configFile.load_contents(null);
+                if (success) {
+                    let config = JSON.parse(new TextDecoder('utf-8').decode(contents));
+                    return config.taskbarHoverActivate || false;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading taskbar config: ${e.message}`);
+        }
+        return false;
+    }
+
+    setHoverActivate(enabled) {
+        this._hoverActivate = enabled;
+    }
+
     destroy() {
+        // Clean up hover timeouts
+        for (let child of this.get_children()) {
+            if (child._hoverTimeoutId) {
+                GLib.source_remove(child._hoverTimeoutId);
+                child._hoverTimeoutId = null;
+            }
+        }
+
         // Disconnect title signals
         for (let sig of this._titleSignals) {
             sig.window.disconnect(sig.id);
