@@ -75,7 +75,6 @@ export default class PrayaExtension extends Extension {
         });
         this._showDesktopButton.add_child(this._showDesktopOverlay);
         this._showDesktopHoverArea.set_child(this._showDesktopButton);
-        this._setShowDesktopWallpaper();
         this._showDesktopActive = false;
         this._showDesktopHoverHandled = false;
         this._showDesktopHoverArea.connect('notify::hover', (actor) => {
@@ -97,6 +96,10 @@ export default class PrayaExtension extends Extension {
             }
         });
         Main.panel._rightBox.add_child(this._showDesktopHoverArea);
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._setShowDesktopWallpaper();
+            return GLib.SOURCE_REMOVE;
+        });
 
         // Listen for wallpaper changes
         this._bgSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
@@ -1104,7 +1107,9 @@ export default class PrayaExtension extends Extension {
             let uri = settings.get_string('picture-uri-dark') || settings.get_string('picture-uri');
             if (uri) {
                 let path = uri.replace('file://', '');
-                this._showDesktopButton.set_style(`background-image: url("${path}");`);
+                this._showDesktopButton.set_style(
+                    `background-image: url("${path}"); background-size: cover; background-position: center;`
+                );
             }
         } catch (e) {
             log(`Praya: Error setting wallpaper on show desktop button: ${e.message}`);

@@ -231,7 +231,7 @@
 /* Taskbar */
 /* Show Desktop - outer hover area */
 .praya-show-desktop-hover-area {
-    background-color: #000000;
+    background-color: transparent;
     padding: 0;
     margin: 0;
 }

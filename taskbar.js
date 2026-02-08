@@ -25,7 +25,6 @@ class PrayaTaskbar extends St.BoxLayout {
         this._windowTracker = Shell.WindowTracker.get_default();
         this._appSystem = Shell.AppSystem.get_default();
         this._hoverActivate = this._loadHoverActivate();
-        this._hoverInProgress = false;
 
         // Track window signals
         this._windowSignals = [];
@@ -66,23 +65,11 @@ class PrayaTaskbar extends St.BoxLayout {
     }
 
     _updateTaskbar() {
-        // Skip updates while hover animation is in progress
-        if (this._hoverInProgress)
-            return;
-
         // Disconnect existing title signals
         for (let sig of this._titleSignals) {
             sig.window.disconnect(sig.id);
         }
         this._titleSignals = [];
-
-        // Clean up hover timeouts
-        for (let child of this.get_children()) {
-            if (child._hoverTimeoutId) {
-                GLib.source_remove(child._hoverTimeoutId);
-                child._hoverTimeoutId = null;
-            }
-        }
 
         // Remove all existing children
         this.destroy_all_children();
@@ -114,8 +101,6 @@ class PrayaTaskbar extends St.BoxLayout {
             this._titleSignals.push({ window: window, id: titleId });
         }
 
-        // Reset hover lock after rebuild so next hover can proceed
-        this._hoverInProgress = false;
     }
 
     _createWindowButton(window, app, isFocused) {
@@ -170,49 +155,43 @@ class PrayaTaskbar extends St.BoxLayout {
 
         button.add_child(innerBox);
 
-        // Hover handler - minimize immediately, open after 100ms, ignore until mouse leaves
-        button._hoverTimeoutId = null;
+        // Hover handler - activate window on hover (if enabled)
         button.connect('notify::hover', (actor) => {
-            if (this._hoverActivate && actor.hover && !this._hoverInProgress &&
+            if (this._hoverActivate && actor.hover &&
+                !this._hoverSuppressed &&
                 window !== global.display.focus_window) {
-                this._hoverInProgress = true;
-                if (!window.minimized) {
-                    window.minimize();
-                }
-                button._hoverTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-                    button._hoverTimeoutId = null;
+                if (window.minimized) {
                     window.unminimize();
-                    window.activate(global.get_current_time());
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
-                        this._updateTaskbar();
-                        return GLib.SOURCE_REMOVE;
-                    });
-                    return GLib.SOURCE_REMOVE;
-                });
-            } else if (!actor.hover) {
-                this._hoverInProgress = false;
-                if (button._hoverTimeoutId) {
-                    GLib.source_remove(button._hoverTimeoutId);
-                    button._hoverTimeoutId = null;
                 }
+                this._activateWithFade(window);
+            }
+            if (!actor.hover) {
+                this._hoverSuppressed = false;
             }
         });
 
-        // Click handler (disabled when hover activate is on)
+        // Click handler
         button.connect('button-press-event', (actor, event) => {
-            if (this._hoverActivate)
-                return Clutter.EVENT_STOP;
-
             if (event.get_button() === 1) {
-                // Left click - focus or unminimize
-                if (window.minimized) {
-                    window.unminimize();
-                    window.activate(global.get_current_time());
-                } else if (window === global.display.focus_window) {
-                    // If already focused, minimize it
-                    window.minimize();
+                if (this._hoverActivate) {
+                    // Hover activate is on - click toggles minimize/restore
+                    if (window.minimized) {
+                        window.unminimize();
+                        this._activateWithFade(window);
+                    } else if (window === global.display.focus_window) {
+                        window.minimize();
+                    }
+                    this._hoverSuppressed = true;
                 } else {
-                    window.activate(global.get_current_time());
+                    // Left click - focus or unminimize
+                    if (window.minimized) {
+                        window.unminimize();
+                        this._activateWithFade(window);
+                    } else if (window === global.display.focus_window) {
+                        window.minimize();
+                    } else {
+                        this._activateWithFade(window);
+                    }
                 }
                 return Clutter.EVENT_STOP;
             } else if (event.get_button() === 2) {
@@ -224,6 +203,19 @@ class PrayaTaskbar extends St.BoxLayout {
         });
 
         return button;
+    }
+
+    _activateWithFade(window) {
+        window.activate(global.get_current_time());
+        let actor = window.get_compositor_private();
+        if (actor) {
+            actor.set_opacity(128);
+            actor.ease({
+                opacity: 255,
+                duration: 500,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
     }
 
     _loadHoverActivate() {
@@ -248,14 +240,6 @@ class PrayaTaskbar extends St.BoxLayout {
     }
 
     destroy() {
-        // Clean up hover timeouts
-        for (let child of this.get_children()) {
-            if (child._hoverTimeoutId) {
-                GLib.source_remove(child._hoverTimeoutId);
-                child._hoverTimeoutId = null;
-            }
-        }
-
         // Disconnect title signals
         for (let sig of this._titleSignals) {
             sig.window.disconnect(sig.id);
