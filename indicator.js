@@ -84,6 +84,7 @@ class PrayaIndicator extends PanelMenu.Button {
         this._chatbotMessages = []; // Preserve messages across panel hide/show
         this._isTransitioningChatbot = false; // Prevent panel hide during transition
         this._servicesConfig = this._loadServicesConfig(); // Load AI enabled state
+        this._mainMenuHoverActivate = this._servicesConfig.mainMenuHoverActivate || false;
 
         // Multi-monitor support - track which monitor the panel is on
         this._currentMonitor = null;
@@ -100,8 +101,9 @@ class PrayaIndicator extends PanelMenu.Button {
             this._loadApplicationsData();
         });
 
-        // Connect hover handler to show panel
+        // Connect hover handler to show panel (only if enabled in config)
         this.connect('enter-event', () => {
+            if (!this._mainMenuHoverActivate) return Clutter.EVENT_PROPAGATE;
             if (this._hoverTimeoutId) {
                 GLib.source_remove(this._hoverTimeoutId);
                 this._hoverTimeoutId = null;
@@ -112,16 +114,25 @@ class PrayaIndicator extends PanelMenu.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Prevent click from hiding the panel - just keep it open
+        // Click handler for indicator button
         this.connect('button-press-event', () => {
             // Cancel any pending hide timeout
             if (this._hoverTimeoutId) {
                 GLib.source_remove(this._hoverTimeoutId);
                 this._hoverTimeoutId = null;
             }
-            // Show panel if not visible, but don't hide if already visible
-            if (!this._panelVisible) {
-                this._showPanel();
+            if (!this._mainMenuHoverActivate) {
+                // When hover is disabled, click toggles the panel
+                if (this._panelVisible) {
+                    this._hidePanel();
+                } else {
+                    this._showPanel();
+                }
+            } else {
+                // When hover is active, click only opens (hover handles close)
+                if (!this._panelVisible) {
+                    this._showPanel();
+                }
             }
             return Clutter.EVENT_STOP;
         });
@@ -611,7 +622,9 @@ class PrayaIndicator extends PanelMenu.Button {
         });
 
         this._panelLeaveId = this._panel.connect('leave-event', () => {
-            this._scheduleHidePanel();
+            if (this._mainMenuHoverActivate) {
+                this._scheduleHidePanel();
+            }
             return Clutter.EVENT_PROPAGATE;
         });
 
@@ -625,13 +638,17 @@ class PrayaIndicator extends PanelMenu.Button {
         });
 
         this._hoverZoneLeaveId = this._hoverZone.connect('leave-event', () => {
-            this._scheduleHidePanel();
+            if (this._mainMenuHoverActivate) {
+                this._scheduleHidePanel();
+            }
             return Clutter.EVENT_PROPAGATE;
         });
 
         // Also handle leaving the indicator button
         this._indicatorLeaveId = this.connect('leave-event', () => {
-            this._scheduleHidePanel();
+            if (this._mainMenuHoverActivate) {
+                this._scheduleHidePanel();
+            }
             return Clutter.EVENT_PROPAGATE;
         });
 
@@ -2504,7 +2521,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'list' };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'list', mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -2523,6 +2540,10 @@ class PrayaIndicator extends PanelMenu.Button {
             log(`Praya: Error loading services config: ${e.message}`);
         }
         return defaultConfig;
+    }
+
+    setMainMenuHoverActivate(enabled) {
+        this._mainMenuHoverActivate = enabled;
     }
 
     _isAIEnabled() {

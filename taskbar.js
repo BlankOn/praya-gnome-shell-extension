@@ -30,6 +30,7 @@ class PrayaTaskbar extends St.BoxLayout {
         this._windowSignals = [];
         this._workspaceSignals = [];
         this._titleSignals = [];
+        this._clickCooldowns = new Map();
 
         // Connect to window events
         this._windowAddedId = global.display.connect('window-created', () => {
@@ -161,6 +162,16 @@ class PrayaTaskbar extends St.BoxLayout {
                 !this._hoverSuppressed &&
                 window !== global.display.focus_window) {
                 if (window.minimized) {
+                    // Block clicks for 1 second after hover-unminimizing
+                    let existing = this._clickCooldowns.get(window);
+                    if (existing) {
+                        GLib.source_remove(existing);
+                    }
+                    let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                        this._clickCooldowns.delete(window);
+                        return GLib.SOURCE_REMOVE;
+                    });
+                    this._clickCooldowns.set(window, timeoutId);
                     window.unminimize();
                 }
                 this._activateWithFade(window);
@@ -173,6 +184,10 @@ class PrayaTaskbar extends St.BoxLayout {
         // Click handler
         button.connect('button-press-event', (actor, event) => {
             if (event.get_button() === 1) {
+                // Ignore clicks during cooldown after hover-unminimize
+                if (this._clickCooldowns.has(window)) {
+                    return Clutter.EVENT_STOP;
+                }
                 if (this._hoverActivate) {
                     // Hover activate is on - click toggles minimize/restore
                     if (window.minimized) {
@@ -270,6 +285,10 @@ class PrayaTaskbar extends St.BoxLayout {
             global.workspace_manager.disconnect(this._workspaceSwitchId);
             this._workspaceSwitchId = null;
         }
+        for (let timeoutId of this._clickCooldowns.values()) {
+            GLib.source_remove(timeoutId);
+        }
+        this._clickCooldowns.clear();
         super.destroy();
     }
 });

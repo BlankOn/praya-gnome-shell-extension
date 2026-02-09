@@ -171,40 +171,121 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         layoutBox.add_child(this._layoutToggleButton);
         leftColumn.add_child(layoutBox);
 
-        // -- Taskbar Behaviour --
-        let taskbarHeader = new St.Label({
-            text: 'Taskbar Behaviour',
+        // -- Panel Position --
+        let panelPositionHeader = new St.Label({
+            text: 'Panel Position',
             style_class: 'praya-preferences-section-header',
         });
-        leftColumn.add_child(taskbarHeader);
+        leftColumn.add_child(panelPositionHeader);
 
-        let hoverActivateBox = new St.BoxLayout({
+        let panelPositionBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
         });
-        let hoverActivateLabel = new St.Label({
-            text: 'Open on hover:',
+        let panelPositionLabel = new St.Label({
+            text: 'Position:',
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
-        hoverActivateBox.add_child(hoverActivateLabel);
+        panelPositionBox.add_child(panelPositionLabel);
+
+        this._panelPosition = this._servicesConfig.panelPosition || 'top';
+        this._panelPositionToggle = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: this._panelPosition === 'bottom' ? 'Bottom' : 'Top',
+            x_expand: true,
+        });
+        this._panelPositionToggle.connect('clicked', () => {
+            this._panelPosition = this._panelPosition === 'top' ? 'bottom' : 'top';
+            this._panelPositionToggle.label = this._panelPosition === 'bottom' ? 'Bottom' : 'Top';
+            this._servicesConfig.panelPosition = this._panelPosition;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setPanelPosition(this._panelPosition);
+            }
+        });
+        panelPositionBox.add_child(this._panelPositionToggle);
+        leftColumn.add_child(panelPositionBox);
+
+        // -- Activate on Hover --
+        let hoverHeader = new St.Label({
+            text: 'Activate on Hover',
+            style_class: 'praya-preferences-section-header',
+        });
+        leftColumn.add_child(hoverHeader);
+
+        // Main menu hover toggle
+        let mainMenuHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let mainMenuHoverLabel = new St.Label({
+            text: 'Main menu:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        mainMenuHoverBox.add_child(mainMenuHoverLabel);
+
+        this._mainMenuHoverActivate = this._servicesConfig.mainMenuHoverActivate || false;
+        this._mainMenuHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._mainMenuHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._mainMenuHoverActivate) {
+            this._mainMenuHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._mainMenuHoverToggle.connect('clicked', () => {
+            this._mainMenuHoverActivate = !this._mainMenuHoverActivate;
+            this._mainMenuHoverToggle.label = this._mainMenuHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._mainMenuHoverActivate) {
+                this._mainMenuHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._mainMenuHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.mainMenuHoverActivate = this._mainMenuHoverActivate;
+            this._saveServicesConfig();
+
+            // Update indicator live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj?._indicator) {
+                ext.stateObj._indicator.setMainMenuHoverActivate(this._mainMenuHoverActivate);
+            }
+        });
+        mainMenuHoverBox.add_child(this._mainMenuHoverToggle);
+        leftColumn.add_child(mainMenuHoverBox);
+
+        // Taskbar hover toggle
+        let taskbarHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let taskbarHoverLabel = new St.Label({
+            text: 'Taskbar:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        taskbarHoverBox.add_child(taskbarHoverLabel);
 
         this._taskbarHoverActivate = this._servicesConfig.taskbarHoverActivate || false;
-        this._hoverActivateToggle = new St.Button({
+        this._taskbarHoverToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
             label: this._taskbarHoverActivate ? 'Enabled' : 'Disabled',
             x_expand: true,
         });
         if (this._taskbarHoverActivate) {
-            this._hoverActivateToggle.add_style_class_name('praya-posture-toggle-enabled');
+            this._taskbarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
         }
-        this._hoverActivateToggle.connect('clicked', () => {
+        this._taskbarHoverToggle.connect('clicked', () => {
             this._taskbarHoverActivate = !this._taskbarHoverActivate;
-            this._hoverActivateToggle.label = this._taskbarHoverActivate ? 'Enabled' : 'Disabled';
+            this._taskbarHoverToggle.label = this._taskbarHoverActivate ? 'Enabled' : 'Disabled';
             if (this._taskbarHoverActivate) {
-                this._hoverActivateToggle.add_style_class_name('praya-posture-toggle-enabled');
+                this._taskbarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
-                this._hoverActivateToggle.remove_style_class_name('praya-posture-toggle-enabled');
+                this._taskbarHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
             }
             this._servicesConfig.taskbarHoverActivate = this._taskbarHoverActivate;
             this._saveServicesConfig();
@@ -215,8 +296,49 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                 ext.stateObj._taskbar.setHoverActivate(this._taskbarHoverActivate);
             }
         });
-        hoverActivateBox.add_child(this._hoverActivateToggle);
-        leftColumn.add_child(hoverActivateBox);
+        taskbarHoverBox.add_child(this._taskbarHoverToggle);
+        leftColumn.add_child(taskbarHoverBox);
+
+        // Show Desktop hover toggle
+        let showDesktopHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let showDesktopHoverLabel = new St.Label({
+            text: 'Show Desktop:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        showDesktopHoverBox.add_child(showDesktopHoverLabel);
+
+        this._showDesktopHoverActivate = this._servicesConfig.showDesktopHoverActivate || false;
+        this._showDesktopHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._showDesktopHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._showDesktopHoverActivate) {
+            this._showDesktopHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._showDesktopHoverToggle.connect('clicked', () => {
+            this._showDesktopHoverActivate = !this._showDesktopHoverActivate;
+            this._showDesktopHoverToggle.label = this._showDesktopHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._showDesktopHoverActivate) {
+                this._showDesktopHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._showDesktopHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.showDesktopHoverActivate = this._showDesktopHoverActivate;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setShowDesktopHoverActivate(this._showDesktopHoverActivate);
+            }
+        });
+        showDesktopHoverBox.add_child(this._showDesktopHoverToggle);
+        leftColumn.add_child(showDesktopHoverBox);
 
         columnsBox.add_child(leftColumn);
 
@@ -578,7 +700,10 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             ai: false,
             posture: false,
             appMenuLayout: 'list',
+            mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
+            showDesktopHoverActivate: false,
+            panelPosition: 'top',
         };
 
         try {
