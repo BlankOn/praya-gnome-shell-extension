@@ -48,12 +48,85 @@ export default class PrayaExtension extends Extension {
         // Add to the left side of the panel
         Main.panel.addToStatusArea('praya-indicator', this._indicator, 0, 'left');
 
+        // Apply panel position (top or bottom)
+        this._applyPanelPosition(this._servicesConfig.panelPosition || 'top');
+        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
+            this._applyPanelPosition(this._panelPosition || 'top');
+        });
+
         // Hide activities button
         this._hideActivities();
 
         // Add taskbar to the left box, after indicator (index 1)
         this._taskbar = new PrayaTaskbar();
         Main.panel._leftBox.insert_child_at_index(this._taskbar, 1);
+
+        // Add show desktop button to far right of panel
+        // Outer: black hover area, no margin, fills panel height
+        this._showDesktopHoverArea = new St.Bin({
+            style_class: 'praya-show-desktop-hover-area',
+            reactive: true,
+            track_hover: true,
+        });
+        // Inner: wallpaper thumbnail with margin
+        this._showDesktopButton = new St.Bin({
+            style_class: 'praya-show-desktop-button',
+            reactive: false,
+        });
+        this._showDesktopOverlay = new St.Widget({
+            style_class: 'praya-show-desktop-overlay',
+            x_expand: true,
+            y_expand: true,
+            reactive: false,
+        });
+        this._showDesktopButton.add_child(this._showDesktopOverlay);
+        this._showDesktopHoverArea.set_child(this._showDesktopButton);
+        this._showDesktopActive = false;
+        this._showDesktopHoverHandled = false;
+        this._showDesktopHoverActivate = this._servicesConfig.showDesktopHoverActivate || false;
+        this._showDesktopHoverArea.connect('notify::hover', (actor) => {
+            if (!this._showDesktopHoverActivate) return;
+            if (actor.hover && !this._showDesktopHoverHandled) {
+                this._showDesktopHoverHandled = true;
+                this._toggleShowDesktop();
+                this._showDesktopOverlay.ease({
+                    opacity: this._showDesktopActive ? 0 : 76,
+                    duration: 150,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            } else if (!actor.hover) {
+                this._showDesktopHoverHandled = false;
+                this._showDesktopOverlay.ease({
+                    opacity: this._showDesktopActive ? 0 : 76,
+                    duration: 150,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            }
+        });
+        // Click handler for show desktop (works regardless of hover setting)
+        this._showDesktopHoverArea.connect('button-press-event', () => {
+            this._toggleShowDesktop();
+            this._showDesktopOverlay.ease({
+                opacity: this._showDesktopActive ? 0 : 76,
+                duration: 150,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+            return Clutter.EVENT_STOP;
+        });
+        Main.panel._rightBox.add_child(this._showDesktopHoverArea);
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._setShowDesktopWallpaper();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        // Listen for wallpaper changes
+        this._bgSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
+        this._bgChangedId = this._bgSettings.connect('changed::picture-uri', () => {
+            this._setShowDesktopWallpaper();
+        });
+        this._bgDarkChangedId = this._bgSettings.connect('changed::picture-uri-dark', () => {
+            this._setShowDesktopWallpaper();
+        });
 
         // Move date/time to the right (left of quick settings)
         this._moveDateTimeToRight();
@@ -100,7 +173,11 @@ export default class PrayaExtension extends Extension {
         // Default config
         let defaultConfig = {
             ai: false,
-            posture: false
+            posture: false,
+            mainMenuHoverActivate: false,
+            taskbarHoverActivate: false,
+            showDesktopHoverActivate: false,
+            panelPosition: 'top',
         };
 
         try {
@@ -140,17 +217,45 @@ export default class PrayaExtension extends Extension {
         }
     }
 
-    _startPrayaServices() {
-        // Start praya systemd user service silently (always runs)
-        try {
-            let proc = Gio.Subprocess.new(
-                ['systemctl', '--user', 'start', 'praya'],
-                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
-            );
-            // Don't wait for the result - fire and forget
-        } catch (e) {
-            // Silent failure as requested
+    _applyPanelPosition(position) {
+        this._panelPosition = position;
+        let monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor) return;
+        let panelBox = Main.layoutManager.panelBox;
+
+        if (position === 'bottom') {
+            panelBox.set_position(monitor.x, monitor.y + monitor.height - panelBox.height);
+        } else {
+            panelBox.set_position(monitor.x, monitor.y);
         }
+    }
+
+    setPanelPosition(position) {
+        this._applyPanelPosition(position);
+    }
+
+    _startPrayaServices() {
+        // Import display environment variables into systemd user session
+        // immediately. Without this, apps launched via systemd scopes
+        // (which is how GNOME Shell launches apps) won't have
+        // WAYLAND_DISPLAY/DISPLAY and will fail to connect to the
+        // display server.
+        this._importEnvironment();
+
+        // Start praya systemd user service after a short delay
+        // to let import-environment complete first
+        this._startPrayaServiceTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._startPrayaServiceTimeoutId = null;
+            try {
+                Gio.Subprocess.new(
+                    ['systemctl', '--user', 'start', 'praya'],
+                    Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
+                );
+            } catch (e) {
+                // Silent failure
+            }
+            return GLib.SOURCE_REMOVE;
+        });
 
         // Enable feature services based on config
         try {
@@ -199,6 +304,76 @@ export default class PrayaExtension extends Extension {
                     }
                 );
             }
+        } catch (e) {
+            // Silent failure
+        }
+    }
+
+    _importEnvironment() {
+        // Build the list of env vars to import
+        let envVars = ['WAYLAND_DISPLAY', 'DISPLAY', 'XDG_RUNTIME_DIR',
+                       'XDG_SESSION_TYPE', 'XDG_CURRENT_DESKTOP'];
+
+        // Filter to only vars that are actually set in our process
+        let availableVars = envVars.filter(v => GLib.getenv(v) !== null);
+
+        if (availableVars.length === 0) {
+            // No display vars available yet - schedule a retry
+            this._importEnvRetries = 0;
+            this._importEnvTimeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+                this._importEnvRetries++;
+                if (this._importEnvRetries >= 30) {
+                    this._importEnvTimeoutId = null;
+                    return GLib.SOURCE_REMOVE;
+                }
+                let ready = envVars.some(v => GLib.getenv(v) !== null);
+                if (ready) {
+                    this._doImportEnvironment(envVars.filter(v => GLib.getenv(v) !== null));
+                    this._importEnvTimeoutId = null;
+                    return GLib.SOURCE_REMOVE;
+                }
+                return GLib.SOURCE_CONTINUE;
+            });
+            return;
+        }
+
+        this._doImportEnvironment(availableVars);
+    }
+
+    _doImportEnvironment(vars) {
+        // Use systemctl import-environment
+        try {
+            let args = ['systemctl', '--user', 'import-environment', ...vars];
+            let proc = Gio.Subprocess.new(
+                args,
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
+            );
+            // Wait async to ensure it completes
+            proc.wait_async(null, (proc, result) => {
+                try {
+                    proc.wait_finish(result);
+                } catch (e) {
+                    // Silent failure
+                }
+            });
+        } catch (e) {
+            // Silent failure
+        }
+
+        // Also update D-Bus activation environment for portal-launched apps
+        try {
+            let args = ['dbus-update-activation-environment', '--systemd', ...vars];
+            let proc = Gio.Subprocess.new(
+                args,
+                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE
+            );
+            proc.wait_async(null, (proc, result) => {
+                try {
+                    proc.wait_finish(result);
+                } catch (e) {
+                    // Silent failure
+                }
+            });
         } catch (e) {
             // Silent failure
         }
@@ -797,29 +972,18 @@ export default class PrayaExtension extends Extension {
 
     _applySettings() {
         // Extension's modified values - used to detect if we're reading our own changes
-        const EXTENSION_OVERLAY_KEY = 'Alt_L';
         const EXTENSION_BUTTON_LAYOUT = ':minimize,maximize,close';
 
         // GNOME default values - used as fallback
-        const DEFAULT_OVERLAY_KEY = 'Super_L';
         const DEFAULT_BUTTON_LAYOUT = 'appmenu:close';
 
         // Get settings objects
         this._interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-        this._mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
         this._wmSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
 
         // Save original values, but check if they're our own modified values
         // (can happen after shell restart while extension was enabled)
         this._originalHotCorner = this._interfaceSettings.get_boolean('enable-hot-corners');
-
-        let currentOverlayKey = this._mutterSettings.get_string('overlay-key');
-        if (currentOverlayKey === EXTENSION_OVERLAY_KEY) {
-            // We're reading our own modified value, use default
-            this._originalOverlayKey = DEFAULT_OVERLAY_KEY;
-        } else {
-            this._originalOverlayKey = currentOverlayKey;
-        }
 
         let currentButtonLayout = this._wmSettings.get_string('button-layout');
         if (currentButtonLayout === EXTENSION_BUTTON_LAYOUT) {
@@ -831,21 +995,16 @@ export default class PrayaExtension extends Extension {
 
         // Apply new settings
         this._interfaceSettings.set_boolean('enable-hot-corners', false);
-        this._mutterSettings.set_string('overlay-key', EXTENSION_OVERLAY_KEY);
         this._wmSettings.set_string('button-layout', EXTENSION_BUTTON_LAYOUT);
     }
 
     _restoreSettings() {
         // GNOME default values - used as fallback
-        const DEFAULT_OVERLAY_KEY = 'Super_L';
         const DEFAULT_BUTTON_LAYOUT = 'appmenu:close';
 
         // Restore original values (create settings objects if needed)
         if (!this._interfaceSettings) {
             this._interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-        }
-        if (!this._mutterSettings) {
-            this._mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
         }
         if (!this._wmSettings) {
             this._wmSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
@@ -856,12 +1015,6 @@ export default class PrayaExtension extends Extension {
             this._interfaceSettings.set_boolean('enable-hot-corners', this._originalHotCorner);
         }
 
-        // Restore overlay key (Meta key behavior)
-        let overlayKeyToRestore = this._originalOverlayKey !== undefined
-            ? this._originalOverlayKey
-            : DEFAULT_OVERLAY_KEY;
-        this._mutterSettings.set_string('overlay-key', overlayKeyToRestore);
-
         // Restore button layout (hide minimize button)
         let buttonLayoutToRestore = this._originalButtonLayout !== undefined
             ? this._originalButtonLayout
@@ -869,7 +1022,6 @@ export default class PrayaExtension extends Extension {
         this._wmSettings.set_string('button-layout', buttonLayoutToRestore);
 
         this._interfaceSettings = null;
-        this._mutterSettings = null;
         this._wmSettings = null;
     }
 
@@ -1046,7 +1198,75 @@ export default class PrayaExtension extends Extension {
         }
     }
 
+    _setShowDesktopWallpaper() {
+        try {
+            let settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
+            let uri = settings.get_string('picture-uri-dark') || settings.get_string('picture-uri');
+            if (uri) {
+                let path = uri.replace('file://', '');
+                this._showDesktopButton.set_style(
+                    `background-image: url("${path}"); background-size: cover; background-position: center;`
+                );
+            }
+        } catch (e) {
+            log(`Praya: Error setting wallpaper on show desktop button: ${e.message}`);
+        }
+    }
+
+    setShowDesktopHoverActivate(enabled) {
+        this._showDesktopHoverActivate = enabled;
+    }
+
+    _toggleShowDesktop() {
+        let workspace = global.workspace_manager.get_active_workspace();
+        let windows = global.get_window_actors()
+            .map(a => a.meta_window)
+            .filter(w => {
+                return w.get_workspace() === workspace &&
+                       !w.is_skip_taskbar() &&
+                       w.get_window_type() === Meta.WindowType.NORMAL;
+            });
+
+        // Determine state from actual window states:
+        // If any window is visible (not minimized), treat as "not minimized" -> minimize all
+        // If all windows are minimized, treat as "minimized" -> restore all
+        let hasVisibleWindow = windows.some(w => !w.minimized);
+
+        if (hasVisibleWindow) {
+            // Minimize all windows
+            for (let w of windows) {
+                if (!w.minimized) {
+                    w.minimize();
+                }
+            }
+            this._showDesktopActive = true;
+        } else {
+            // Restore all windows
+            for (let w of windows) {
+                w.unminimize();
+            }
+            this._showDesktopActive = false;
+        }
+    }
+
     disable() {
+        // Cancel pending timeouts
+        if (this._importEnvTimeoutId) {
+            GLib.source_remove(this._importEnvTimeoutId);
+            this._importEnvTimeoutId = null;
+        }
+        if (this._startPrayaServiceTimeoutId) {
+            GLib.source_remove(this._startPrayaServiceTimeoutId);
+            this._startPrayaServiceTimeoutId = null;
+        }
+
+        // Restore panel to top position
+        if (this._monitorsChangedId) {
+            Main.layoutManager.disconnect(this._monitorsChangedId);
+            this._monitorsChangedId = null;
+        }
+        this._applyPanelPosition('top');
+
         // Restore gsettings
         this._restoreSettings();
 
@@ -1065,6 +1285,23 @@ export default class PrayaExtension extends Extension {
         // Show the dock again when extension is disabled
         this._showDock();
         this._dock = null;
+
+        if (this._bgChangedId && this._bgSettings) {
+            this._bgSettings.disconnect(this._bgChangedId);
+            this._bgChangedId = null;
+        }
+        if (this._bgDarkChangedId && this._bgSettings) {
+            this._bgSettings.disconnect(this._bgDarkChangedId);
+            this._bgDarkChangedId = null;
+        }
+        this._bgSettings = null;
+
+        if (this._showDesktopHoverArea) {
+            this._showDesktopHoverArea.destroy();
+            this._showDesktopHoverArea = null;
+            this._showDesktopButton = null;
+            this._showDesktopOverlay = null;
+        }
 
         if (this._taskbar) {
             this._taskbar.destroy();

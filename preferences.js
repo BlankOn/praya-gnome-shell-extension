@@ -10,6 +10,7 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import { ChatbotSettings } from './chatbot.js';
@@ -72,14 +73,26 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         contentBox.add_child(headerBox);
 
-        // Praya Service Status section header
+        // Two-column layout
+        let columnsBox = new St.BoxLayout({
+            style_class: 'praya-preferences-columns',
+            x_expand: true,
+        });
+
+        // === LEFT COLUMN: Praya Service, App Menu Option, Taskbar Behaviour ===
+        let leftColumn = new St.BoxLayout({
+            vertical: true,
+            style_class: 'praya-preferences-column',
+            x_expand: true,
+        });
+
+        // -- Praya Service Status --
         let serviceHeader = new St.Label({
             text: 'Praya Service',
             style_class: 'praya-preferences-section-header',
         });
-        contentBox.add_child(serviceHeader);
+        leftColumn.add_child(serviceHeader);
 
-        // Service status row
         let serviceStatusBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -99,7 +112,6 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         serviceStatusBox.add_child(this._serviceStatusValue);
 
-        // Refresh button
         this._refreshServiceButton = new St.Button({
             style_class: 'praya-preferences-toggle-btn',
             child: new St.Icon({
@@ -111,22 +123,242 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             this._checkPrayaServiceStatus();
         });
         serviceStatusBox.add_child(this._refreshServiceButton);
-        contentBox.add_child(serviceStatusBox);
+        leftColumn.add_child(serviceStatusBox);
 
-        // Check initial service status
         this._checkPrayaServiceStatus();
+
+        // -- App Menu Option --
+        let appMenuHeaderBox = new St.BoxLayout({
+            style_class: 'praya-preferences-section-header-box',
+            x_expand: true,
+        });
+        let appMenuHeader = new St.Label({
+            text: 'App Menu Option',
+            style_class: 'praya-preferences-section-header',
+        });
+        appMenuHeaderBox.add_child(appMenuHeader);
+        let appMenuExperimentalLabel = new St.Label({
+            text: '(Experimental)',
+            style_class: 'praya-preferences-experimental-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        appMenuHeaderBox.add_child(appMenuExperimentalLabel);
+        leftColumn.add_child(appMenuHeaderBox);
+
+        let layoutBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let layoutLabel = new St.Label({
+            text: 'Layout:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        layoutBox.add_child(layoutLabel);
+
+        this._appMenuLayout = this._servicesConfig.appMenuLayout || 'list';
+        this._layoutToggleButton = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: this._appMenuLayout === 'grid' ? 'Grid' : 'List',
+            x_expand: true,
+        });
+        this._layoutToggleButton.connect('clicked', () => {
+            this._appMenuLayout = this._appMenuLayout === 'list' ? 'grid' : 'list';
+            this._layoutToggleButton.label = this._appMenuLayout === 'grid' ? 'Grid' : 'List';
+            this._servicesConfig.appMenuLayout = this._appMenuLayout;
+            this._saveServicesConfig();
+        });
+        layoutBox.add_child(this._layoutToggleButton);
+        leftColumn.add_child(layoutBox);
+
+        // -- Panel Position --
+        let panelPositionHeader = new St.Label({
+            text: 'Panel Position',
+            style_class: 'praya-preferences-section-header',
+        });
+        leftColumn.add_child(panelPositionHeader);
+
+        let panelPositionBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let panelPositionLabel = new St.Label({
+            text: 'Position:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        panelPositionBox.add_child(panelPositionLabel);
+
+        this._panelPosition = this._servicesConfig.panelPosition || 'top';
+        this._panelPositionToggle = new St.Button({
+            style_class: 'praya-preferences-combo',
+            label: this._panelPosition === 'bottom' ? 'Bottom' : 'Top',
+            x_expand: true,
+        });
+        this._panelPositionToggle.connect('clicked', () => {
+            this._panelPosition = this._panelPosition === 'top' ? 'bottom' : 'top';
+            this._panelPositionToggle.label = this._panelPosition === 'bottom' ? 'Bottom' : 'Top';
+            this._servicesConfig.panelPosition = this._panelPosition;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setPanelPosition(this._panelPosition);
+            }
+        });
+        panelPositionBox.add_child(this._panelPositionToggle);
+        leftColumn.add_child(panelPositionBox);
+
+        // -- Activate on Hover --
+        let hoverHeader = new St.Label({
+            text: 'Activate on Hover',
+            style_class: 'praya-preferences-section-header',
+        });
+        leftColumn.add_child(hoverHeader);
+
+        // Main menu hover toggle
+        let mainMenuHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let mainMenuHoverLabel = new St.Label({
+            text: 'Main menu:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        mainMenuHoverBox.add_child(mainMenuHoverLabel);
+
+        this._mainMenuHoverActivate = this._servicesConfig.mainMenuHoverActivate || false;
+        this._mainMenuHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._mainMenuHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._mainMenuHoverActivate) {
+            this._mainMenuHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._mainMenuHoverToggle.connect('clicked', () => {
+            this._mainMenuHoverActivate = !this._mainMenuHoverActivate;
+            this._mainMenuHoverToggle.label = this._mainMenuHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._mainMenuHoverActivate) {
+                this._mainMenuHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._mainMenuHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.mainMenuHoverActivate = this._mainMenuHoverActivate;
+            this._saveServicesConfig();
+
+            // Update indicator live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj?._indicator) {
+                ext.stateObj._indicator.setMainMenuHoverActivate(this._mainMenuHoverActivate);
+            }
+        });
+        mainMenuHoverBox.add_child(this._mainMenuHoverToggle);
+        leftColumn.add_child(mainMenuHoverBox);
+
+        // Taskbar hover toggle
+        let taskbarHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let taskbarHoverLabel = new St.Label({
+            text: 'Taskbar:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        taskbarHoverBox.add_child(taskbarHoverLabel);
+
+        this._taskbarHoverActivate = this._servicesConfig.taskbarHoverActivate || false;
+        this._taskbarHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._taskbarHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._taskbarHoverActivate) {
+            this._taskbarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._taskbarHoverToggle.connect('clicked', () => {
+            this._taskbarHoverActivate = !this._taskbarHoverActivate;
+            this._taskbarHoverToggle.label = this._taskbarHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._taskbarHoverActivate) {
+                this._taskbarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._taskbarHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.taskbarHoverActivate = this._taskbarHoverActivate;
+            this._saveServicesConfig();
+
+            // Update taskbar live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj?._taskbar) {
+                ext.stateObj._taskbar.setHoverActivate(this._taskbarHoverActivate);
+            }
+        });
+        taskbarHoverBox.add_child(this._taskbarHoverToggle);
+        leftColumn.add_child(taskbarHoverBox);
+
+        // Show Desktop hover toggle
+        let showDesktopHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let showDesktopHoverLabel = new St.Label({
+            text: 'Show Desktop:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        showDesktopHoverBox.add_child(showDesktopHoverLabel);
+
+        this._showDesktopHoverActivate = this._servicesConfig.showDesktopHoverActivate || false;
+        this._showDesktopHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._showDesktopHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._showDesktopHoverActivate) {
+            this._showDesktopHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._showDesktopHoverToggle.connect('clicked', () => {
+            this._showDesktopHoverActivate = !this._showDesktopHoverActivate;
+            this._showDesktopHoverToggle.label = this._showDesktopHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._showDesktopHoverActivate) {
+                this._showDesktopHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._showDesktopHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.showDesktopHoverActivate = this._showDesktopHoverActivate;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setShowDesktopHoverActivate(this._showDesktopHoverActivate);
+            }
+        });
+        showDesktopHoverBox.add_child(this._showDesktopHoverToggle);
+        leftColumn.add_child(showDesktopHoverBox);
+
+        columnsBox.add_child(leftColumn);
+
+        // === RIGHT COLUMN: Posture Monitoring, Artificial Intelligence ===
+        let rightColumn = new St.BoxLayout({
+            vertical: true,
+            style_class: 'praya-preferences-column',
+            x_expand: true,
+        });
 
         // Initialize posture D-Bus connection
         this._initPostureDBus();
 
-        // Posture section header
+        // -- Posture Monitoring --
         let postureHeader = new St.Label({
             text: 'Posture Monitoring',
             style_class: 'praya-preferences-section-header',
         });
-        contentBox.add_child(postureHeader);
+        rightColumn.add_child(postureHeader);
 
-        // Enable/Disable toggle for Posture
         let postureEnableBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -152,9 +384,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             this._setPostureEnabled(this._postureEnabled);
         });
         postureEnableBox.add_child(this._postureToggleButton);
-        contentBox.add_child(postureEnableBox);
+        rightColumn.add_child(postureEnableBox);
 
-        // Recalibrate button
         let recalibrateBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -175,9 +406,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             this._recalibrate();
         });
         recalibrateBox.add_child(this._recalibrateButton);
-        contentBox.add_child(recalibrateBox);
+        rightColumn.add_child(recalibrateBox);
 
-        // Posture record display
         let recordBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -196,9 +426,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             y_align: Clutter.ActorAlign.CENTER,
         });
         recordBox.add_child(this._postureRecordLabel);
-        contentBox.add_child(recordBox);
+        rightColumn.add_child(recordBox);
 
-        // Posture value bar (0 = green/good, 1 = red/bad)
         let barRow = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -222,16 +451,14 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         this._postureBarContainer.add_child(this._postureBarFill);
         barRow.add_child(this._postureBarContainer);
-        contentBox.add_child(barRow);
+        rightColumn.add_child(barRow);
 
-        // Start posture polling
         this._startPosturePolling();
 
-        // Set initial posture enabled state from services config
         this._postureEnabled = this._servicesConfig.posture || false;
         this._updatePostureToggleUI();
 
-        // AI Chatbot section header with (Experimental) label
+        // -- Artificial Intelligence --
         let chatbotHeaderBox = new St.BoxLayout({
             style_class: 'praya-preferences-section-header-box',
             x_expand: true,
@@ -247,9 +474,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             y_align: Clutter.ActorAlign.CENTER,
         });
         chatbotHeaderBox.add_child(experimentalLabel);
-        contentBox.add_child(chatbotHeaderBox);
+        rightColumn.add_child(chatbotHeaderBox);
 
-        // Enable/Disable toggle for AI
         let aiEnableBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -278,9 +504,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             this._setAIEnabled(this._aiEnabled);
         });
         aiEnableBox.add_child(this._aiToggleButton);
-        contentBox.add_child(aiEnableBox);
+        rightColumn.add_child(aiEnableBox);
 
-        // Provider selection
         let providerBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -299,15 +524,13 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         this._currentProvider = this._chatbotSettings.provider;
         this._providerCombo.connect('clicked', () => {
-            // Toggle between providers
             this._currentProvider = this._currentProvider === 'anthropic' ? 'openai' : 'anthropic';
             this._providerCombo.label = PROVIDERS[this._currentProvider].name;
             this._updateModelCombo();
         });
         providerBox.add_child(this._providerCombo);
-        contentBox.add_child(providerBox);
+        rightColumn.add_child(providerBox);
 
-        // Model selection
         let modelBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -338,9 +561,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             this._modelCombo.label = models[this._currentModelIndex];
         });
         modelBox.add_child(this._modelCombo);
-        contentBox.add_child(modelBox);
+        rightColumn.add_child(modelBox);
 
-        // API Key input
         let apiKeyBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
@@ -364,7 +586,6 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         apiKeyBox.add_child(this._apiKeyEntry);
 
-        // Show/hide toggle button
         this._showKeyButton = new St.Button({
             style_class: 'praya-preferences-toggle-btn',
             child: new St.Icon({
@@ -379,8 +600,11 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             this._showKeyButton.child.icon_name = this._keyVisible ? 'view-conceal-symbolic' : 'view-reveal-symbolic';
         });
         apiKeyBox.add_child(this._showKeyButton);
-        contentBox.add_child(apiKeyBox);
+        rightColumn.add_child(apiKeyBox);
 
+        columnsBox.add_child(rightColumn);
+
+        contentBox.add_child(columnsBox);
         this.contentLayout.add_child(contentBox);
     }
 
@@ -474,7 +698,12 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         // Default config
         let defaultConfig = {
             ai: false,
-            posture: false
+            posture: false,
+            appMenuLayout: 'list',
+            mainMenuHoverActivate: false,
+            taskbarHoverActivate: false,
+            showDesktopHoverActivate: false,
+            panelPosition: 'top',
         };
 
         try {

@@ -229,6 +229,31 @@
 }
 
 /* Taskbar */
+/* Show Desktop - outer hover area */
+.praya-show-desktop-hover-area {
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+/* Show Desktop - inner wallpaper thumbnail */
+.praya-show-desktop-button {
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 20px;
+    max-height: 20px;
+    margin: 5px 4px;
+    border-radius: 2px;
+    background-size: cover;
+    background-position: center;
+}
+
+.praya-show-desktop-overlay {
+    background-color: rgba(0, 0, 0, 1);
+    opacity: 76;
+    border-radius: 2px;
+}
+
 .praya-taskbar {
     spacing: 4px;
     padding: 0 8px;
@@ -302,8 +327,16 @@
 
 .praya-preferences-box {
     padding: 8px 16px;
-    min-width: 400px;
+    min-width: 700px;
     min-height: 200px;
+}
+
+.praya-preferences-columns {
+    spacing: 24px;
+}
+
+.praya-preferences-column {
+    min-width: 320px;
 }
 
 .praya-preferences-header {
@@ -471,6 +504,33 @@
     color: #888888;
     font-size: 1em;
     padding: 24px 16px;
+    text-align: center;
+}
+
+/* Grid Layout Styles */
+.praya-grid-container {
+    padding: 4px;
+}
+
+.praya-grid-item {
+    width: 96px;
+    padding: 8px 4px;
+    border-radius: 8px;
+    transition: background-color 150ms;
+}
+
+.praya-grid-item:hover,
+.praya-grid-item.praya-menu-item-focused {
+    background-color: #404040;
+}
+
+.praya-grid-item-icon {
+    margin-bottom: 4px;
+}
+
+.praya-grid-item-label {
+    color: #ffffff;
+    font-size: 0.8em;
     text-align: center;
 }
 

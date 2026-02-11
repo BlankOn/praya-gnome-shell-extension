@@ -6,6 +6,7 @@
  */
 import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
@@ -23,11 +24,13 @@ class PrayaTaskbar extends St.BoxLayout {
 
         this._windowTracker = Shell.WindowTracker.get_default();
         this._appSystem = Shell.AppSystem.get_default();
+        this._hoverActivate = this._loadHoverActivate();
 
         // Track window signals
         this._windowSignals = [];
         this._workspaceSignals = [];
         this._titleSignals = [];
+        this._clickCooldowns = new Map();
 
         // Connect to window events
         this._windowAddedId = global.display.connect('window-created', () => {
@@ -98,6 +101,7 @@ class PrayaTaskbar extends St.BoxLayout {
             });
             this._titleSignals.push({ window: window, id: titleId });
         }
+
     }
 
     _createWindowButton(window, app, isFocused) {
@@ -152,18 +156,57 @@ class PrayaTaskbar extends St.BoxLayout {
 
         button.add_child(innerBox);
 
+        // Hover handler - activate window on hover (if enabled)
+        button.connect('notify::hover', (actor) => {
+            if (this._hoverActivate && actor.hover &&
+                !this._hoverSuppressed &&
+                window !== global.display.focus_window) {
+                if (window.minimized) {
+                    // Block clicks for 1 second after hover-unminimizing
+                    let existing = this._clickCooldowns.get(window);
+                    if (existing) {
+                        GLib.source_remove(existing);
+                    }
+                    let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                        this._clickCooldowns.delete(window);
+                        return GLib.SOURCE_REMOVE;
+                    });
+                    this._clickCooldowns.set(window, timeoutId);
+                    window.unminimize();
+                }
+                this._activateWithFade(window);
+            }
+            if (!actor.hover) {
+                this._hoverSuppressed = false;
+            }
+        });
+
         // Click handler
         button.connect('button-press-event', (actor, event) => {
             if (event.get_button() === 1) {
-                // Left click - focus or unminimize
-                if (window.minimized) {
-                    window.unminimize();
-                    window.activate(global.get_current_time());
-                } else if (window === global.display.focus_window) {
-                    // If already focused, minimize it
-                    window.minimize();
+                // Ignore clicks during cooldown after hover-unminimize
+                if (this._clickCooldowns.has(window)) {
+                    return Clutter.EVENT_STOP;
+                }
+                if (this._hoverActivate) {
+                    // Hover activate is on - click toggles minimize/restore
+                    if (window.minimized) {
+                        window.unminimize();
+                        this._activateWithFade(window);
+                    } else if (window === global.display.focus_window) {
+                        window.minimize();
+                    }
+                    this._hoverSuppressed = true;
                 } else {
-                    window.activate(global.get_current_time());
+                    // Left click - focus or unminimize
+                    if (window.minimized) {
+                        window.unminimize();
+                        this._activateWithFade(window);
+                    } else if (window === global.display.focus_window) {
+                        window.minimize();
+                    } else {
+                        this._activateWithFade(window);
+                    }
                 }
                 return Clutter.EVENT_STOP;
             } else if (event.get_button() === 2) {
@@ -175,6 +218,40 @@ class PrayaTaskbar extends St.BoxLayout {
         });
 
         return button;
+    }
+
+    _activateWithFade(window) {
+        window.activate(global.get_current_time());
+        let actor = window.get_compositor_private();
+        if (actor) {
+            actor.set_opacity(128);
+            actor.ease({
+                opacity: 255,
+                duration: 500,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
+    }
+
+    _loadHoverActivate() {
+        try {
+            let configPath = GLib.build_filenamev([GLib.get_home_dir(), '.config', 'praya', 'services.json']);
+            let configFile = Gio.File.new_for_path(configPath);
+            if (configFile.query_exists(null)) {
+                let [success, contents] = configFile.load_contents(null);
+                if (success) {
+                    let config = JSON.parse(new TextDecoder('utf-8').decode(contents));
+                    return config.taskbarHoverActivate || false;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error loading taskbar config: ${e.message}`);
+        }
+        return false;
+    }
+
+    setHoverActivate(enabled) {
+        this._hoverActivate = enabled;
     }
 
     destroy() {
@@ -208,6 +285,10 @@ class PrayaTaskbar extends St.BoxLayout {
             global.workspace_manager.disconnect(this._workspaceSwitchId);
             this._workspaceSwitchId = null;
         }
+        for (let timeoutId of this._clickCooldowns.values()) {
+            GLib.source_remove(timeoutId);
+        }
+        this._clickCooldowns.clear();
         super.destroy();
     }
 });
