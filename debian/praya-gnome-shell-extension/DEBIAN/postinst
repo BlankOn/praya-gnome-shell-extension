@@ -1,0 +1,32 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Update dconf database to apply system-wide settings
+        if command -v dconf >/dev/null 2>&1; then
+            dconf update || true
+        fi
+
+        # Deploy autostart desktop file to existing users
+        DESKTOP_FILE="/etc/skel/.config/autostart/praya-extension-update.desktop"
+        if [ -f "$DESKTOP_FILE" ]; then
+            for HOME_DIR in /home/*; do
+                [ -d "$HOME_DIR" ] || continue
+                USER_NAME=$(basename "$HOME_DIR")
+                # Skip if not a real user (uid >= 1000)
+                USER_UID=$(id -u "$USER_NAME" 2>/dev/null) || continue
+                [ "$USER_UID" -ge 1000 ] || continue
+
+                AUTOSTART_DIR="$HOME_DIR/.config/autostart"
+                mkdir -p "$AUTOSTART_DIR"
+                cp "$DESKTOP_FILE" "$AUTOSTART_DIR/"
+                chown -R "$USER_NAME":"$USER_NAME" "$HOME_DIR/.config/autostart" || true
+            done
+        fi
+        ;;
+esac
+
+
+
+exit 0

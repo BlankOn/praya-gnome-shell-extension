@@ -3,15 +3,9 @@ EXT_NAME="praya@blankonlinux.id"
 SRC="/usr/share/gnome-shell/extensions/$EXT_NAME"
 DEST="$HOME/.local/share/gnome-shell/extensions/$EXT_NAME"
 VERSION_FILE="$DEST/.installed-version"
-AUTOSTART_FILE="$HOME/.config/autostart/praya-extension-update.desktop"
 
-# If package source is gone, clean up user files and exit
-if [ ! -d "$SRC" ]; then
-    gnome-extensions disable "$EXT_NAME" 2>/dev/null || true
-    rm -rf "$DEST"
-    rm -f "$AUTOSTART_FILE"
-    exit 0
-fi
+# Exit if source doesn't exist (package removed)
+[ -d "$SRC" ] || exit 0
 
 # Get package version
 PKG_VERSION=$(dpkg-query -W -f='${Version}' praya-gnome-shell-extension 2>/dev/null || echo "unknown")

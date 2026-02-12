@@ -3,6 +3,9 @@
 %:
 	dh $@
 
+override_dh_auto_build:
+	# Nothing to build - pure JS extension
+
 override_dh_auto_install:
 	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id
 	install -m 644 extension.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/

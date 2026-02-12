@@ -1,0 +1,12 @@
+Package: praya-gnome-shell-extension
+Version: 0.1.8-1
+Architecture: all
+Maintainer: BlankOn Linux <blankon-dev@googlegroups.com>
+Installed-Size: 256
+Depends: gnome-shell (>= 49~), dconf-cli
+Section: gnome
+Priority: optional
+Homepage: https://blankonlinux.id
+Description: Praya GNOME Shell Extension
+ A GNOME Shell extension for BlankOn Linux that provides
+ the Praya desktop experience.

@@ -1,0 +1,3 @@
+/etc/dconf/db/local.d/00-praya-global-behaviours
+/etc/dconf/profile/user
+/etc/skel/.config/autostart/praya-extension-update.desktop
