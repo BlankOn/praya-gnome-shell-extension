@@ -7,6 +7,15 @@ case "$1" in
         if command -v dconf >/dev/null 2>&1; then
             dconf update || true
         fi
+
+        # Remove autostart desktop file from existing users
+        for HOME_DIR in /home/*; do
+            [ -d "$HOME_DIR" ] || continue
+            USER_NAME=$(basename "$HOME_DIR")
+            USER_UID=$(id -u "$USER_NAME" 2>/dev/null) || continue
+            [ "$USER_UID" -ge 1000 ] || continue
+            rm -f "$HOME_DIR/.config/autostart/praya-extension-update.desktop"
+        done
         ;;
 esac
 

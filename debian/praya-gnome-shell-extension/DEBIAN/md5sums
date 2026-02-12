@@ -1,0 +1,12 @@
+31dd4644a96064cd329c833551f14639  usr/lib/praya-extension/praya-update-user.sh
+3cdbd13e727eaed7b0987fc48f878033  usr/share/doc/praya-gnome-shell-extension/changelog.Debian.gz
+7f77fdccda04a43d6f6758794287ef25  usr/share/doc/praya-gnome-shell-extension/copyright
+13af3557ad59266dd15820d003515097  usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets/logo-white.png
+b828bcf823f35e8cb311955eb0c2663e  usr/share/gnome-shell/extensions/praya@blankonlinux.id/chatbot.js
+6bc47e5c5eacde9d37ea5a136c4dc843  usr/share/gnome-shell/extensions/praya@blankonlinux.id/constants.js
+c28d8288dc66a8c60c04ade1420467bc  usr/share/gnome-shell/extensions/praya@blankonlinux.id/extension.js
+f278648c6427e76285d4302ba6ca5f50  usr/share/gnome-shell/extensions/praya@blankonlinux.id/indicator.js
+75b16e070290d035b6ea5275933a0642  usr/share/gnome-shell/extensions/praya@blankonlinux.id/metadata.json
+6fa556b7f34aff3a909151ec0508d3ce  usr/share/gnome-shell/extensions/praya@blankonlinux.id/preferences.js
+2eafbc9e85c24f46c801af70b86d7263  usr/share/gnome-shell/extensions/praya@blankonlinux.id/stylesheet.css
+1b8448ae14d4e9b1805bae9c6285cacb  usr/share/gnome-shell/extensions/praya@blankonlinux.id/taskbar.js
