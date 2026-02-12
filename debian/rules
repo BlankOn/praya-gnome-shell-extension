@@ -20,3 +20,9 @@ override_dh_auto_install:
 	install -m 644 debian/dconf/db/local.d/00-praya-global-behaviours $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/db/local.d/
 	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/profile
 	install -m 644 debian/dconf/profile/user $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/profile/
+	# Install per-user update script
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/lib/praya-extension
+	install -m 755 debian/praya-update-user.sh $(CURDIR)/debian/praya-gnome-shell-extension/usr/lib/praya-extension/
+	# Install autostart desktop file into skel for new users
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/skel/.config/autostart
+	install -m 644 debian/praya-extension-update.desktop $(CURDIR)/debian/praya-gnome-shell-extension/etc/skel/.config/autostart/
