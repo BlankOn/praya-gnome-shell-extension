@@ -14,7 +14,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import { ChatbotSettings } from './chatbot.js';
-import { PROVIDERS } from './constants.js';
+import { PROVIDERS, VERSION } from './constants.js';
 
 // D-Bus constants for posture service
 const POSTURE_BUS_NAME = 'com.github.blankon.praya';
@@ -60,6 +60,13 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             y_align: Clutter.ActorAlign.CENTER,
         });
         headerBox.add_child(titleLabel);
+
+        let versionLabel = new St.Label({
+            text: `v${VERSION}`,
+            style_class: 'praya-preferences-version',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        headerBox.add_child(versionLabel);
 
         this._closeButton = new St.Button({
             style_class: 'praya-preferences-close-btn',
@@ -156,7 +163,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         layoutBox.add_child(layoutLabel);
 
-        this._appMenuLayout = this._servicesConfig.appMenuLayout || 'list';
+        this._appMenuLayout = this._servicesConfig.appMenuLayout || 'grid';
         this._layoutToggleButton = new St.Button({
             style_class: 'praya-preferences-combo',
             label: this._appMenuLayout === 'grid' ? 'Grid' : 'List',
@@ -699,7 +706,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         let defaultConfig = {
             ai: false,
             posture: false,
-            appMenuLayout: 'list',
+            appMenuLayout: 'grid',
             mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
             showDesktopHoverActivate: false,

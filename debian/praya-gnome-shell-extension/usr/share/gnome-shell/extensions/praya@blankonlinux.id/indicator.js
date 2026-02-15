@@ -191,6 +191,30 @@ class PrayaIndicator extends PanelMenu.Button {
         }
     }
 
+    _isLiveSession() {
+        try {
+            // Check for live-boot marker directory
+            let liveDir = Gio.File.new_for_path('/run/live');
+            if (liveDir.query_exists(null))
+                return true;
+
+            // Check kernel command line for boot=live
+            let cmdlineFile = Gio.File.new_for_path('/proc/cmdline');
+            if (cmdlineFile.query_exists(null)) {
+                let [success, contents] = cmdlineFile.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let cmdline = decoder.decode(contents);
+                    if (cmdline.includes('boot=live'))
+                        return true;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error detecting live session: ${e.message}`);
+        }
+        return false;
+    }
+
     _loadFavourites() {
         try {
             let file = Gio.File.new_for_path(FAVOURITES_FILE);
@@ -203,10 +227,13 @@ class PrayaIndicator extends PanelMenu.Button {
                 }
             } else {
                 // Create file with default favourites
+                let terminalOrInstaller = this._isLiveSession()
+                    ? 'calamares-install-blankon.desktop'
+                    : 'org.gnome.Ptyxis.desktop';
                 this._favourites = [
                     'firefox.desktop',
                     'org.gnome.Nautilus.desktop',
-                    'org.gnome.Ptyxis.desktop'
+                    terminalOrInstaller,
                 ];
                 this._saveFavourites();
             }
@@ -2521,7 +2548,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'list', mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -2532,7 +2559,7 @@ class PrayaIndicator extends PanelMenu.Button {
                     let jsonStr = decoder.decode(contents);
                     let config = JSON.parse(jsonStr);
                     // Ensure appMenuLayout has a default
-                    if (!config.appMenuLayout) config.appMenuLayout = 'list';
+                    if (!config.appMenuLayout) config.appMenuLayout = 'grid';
                     return config;
                 }
             }

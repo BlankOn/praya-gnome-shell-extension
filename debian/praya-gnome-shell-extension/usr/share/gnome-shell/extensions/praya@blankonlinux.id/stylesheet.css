@@ -244,6 +244,7 @@
     max-height: 20px;
     margin: 5px 4px;
     border-radius: 2px;
+    border: 1px solid white;
     background-size: cover;
     background-position: center;
 }
@@ -347,6 +348,12 @@
     font-size: 1.4em;
     font-weight: bold;
     color: #ffffff;
+}
+
+.praya-preferences-version {
+    font-size: 0.9em;
+    color: #888888;
+    margin-right: 12px;
 }
 
 .praya-preferences-close-btn {
