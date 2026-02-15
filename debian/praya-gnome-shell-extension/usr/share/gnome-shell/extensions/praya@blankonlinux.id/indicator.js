@@ -2322,7 +2322,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let blankonItem = this._createMenuItem('BlankOn Linux', 'help-about-symbolic', false);
         blankonItem._hasChildren = false;
         blankonItem._activateCallback = () => {
-            this._openUrl('https://blankon.github.io');
+            this._openUrl('http://blankonlinux.id/');
         };
         blankonItem.connect('button-press-event', () => {
             blankonItem._activateCallback();
@@ -2331,11 +2331,24 @@ class PrayaIndicator extends PanelMenu.Button {
         menuBox.add_child(blankonItem);
         navItems.push(blankonItem);
 
+        // BlankOn Foundation
+        let foundationItem = this._createMenuItem('BlankOn Foundation', 'help-about-symbolic', false);
+        foundationItem._hasChildren = false;
+        foundationItem._activateCallback = () => {
+            this._openUrl('https://blankon.id/en');
+        };
+        foundationItem.connect('button-press-event', () => {
+            foundationItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(foundationItem);
+        navItems.push(foundationItem);
+
         // Praya Shell Extension
         let prayaItem = this._createMenuItem('Praya Shell Extension', 'help-about-symbolic', false);
         prayaItem._hasChildren = false;
         prayaItem._activateCallback = () => {
-            this._openUrl('https://github.com/blankon/praya');
+            this._openUrl('https://github.com/BlankOn/praya-gnome-shell-extension');
         };
         prayaItem.connect('button-press-event', () => {
             prayaItem._activateCallback();
@@ -2348,7 +2361,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let donateItem = this._createMenuItem('Donate', 'help-about-symbolic', false);
         donateItem._hasChildren = false;
         donateItem._activateCallback = () => {
-            this._openUrl('https://blankon.id/donate');
+            this._openUrl('https://blankon.id/en/donate');
         };
         donateItem.connect('button-press-event', () => {
             donateItem._activateCallback();
