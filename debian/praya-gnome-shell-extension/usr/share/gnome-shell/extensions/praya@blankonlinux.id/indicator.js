@@ -191,6 +191,30 @@ class PrayaIndicator extends PanelMenu.Button {
         }
     }
 
+    _isLiveSession() {
+        try {
+            // Check for live-boot marker directory
+            let liveDir = Gio.File.new_for_path('/run/live');
+            if (liveDir.query_exists(null))
+                return true;
+
+            // Check kernel command line for boot=live
+            let cmdlineFile = Gio.File.new_for_path('/proc/cmdline');
+            if (cmdlineFile.query_exists(null)) {
+                let [success, contents] = cmdlineFile.load_contents(null);
+                if (success) {
+                    let decoder = new TextDecoder('utf-8');
+                    let cmdline = decoder.decode(contents);
+                    if (cmdline.includes('boot=live'))
+                        return true;
+                }
+            }
+        } catch (e) {
+            log(`Praya: Error detecting live session: ${e.message}`);
+        }
+        return false;
+    }
+
     _loadFavourites() {
         try {
             let file = Gio.File.new_for_path(FAVOURITES_FILE);
@@ -203,10 +227,13 @@ class PrayaIndicator extends PanelMenu.Button {
                 }
             } else {
                 // Create file with default favourites
+                let terminalOrInstaller = this._isLiveSession()
+                    ? 'calamares-install-blankon.desktop'
+                    : 'org.gnome.Ptyxis.desktop';
                 this._favourites = [
                     'firefox.desktop',
                     'org.gnome.Nautilus.desktop',
-                    'org.gnome.Ptyxis.desktop'
+                    terminalOrInstaller,
                 ];
                 this._saveFavourites();
             }
@@ -2295,7 +2322,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let blankonItem = this._createMenuItem('BlankOn Linux', 'help-about-symbolic', false);
         blankonItem._hasChildren = false;
         blankonItem._activateCallback = () => {
-            this._openUrl('https://blankon.github.io');
+            this._openUrl('http://blankonlinux.id/');
         };
         blankonItem.connect('button-press-event', () => {
             blankonItem._activateCallback();
@@ -2304,11 +2331,24 @@ class PrayaIndicator extends PanelMenu.Button {
         menuBox.add_child(blankonItem);
         navItems.push(blankonItem);
 
+        // BlankOn Foundation
+        let foundationItem = this._createMenuItem('BlankOn Foundation', 'help-about-symbolic', false);
+        foundationItem._hasChildren = false;
+        foundationItem._activateCallback = () => {
+            this._openUrl('https://blankon.id/en');
+        };
+        foundationItem.connect('button-press-event', () => {
+            foundationItem._activateCallback();
+            return Clutter.EVENT_STOP;
+        });
+        menuBox.add_child(foundationItem);
+        navItems.push(foundationItem);
+
         // Praya Shell Extension
         let prayaItem = this._createMenuItem('Praya Shell Extension', 'help-about-symbolic', false);
         prayaItem._hasChildren = false;
         prayaItem._activateCallback = () => {
-            this._openUrl('https://github.com/blankon/praya');
+            this._openUrl('https://github.com/BlankOn/praya-gnome-shell-extension');
         };
         prayaItem.connect('button-press-event', () => {
             prayaItem._activateCallback();
@@ -2321,7 +2361,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let donateItem = this._createMenuItem('Donate', 'help-about-symbolic', false);
         donateItem._hasChildren = false;
         donateItem._activateCallback = () => {
-            this._openUrl('https://blankon.id/donate');
+            this._openUrl('https://blankon.id/en/donate');
         };
         donateItem.connect('button-press-event', () => {
             donateItem._activateCallback();
@@ -2521,7 +2561,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'list', mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -2532,7 +2572,7 @@ class PrayaIndicator extends PanelMenu.Button {
                     let jsonStr = decoder.decode(contents);
                     let config = JSON.parse(jsonStr);
                     // Ensure appMenuLayout has a default
-                    if (!config.appMenuLayout) config.appMenuLayout = 'list';
+                    if (!config.appMenuLayout) config.appMenuLayout = 'grid';
                     return config;
                 }
             }

@@ -6,6 +6,9 @@
  */
 import GLib from 'gi://GLib';
 
+// Version
+export const VERSION = '0.1.10';
+
 // Panel dimensions
 export const PANEL_WIDTH = 325;
 export const HEADER_HEIGHT = 50;

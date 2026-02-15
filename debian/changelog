@@ -1,3 +1,12 @@
+praya-gnome-shell-extension (0.1.10-1) verbeek; urgency=medium
+
+  * Default app menu layout to grid.
+  * Detect live session and pin Calamares installer replacing Terminal.
+  * Show version in Praya Preferences title.
+  * Add white border to show desktop button.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sat, 15 Feb 2026 23:00:00 +0700
+
 praya-gnome-shell-extension (0.1.9-1) verbeek; urgency=medium
 
   * Fix build failure caused by Makefile run target.
