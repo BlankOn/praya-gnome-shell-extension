@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Praya Extension Updater
-Exec=/usr/lib/praya-extension/praya-update-user.sh
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true

@@ -1,0 +1,6 @@
+# Debian build artifacts
+debian/praya-gnome-shell-extension/
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/*.substvars

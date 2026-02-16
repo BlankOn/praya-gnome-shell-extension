@@ -1,3 +1,10 @@
+praya-gnome-shell-extension (0.1.11-1) verbeek; urgency=medium
+
+  * Add greater bottom margin when bottom bar is activated.
+  * Remove debian build artifacts from git; generated at build time.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Mon, 16 Feb 2026 23:00:00 +0700
+
 praya-gnome-shell-extension (0.1.10-1) verbeek; urgency=medium
 
   * Default app menu layout to grid.

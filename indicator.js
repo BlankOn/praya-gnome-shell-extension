@@ -26,6 +26,7 @@ import {
     MARGIN_LEFT,
     MARGIN_TOP,
     MARGIN_BOTTOM,
+    MARGIN_BOTTOM_BAR,
     CHATBOT_PANEL_WIDTH,
     FAVOURITES_FILE
 } from './constants.js';
@@ -476,30 +477,34 @@ class PrayaIndicator extends PanelMenu.Button {
         this._currentMonitor = Main.layoutManager.currentMonitor;
         let monitor = this._currentMonitor;
         let panelHeight = Main.panel.height;
-        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+        let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
+        let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - bottomMargin;
 
         let effectiveWidth = this._getEffectivePanelWidth();
 
         // Create invisible hover zone that includes margins
         // Position relative to the current monitor's coordinates
+        let hoverZoneY = isBottomBar ? monitor.y : monitor.y + panelHeight;
         this._hoverZone = new St.Widget({
             reactive: true,
             track_hover: true,
             x: monitor.x,
-            y: monitor.y + panelHeight,
+            y: hoverZoneY,
             width: effectiveWidth + MARGIN_LEFT * 2,
-            height: availableHeight + MARGIN_TOP + MARGIN_BOTTOM,
+            height: availableHeight + MARGIN_TOP + bottomMargin,
         });
 
-        // Create the main panel container - below top bar with margins
+        // Create the main panel container - position depends on bar location
         // Position relative to the current monitor's coordinates
+        let panelY = isBottomBar ? monitor.y + MARGIN_TOP : monitor.y + panelHeight + MARGIN_TOP;
         this._panel = new St.BoxLayout({
             style_class: 'praya-panel',
             vertical: true,
             reactive: true,
             track_hover: true,
             x: monitor.x + MARGIN_LEFT,
-            y: monitor.y + panelHeight + MARGIN_TOP,
+            y: panelY,
             width: effectiveWidth,
             height: availableHeight,
         });
@@ -697,7 +702,8 @@ class PrayaIndicator extends PanelMenu.Button {
                 let currentPanelWidth = this._panel ? this._panel.width : PANEL_WIDTH;
                 let panelLeft = monitor.x + MARGIN_LEFT;
                 let panelRight = panelLeft + currentPanelWidth;
-                let panelTop = monitor.y + Main.panel.height + MARGIN_TOP;
+                let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
+                let panelTop = isBottomBar ? monitor.y + MARGIN_TOP : monitor.y + Main.panel.height + MARGIN_TOP;
                 let panelBottom = panelTop + this._panel.height;
 
                 if (x < panelLeft || x > panelRight || y < panelTop || y > panelBottom) {
@@ -2405,7 +2411,9 @@ class PrayaIndicator extends PanelMenu.Button {
         // Use stored monitor from when panel was opened
         let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
         let panelHeight = Main.panel.height;
-        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+        let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
+        let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - bottomMargin;
 
         // Create chatbot panel with calculated height
         this._chatbotPanel = new PrayaChatbotPanel(this._chatbotSettings, () => {
@@ -2468,7 +2476,9 @@ class PrayaIndicator extends PanelMenu.Button {
         // Use stored monitor from when panel was opened
         let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
         let panelHeight = Main.panel.height;
-        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+        let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
+        let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - bottomMargin;
 
         // Create chatbot panel with calculated height
         this._chatbotPanel = new PrayaChatbotPanel(this._chatbotSettings, () => {
@@ -2518,7 +2528,9 @@ class PrayaIndicator extends PanelMenu.Button {
         // Use stored monitor from when panel was opened
         let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
         let panelHeight = Main.panel.height;
-        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - MARGIN_BOTTOM;
+        let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
+        let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
+        let availableHeight = monitor.height - panelHeight - MARGIN_TOP - bottomMargin;
 
         let effectiveWidth = this._getEffectivePanelWidth();
 
