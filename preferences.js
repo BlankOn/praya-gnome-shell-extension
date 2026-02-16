@@ -347,7 +347,96 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         showDesktopHoverBox.add_child(this._showDesktopHoverToggle);
         leftColumn.add_child(showDesktopHoverBox);
 
+        // Calendar hover toggle
+        let calendarHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let calendarHoverLabel = new St.Label({
+            text: 'Calendar:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        calendarHoverBox.add_child(calendarHoverLabel);
+
+        this._calendarHoverActivate = this._servicesConfig.calendarHoverActivate || false;
+        this._calendarHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._calendarHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._calendarHoverActivate) {
+            this._calendarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._calendarHoverToggle.connect('clicked', () => {
+            this._calendarHoverActivate = !this._calendarHoverActivate;
+            this._calendarHoverToggle.label = this._calendarHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._calendarHoverActivate) {
+                this._calendarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._calendarHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.calendarHoverActivate = this._calendarHoverActivate;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setCalendarHoverActivate(this._calendarHoverActivate);
+            }
+        });
+        calendarHoverBox.add_child(this._calendarHoverToggle);
+        leftColumn.add_child(calendarHoverBox);
+
+        // Quick Access hover toggle
+        let quickAccessHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let quickAccessHoverLabel = new St.Label({
+            text: 'Quick Access:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        quickAccessHoverBox.add_child(quickAccessHoverLabel);
+
+        this._quickAccessHoverActivate = this._servicesConfig.quickAccessHoverActivate || false;
+        this._quickAccessHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._quickAccessHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._quickAccessHoverActivate) {
+            this._quickAccessHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._quickAccessHoverToggle.connect('clicked', () => {
+            this._quickAccessHoverActivate = !this._quickAccessHoverActivate;
+            this._quickAccessHoverToggle.label = this._quickAccessHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._quickAccessHoverActivate) {
+                this._quickAccessHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._quickAccessHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.quickAccessHoverActivate = this._quickAccessHoverActivate;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setQuickAccessHoverActivate(this._quickAccessHoverActivate);
+            }
+        });
+        quickAccessHoverBox.add_child(this._quickAccessHoverToggle);
+        leftColumn.add_child(quickAccessHoverBox);
+
         columnsBox.add_child(leftColumn);
+
+        // Vertical separator between columns
+        let columnSeparator = new St.Widget({
+            style: 'background-color: rgba(255, 255, 255, 0.15); width: 1px; margin: 0 12px;',
+            y_expand: true,
+        });
+        columnsBox.add_child(columnSeparator);
 
         // === RIGHT COLUMN: Posture Monitoring, Artificial Intelligence ===
         let rightColumn = new St.BoxLayout({
@@ -710,6 +799,8 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
             showDesktopHoverActivate: false,
+            calendarHoverActivate: false,
+            quickAccessHoverActivate: false,
             panelPosition: 'top',
         };
 

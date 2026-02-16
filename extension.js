@@ -177,6 +177,8 @@ export default class PrayaExtension extends Extension {
             mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
             showDesktopHoverActivate: false,
+            calendarHoverActivate: false,
+            quickAccessHoverActivate: false,
             panelPosition: 'top',
         };
 
@@ -1101,12 +1103,28 @@ export default class PrayaExtension extends Extension {
             this._removedCenterBox = centerBox;
         }
 
-        // Add hover trigger for dateMenu
-        this._dateMenuHoverId = dateMenu.container.connect('enter-event', () => {
-            if (!dateMenu.menu.isOpen) {
-                dateMenu.menu.open();
+        // Add hover trigger for dateMenu (conditional on config)
+        this._calendarHoverActivate = this._servicesConfig.calendarHoverActivate || false;
+        this._dateMenuHoverId = dateMenu.connect('notify::hover', () => {
+            if (!this._calendarHoverActivate) return;
+            if (dateMenu.hover) {
+                this._cancelDateMenuClose();
+                if (!dateMenu.menu.isOpen)
+                    dateMenu.menu.open();
+            } else {
+                this._scheduleDateMenuClose();
             }
-            return Clutter.EVENT_PROPAGATE;
+        });
+
+        // Track popup hover for close-on-leave
+        dateMenu.menu.actor.track_hover = true;
+        this._dateMenuPopupHoverId = dateMenu.menu.actor.connect('notify::hover', () => {
+            if (!this._calendarHoverActivate) return;
+            if (dateMenu.menu.actor.hover) {
+                this._cancelDateMenuClose();
+            } else {
+                this._scheduleDateMenuClose();
+            }
         });
     }
 
@@ -1115,12 +1133,28 @@ export default class PrayaExtension extends Extension {
         if (!quickSettings)
             return;
 
-        // Add hover trigger for quick settings
-        this._quickSettingsHoverId = quickSettings.container.connect('enter-event', () => {
-            if (!quickSettings.menu.isOpen) {
-                quickSettings.menu.open();
+        // Add hover trigger for quick settings (conditional on config)
+        this._quickAccessHoverActivate = this._servicesConfig.quickAccessHoverActivate || false;
+        this._quickSettingsHoverId = quickSettings.connect('notify::hover', () => {
+            if (!this._quickAccessHoverActivate) return;
+            if (quickSettings.hover) {
+                this._cancelQuickSettingsClose();
+                if (!quickSettings.menu.isOpen)
+                    quickSettings.menu.open();
+            } else {
+                this._scheduleQuickSettingsClose();
             }
-            return Clutter.EVENT_PROPAGATE;
+        });
+
+        // Track popup hover for close-on-leave
+        quickSettings.menu.actor.track_hover = true;
+        this._quickSettingsPopupHoverId = quickSettings.menu.actor.connect('notify::hover', () => {
+            if (!this._quickAccessHoverActivate) return;
+            if (quickSettings.menu.actor.hover) {
+                this._cancelQuickSettingsClose();
+            } else {
+                this._scheduleQuickSettingsClose();
+            }
         });
     }
 
@@ -1164,11 +1198,16 @@ export default class PrayaExtension extends Extension {
         if (!dateMenu)
             return;
 
-        // Disconnect hover handler
+        // Disconnect hover handlers
         if (this._dateMenuHoverId) {
-            dateMenu.container.disconnect(this._dateMenuHoverId);
+            dateMenu.disconnect(this._dateMenuHoverId);
             this._dateMenuHoverId = null;
         }
+        if (this._dateMenuPopupHoverId) {
+            dateMenu.menu.actor.disconnect(this._dateMenuPopupHoverId);
+            this._dateMenuPopupHoverId = null;
+        }
+        this._cancelDateMenuClose();
 
         let centerBox = Main.panel._centerBox;
         let rightBox = Main.panel._rightBox;
@@ -1193,9 +1232,80 @@ export default class PrayaExtension extends Extension {
             return;
 
         if (this._quickSettingsHoverId) {
-            quickSettings.container.disconnect(this._quickSettingsHoverId);
+            quickSettings.disconnect(this._quickSettingsHoverId);
             this._quickSettingsHoverId = null;
         }
+        if (this._quickSettingsPopupHoverId) {
+            quickSettings.menu.actor.disconnect(this._quickSettingsPopupHoverId);
+            this._quickSettingsPopupHoverId = null;
+        }
+        this._cancelQuickSettingsClose();
+    }
+
+    _isPointerInArea(actor, margin) {
+        let [px, py] = global.get_pointer();
+        let [ax, ay] = actor.get_transformed_position();
+        let [aw, ah] = actor.get_size();
+        return px >= ax - margin && px <= ax + aw + margin &&
+               py >= ay - margin && py <= ay + ah + margin;
+    }
+
+    _scheduleDateMenuClose() {
+        this._cancelDateMenuClose();
+        this._dateMenuCloseTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            this._dateMenuCloseTimeoutId = null;
+            let dateMenu = Main.panel.statusArea.dateMenu;
+            if (!dateMenu || !dateMenu.menu.isOpen) return GLib.SOURCE_REMOVE;
+
+            if (this._isPointerInArea(dateMenu, 5) ||
+                this._isPointerInArea(dateMenu.menu.actor, 20)) {
+                this._scheduleDateMenuClose();
+                return GLib.SOURCE_REMOVE;
+            }
+
+            dateMenu.menu.close();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelDateMenuClose() {
+        if (this._dateMenuCloseTimeoutId) {
+            GLib.source_remove(this._dateMenuCloseTimeoutId);
+            this._dateMenuCloseTimeoutId = null;
+        }
+    }
+
+    _scheduleQuickSettingsClose() {
+        this._cancelQuickSettingsClose();
+        this._quickSettingsCloseTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            this._quickSettingsCloseTimeoutId = null;
+            let quickSettings = Main.panel.statusArea.quickSettings;
+            if (!quickSettings || !quickSettings.menu.isOpen) return GLib.SOURCE_REMOVE;
+
+            if (this._isPointerInArea(quickSettings, 5) ||
+                this._isPointerInArea(quickSettings.menu.actor, 20)) {
+                this._scheduleQuickSettingsClose();
+                return GLib.SOURCE_REMOVE;
+            }
+
+            quickSettings.menu.close();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelQuickSettingsClose() {
+        if (this._quickSettingsCloseTimeoutId) {
+            GLib.source_remove(this._quickSettingsCloseTimeoutId);
+            this._quickSettingsCloseTimeoutId = null;
+        }
+    }
+
+    setCalendarHoverActivate(enabled) {
+        this._calendarHoverActivate = enabled;
+    }
+
+    setQuickAccessHoverActivate(enabled) {
+        this._quickAccessHoverActivate = enabled;
     }
 
     _setShowDesktopWallpaper() {
