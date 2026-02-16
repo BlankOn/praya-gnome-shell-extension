@@ -144,12 +144,6 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             style_class: 'praya-preferences-section-header',
         });
         appMenuHeaderBox.add_child(appMenuHeader);
-        let appMenuExperimentalLabel = new St.Label({
-            text: '(Experimental)',
-            style_class: 'praya-preferences-experimental-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        appMenuHeaderBox.add_child(appMenuExperimentalLabel);
         leftColumn.add_child(appMenuHeaderBox);
 
         let layoutBox = new St.BoxLayout({
@@ -178,9 +172,9 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         layoutBox.add_child(this._layoutToggleButton);
         leftColumn.add_child(layoutBox);
 
-        // -- Panel Position --
+        // -- Panel Option --
         let panelPositionHeader = new St.Label({
-            text: 'Panel Position',
+            text: 'Panel Option',
             style_class: 'praya-preferences-section-header',
         });
         leftColumn.add_child(panelPositionHeader);
@@ -216,6 +210,47 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         panelPositionBox.add_child(this._panelPositionToggle);
         leftColumn.add_child(panelPositionBox);
+
+        // Floating panel toggle
+        let floatingPanelBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let floatingPanelLabel = new St.Label({
+            text: 'Floating panel:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        floatingPanelBox.add_child(floatingPanelLabel);
+
+        this._floatingPanel = this._servicesConfig.floatingPanel || false;
+        this._floatingPanelToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._floatingPanel ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._floatingPanel) {
+            this._floatingPanelToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._floatingPanelToggle.connect('clicked', () => {
+            this._floatingPanel = !this._floatingPanel;
+            this._floatingPanelToggle.label = this._floatingPanel ? 'Enabled' : 'Disabled';
+            if (this._floatingPanel) {
+                this._floatingPanelToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._floatingPanelToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.floatingPanel = this._floatingPanel;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setFloatingPanel(this._floatingPanel);
+            }
+        });
+        floatingPanelBox.add_child(this._floatingPanelToggle);
+        leftColumn.add_child(floatingPanelBox);
 
         // -- Activate on Hover --
         let hoverHeader = new St.Label({
@@ -449,11 +484,21 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._initPostureDBus();
 
         // -- Posture Monitoring --
+        let postureHeaderBox = new St.BoxLayout({
+            x_expand: true,
+        });
         let postureHeader = new St.Label({
             text: 'Posture Monitoring',
             style_class: 'praya-preferences-section-header',
         });
-        rightColumn.add_child(postureHeader);
+        postureHeaderBox.add_child(postureHeader);
+        let postureExperimentalLabel = new St.Label({
+            text: '(Experimental)',
+            style_class: 'praya-preferences-experimental-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        postureHeaderBox.add_child(postureExperimentalLabel);
+        rightColumn.add_child(postureHeaderBox);
 
         let postureEnableBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
@@ -801,6 +846,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             showDesktopHoverActivate: false,
             calendarHoverActivate: false,
             quickAccessHoverActivate: false,
+            floatingPanel: false,
             panelPosition: 'top',
         };
 

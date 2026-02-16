@@ -109,6 +109,11 @@
     spacing: 6px;
 }
 
+.praya-floating-panel {
+    border-radius: 8px;
+    margin: 4px;
+}
+
 .praya-panel-logo {
     background-image: url("assets/logo-white.png");
     background-size: contain;

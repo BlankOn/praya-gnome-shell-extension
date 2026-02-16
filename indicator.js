@@ -473,6 +473,9 @@ class PrayaIndicator extends PanelMenu.Button {
             this._panel = null;
         }
 
+        // Clean up existing menu button hover area
+        this._removeMenuButtonHoverArea();
+
         // Use the monitor where the pointer currently is (where user clicked the indicator)
         this._currentMonitor = Main.layoutManager.currentMonitor;
         let monitor = this._currentMonitor;
@@ -689,9 +692,13 @@ class PrayaIndicator extends PanelMenu.Button {
             if (event.type() === Clutter.EventType.BUTTON_PRESS) {
                 let [x, y] = event.get_coords();
 
-                // Check if click is on the indicator button (don't hide)
-                let dominated = this.contains(global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y));
+                // Check if click is on the indicator button or menu button hover area (don't hide)
+                let clickedActor = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y);
+                let dominated = this.contains(clickedActor);
                 if (dominated) {
+                    return Clutter.EVENT_PROPAGATE;
+                }
+                if (this._menuButtonHoverArea && (this._menuButtonHoverArea === clickedActor || this._menuButtonHoverArea.contains(clickedActor))) {
                     return Clutter.EVENT_PROPAGATE;
                 }
 
@@ -728,6 +735,71 @@ class PrayaIndicator extends PanelMenu.Button {
                 });
             }
         });
+
+        // Create the menu button hover area
+        this._setupMenuButtonHoverArea();
+    }
+
+    _setupMenuButtonHoverArea() {
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
+        if (!monitor) return;
+
+        let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
+        let triggerX = monitor.x;
+        let triggerY = isBottomBar
+            ? monitor.y + monitor.height - 25
+            : monitor.y;
+
+        this._menuButtonHoverArea = new St.Widget({
+            reactive: true,
+            track_hover: true,
+            x: triggerX,
+            y: triggerY,
+            width: 75,
+            height: 25,
+            style: 'background-color: transparent;',
+        });
+
+        this._menuButtonHoverArea.connect('button-press-event', () => {
+            if (this._panelVisible) {
+                this._hidePanel();
+            } else {
+                this._showPanel();
+            }
+            return Clutter.EVENT_STOP;
+        });
+
+        // Hover behavior same as indicator button
+        this._menuButtonHoverArea.connect('enter-event', () => {
+            if (!this._mainMenuHoverActivate) return Clutter.EVENT_PROPAGATE;
+            if (this._hoverTimeoutId) {
+                GLib.source_remove(this._hoverTimeoutId);
+                this._hoverTimeoutId = null;
+            }
+            if (!this._panelVisible) {
+                this._showPanel();
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+
+        this._menuButtonHoverArea.connect('leave-event', () => {
+            if (this._mainMenuHoverActivate) {
+                this._scheduleHidePanel();
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+
+        global.stage.add_child(this._menuButtonHoverArea);
+    }
+
+    _removeMenuButtonHoverArea() {
+        if (this._menuButtonHoverArea) {
+            if (this._menuButtonHoverArea.get_parent()) {
+                this._menuButtonHoverArea.get_parent().remove_child(this._menuButtonHoverArea);
+            }
+            this._menuButtonHoverArea.destroy();
+            this._menuButtonHoverArea = null;
+        }
     }
 
     _scheduleHidePanel() {
@@ -814,6 +886,9 @@ class PrayaIndicator extends PanelMenu.Button {
         this._menuItems = [];
         this._menuBox = null;
         this._bottomSection = null;
+
+        // Remove menu button hover area
+        this._removeMenuButtonHoverArea();
 
         // Get the monitor offset for animation (use stored monitor or fall back to current)
         let monitorX = this._currentMonitor ? this._currentMonitor.x : 0;

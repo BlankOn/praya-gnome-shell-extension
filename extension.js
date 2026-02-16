@@ -50,8 +50,11 @@ export default class PrayaExtension extends Extension {
 
         // Apply panel position (top or bottom)
         this._applyPanelPosition(this._servicesConfig.panelPosition || 'top');
+        this._setupWorkAreaMargins();
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             this._applyPanelPosition(this._panelPosition || 'top');
+            this._removeWorkAreaMargins();
+            this._setupWorkAreaMargins();
         });
 
         // Hide activities button
@@ -134,6 +137,9 @@ export default class PrayaExtension extends Extension {
         // Setup hover trigger for quick settings
         this._setupQuickSettingsHover();
 
+        // Setup stage-level hover handler for calendar and quick settings
+        this._setupPanelHoverHandler();
+
         // Hide the bottom dock when extension is enabled
         this._dock = null;
         this._hideDock();
@@ -179,6 +185,7 @@ export default class PrayaExtension extends Extension {
             showDesktopHoverActivate: false,
             calendarHoverActivate: false,
             quickAccessHoverActivate: false,
+            floatingPanel: false,
             panelPosition: 'top',
         };
 
@@ -225,8 +232,26 @@ export default class PrayaExtension extends Extension {
         if (!monitor) return;
         let panelBox = Main.layoutManager.panelBox;
 
+        // Apply floating style via CSS (keeps panelBox struts correct)
+        if (this._servicesConfig.floatingPanel) {
+            Main.panel.add_style_class_name('praya-floating-panel');
+        } else {
+            Main.panel.remove_style_class_name('praya-floating-panel');
+        }
+
         if (position === 'bottom') {
-            panelBox.set_position(monitor.x, monitor.y + monitor.height - panelBox.height);
+            // Defer so panelBox.height reflects CSS margins after layout settles
+            if (this._panelPositionIdleId) {
+                GLib.source_remove(this._panelPositionIdleId);
+            }
+            this._panelPositionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                this._panelPositionIdleId = null;
+                let m = Main.layoutManager.primaryMonitor;
+                if (m) {
+                    panelBox.set_position(m.x, m.y + m.height - panelBox.height);
+                }
+                return GLib.SOURCE_REMOVE;
+            });
         } else {
             panelBox.set_position(monitor.x, monitor.y);
         }
@@ -234,6 +259,66 @@ export default class PrayaExtension extends Extension {
 
     setPanelPosition(position) {
         this._applyPanelPosition(position);
+        this._removeWorkAreaMargins();
+        this._setupWorkAreaMargins();
+    }
+
+    _setupWorkAreaMargins() {
+        if (!this._servicesConfig.floatingPanel) return;
+
+        let monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor) return;
+
+        let margin = 5;
+        let isBottom = this._panelPosition === 'bottom';
+        this._marginStruts = [];
+
+        // Left edge strut
+        let leftStrut = new St.Widget({
+            x: monitor.x, y: monitor.y,
+            width: margin, height: monitor.height,
+            reactive: false,
+        });
+        Main.layoutManager.addTopChrome(leftStrut, { affectsStruts: true, affectsInputRegion: false });
+        this._marginStruts.push(leftStrut);
+
+        // Right edge strut
+        let rightStrut = new St.Widget({
+            x: monitor.x + monitor.width - margin, y: monitor.y,
+            width: margin, height: monitor.height,
+            reactive: false,
+        });
+        Main.layoutManager.addTopChrome(rightStrut, { affectsStruts: true, affectsInputRegion: false });
+        this._marginStruts.push(rightStrut);
+
+        // Opposite side of panel
+        if (isBottom) {
+            let topStrut = new St.Widget({
+                x: monitor.x, y: monitor.y,
+                width: monitor.width, height: margin,
+                reactive: false,
+            });
+            Main.layoutManager.addTopChrome(topStrut, { affectsStruts: true, affectsInputRegion: false });
+            this._marginStruts.push(topStrut);
+        } else {
+            let bottomStrut = new St.Widget({
+                x: monitor.x, y: monitor.y + monitor.height - margin,
+                width: monitor.width, height: margin,
+                reactive: false,
+            });
+            Main.layoutManager.addTopChrome(bottomStrut, { affectsStruts: true, affectsInputRegion: false });
+            this._marginStruts.push(bottomStrut);
+        }
+    }
+
+    _removeWorkAreaMargins() {
+        if (this._marginStruts) {
+            for (let strut of this._marginStruts) {
+                Main.layoutManager.removeChrome(strut);
+                strut.destroy();
+            }
+            this._marginStruts = null;
+        }
     }
 
     _startPrayaServices() {
@@ -1103,29 +1188,7 @@ export default class PrayaExtension extends Extension {
             this._removedCenterBox = centerBox;
         }
 
-        // Add hover trigger for dateMenu (conditional on config)
         this._calendarHoverActivate = this._servicesConfig.calendarHoverActivate || false;
-        this._dateMenuHoverId = dateMenu.connect('notify::hover', () => {
-            if (!this._calendarHoverActivate) return;
-            if (dateMenu.hover) {
-                this._cancelDateMenuClose();
-                if (!dateMenu.menu.isOpen)
-                    dateMenu.menu.open();
-            } else {
-                this._scheduleDateMenuClose();
-            }
-        });
-
-        // Track popup hover for close-on-leave
-        dateMenu.menu.actor.track_hover = true;
-        this._dateMenuPopupHoverId = dateMenu.menu.actor.connect('notify::hover', () => {
-            if (!this._calendarHoverActivate) return;
-            if (dateMenu.menu.actor.hover) {
-                this._cancelDateMenuClose();
-            } else {
-                this._scheduleDateMenuClose();
-            }
-        });
     }
 
     _setupQuickSettingsHover() {
@@ -1133,29 +1196,59 @@ export default class PrayaExtension extends Extension {
         if (!quickSettings)
             return;
 
-        // Add hover trigger for quick settings (conditional on config)
         this._quickAccessHoverActivate = this._servicesConfig.quickAccessHoverActivate || false;
-        this._quickSettingsHoverId = quickSettings.connect('notify::hover', () => {
-            if (!this._quickAccessHoverActivate) return;
-            if (quickSettings.hover) {
-                this._cancelQuickSettingsClose();
-                if (!quickSettings.menu.isOpen)
-                    quickSettings.menu.open();
-            } else {
-                this._scheduleQuickSettingsClose();
-            }
-        });
+    }
 
-        // Track popup hover for close-on-leave
-        quickSettings.menu.actor.track_hover = true;
-        this._quickSettingsPopupHoverId = quickSettings.menu.actor.connect('notify::hover', () => {
-            if (!this._quickAccessHoverActivate) return;
-            if (quickSettings.menu.actor.hover) {
-                this._cancelQuickSettingsClose();
-            } else {
-                this._scheduleQuickSettingsClose();
+    _setupPanelHoverHandler() {
+        this._stageMotionId = global.stage.connect('captured-event', (actor, event) => {
+            if (event.type() !== Clutter.EventType.MOTION)
+                return Clutter.EVENT_PROPAGATE;
+
+            let [px, py] = event.get_coords();
+
+            // Calendar hover — use .container (the actual panel-level actor)
+            if (this._calendarHoverActivate) {
+                let dateMenu = Main.panel.statusArea.dateMenu;
+                if (dateMenu) {
+                    let nearButton = this._isPointInArea(px, py, dateMenu.container, 10);
+                    let nearPopup = dateMenu.menu.isOpen && this._isPointInArea(px, py, dateMenu.menu.actor, 20);
+                    if (nearButton && !dateMenu.menu.isOpen) {
+                        this._cancelDateMenuClose();
+                        dateMenu.menu.open();
+                    } else if (dateMenu.menu.isOpen && (nearButton || nearPopup)) {
+                        this._cancelDateMenuClose();
+                    } else if (dateMenu.menu.isOpen && !nearButton && !nearPopup) {
+                        this._scheduleDateMenuClose();
+                    }
+                }
             }
+
+            // Quick settings hover — use .container
+            if (this._quickAccessHoverActivate) {
+                let quickSettings = Main.panel.statusArea.quickSettings;
+                if (quickSettings) {
+                    let nearButton = this._isPointInArea(px, py, quickSettings.container, 10);
+                    let nearPopup = quickSettings.menu.isOpen && this._isPointInArea(px, py, quickSettings.menu.actor, 20);
+                    if (nearButton && !quickSettings.menu.isOpen) {
+                        this._cancelQuickSettingsClose();
+                        quickSettings.menu.open();
+                    } else if (quickSettings.menu.isOpen && (nearButton || nearPopup)) {
+                        this._cancelQuickSettingsClose();
+                    } else if (quickSettings.menu.isOpen && !nearButton && !nearPopup) {
+                        this._scheduleQuickSettingsClose();
+                    }
+                }
+            }
+
+            return Clutter.EVENT_PROPAGATE;
         });
+    }
+
+    _removePanelHoverHandler() {
+        if (this._stageMotionId) {
+            global.stage.disconnect(this._stageMotionId);
+            this._stageMotionId = null;
+        }
     }
 
     _setupHotCorner() {
@@ -1198,15 +1291,6 @@ export default class PrayaExtension extends Extension {
         if (!dateMenu)
             return;
 
-        // Disconnect hover handlers
-        if (this._dateMenuHoverId) {
-            dateMenu.disconnect(this._dateMenuHoverId);
-            this._dateMenuHoverId = null;
-        }
-        if (this._dateMenuPopupHoverId) {
-            dateMenu.menu.actor.disconnect(this._dateMenuPopupHoverId);
-            this._dateMenuPopupHoverId = null;
-        }
         this._cancelDateMenuClose();
 
         let centerBox = Main.panel._centerBox;
@@ -1227,27 +1311,19 @@ export default class PrayaExtension extends Extension {
     }
 
     _removeQuickSettingsHover() {
-        let quickSettings = Main.panel.statusArea.quickSettings;
-        if (!quickSettings)
-            return;
-
-        if (this._quickSettingsHoverId) {
-            quickSettings.disconnect(this._quickSettingsHoverId);
-            this._quickSettingsHoverId = null;
-        }
-        if (this._quickSettingsPopupHoverId) {
-            quickSettings.menu.actor.disconnect(this._quickSettingsPopupHoverId);
-            this._quickSettingsPopupHoverId = null;
-        }
         this._cancelQuickSettingsClose();
     }
 
-    _isPointerInArea(actor, margin) {
-        let [px, py] = global.get_pointer();
+    _isPointInArea(px, py, actor, margin) {
         let [ax, ay] = actor.get_transformed_position();
         let [aw, ah] = actor.get_size();
         return px >= ax - margin && px <= ax + aw + margin &&
                py >= ay - margin && py <= ay + ah + margin;
+    }
+
+    _isPointerInArea(actor, margin) {
+        let [px, py] = global.get_pointer();
+        return this._isPointInArea(px, py, actor, margin);
     }
 
     _scheduleDateMenuClose() {
@@ -1257,7 +1333,7 @@ export default class PrayaExtension extends Extension {
             let dateMenu = Main.panel.statusArea.dateMenu;
             if (!dateMenu || !dateMenu.menu.isOpen) return GLib.SOURCE_REMOVE;
 
-            if (this._isPointerInArea(dateMenu, 5) ||
+            if (this._isPointerInArea(dateMenu.container, 10) ||
                 this._isPointerInArea(dateMenu.menu.actor, 20)) {
                 this._scheduleDateMenuClose();
                 return GLib.SOURCE_REMOVE;
@@ -1282,7 +1358,7 @@ export default class PrayaExtension extends Extension {
             let quickSettings = Main.panel.statusArea.quickSettings;
             if (!quickSettings || !quickSettings.menu.isOpen) return GLib.SOURCE_REMOVE;
 
-            if (this._isPointerInArea(quickSettings, 5) ||
+            if (this._isPointerInArea(quickSettings.container, 10) ||
                 this._isPointerInArea(quickSettings.menu.actor, 20)) {
                 this._scheduleQuickSettingsClose();
                 return GLib.SOURCE_REMOVE;
@@ -1306,6 +1382,19 @@ export default class PrayaExtension extends Extension {
 
     setQuickAccessHoverActivate(enabled) {
         this._quickAccessHoverActivate = enabled;
+    }
+
+    setFloatingPanel(enabled) {
+        this._servicesConfig.floatingPanel = enabled;
+        if (enabled) {
+            Main.panel.add_style_class_name('praya-floating-panel');
+        } else {
+            Main.panel.remove_style_class_name('praya-floating-panel');
+        }
+        this._removeWorkAreaMargins();
+        this._setupWorkAreaMargins();
+        // Re-apply panel position to account for changed margins
+        this._applyPanelPosition(this._panelPosition || 'top');
     }
 
     _setShowDesktopWallpaper() {
@@ -1369,13 +1458,23 @@ export default class PrayaExtension extends Extension {
             GLib.source_remove(this._startPrayaServiceTimeoutId);
             this._startPrayaServiceTimeoutId = null;
         }
+        if (this._panelPositionIdleId) {
+            GLib.source_remove(this._panelPositionIdleId);
+            this._panelPositionIdleId = null;
+        }
 
-        // Restore panel to top position
+        // Restore panel to default state
         if (this._monitorsChangedId) {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = null;
         }
-        this._applyPanelPosition('top');
+        this._removeWorkAreaMargins();
+        Main.panel.remove_style_class_name('praya-floating-panel');
+        let monitor = Main.layoutManager.primaryMonitor;
+        let panelBox = Main.layoutManager.panelBox;
+        if (monitor && panelBox) {
+            panelBox.set_position(monitor.x, monitor.y);
+        }
 
         // Restore gsettings
         this._restoreSettings();
@@ -1422,6 +1521,10 @@ export default class PrayaExtension extends Extension {
             this._indicator.destroy();
             this._indicator = null;
         }
+
+
+        // Remove panel hover handler
+        this._removePanelHoverHandler();
 
         // Remove quick settings hover
         this._removeQuickSettingsHover();
