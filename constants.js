@@ -7,7 +7,7 @@
 import GLib from 'gi://GLib';
 
 // Version
-export const VERSION = '0.1.10';
+export const VERSION = '0.1.11';
 
 // Panel dimensions
 export const PANEL_WIDTH = 325;
@@ -16,6 +16,7 @@ export const ANIMATION_DURATION = 200;
 export const MARGIN_LEFT = 8;
 export const MARGIN_TOP = 8;
 export const MARGIN_BOTTOM = 8;
+export const MARGIN_BOTTOM_BAR = 16;
 
 // Chatbot dimensions
 export const CHATBOT_PANEL_WIDTH = 400;

@@ -144,12 +144,6 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             style_class: 'praya-preferences-section-header',
         });
         appMenuHeaderBox.add_child(appMenuHeader);
-        let appMenuExperimentalLabel = new St.Label({
-            text: '(Experimental)',
-            style_class: 'praya-preferences-experimental-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        appMenuHeaderBox.add_child(appMenuExperimentalLabel);
         leftColumn.add_child(appMenuHeaderBox);
 
         let layoutBox = new St.BoxLayout({
@@ -178,9 +172,9 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         layoutBox.add_child(this._layoutToggleButton);
         leftColumn.add_child(layoutBox);
 
-        // -- Panel Position --
+        // -- Panel Option --
         let panelPositionHeader = new St.Label({
-            text: 'Panel Position',
+            text: 'Panel Option',
             style_class: 'praya-preferences-section-header',
         });
         leftColumn.add_child(panelPositionHeader);
@@ -216,6 +210,47 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         panelPositionBox.add_child(this._panelPositionToggle);
         leftColumn.add_child(panelPositionBox);
+
+        // Floating panel toggle
+        let floatingPanelBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let floatingPanelLabel = new St.Label({
+            text: 'Floating panel:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        floatingPanelBox.add_child(floatingPanelLabel);
+
+        this._floatingPanel = this._servicesConfig.floatingPanel || false;
+        this._floatingPanelToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._floatingPanel ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._floatingPanel) {
+            this._floatingPanelToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._floatingPanelToggle.connect('clicked', () => {
+            this._floatingPanel = !this._floatingPanel;
+            this._floatingPanelToggle.label = this._floatingPanel ? 'Enabled' : 'Disabled';
+            if (this._floatingPanel) {
+                this._floatingPanelToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._floatingPanelToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.floatingPanel = this._floatingPanel;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setFloatingPanel(this._floatingPanel);
+            }
+        });
+        floatingPanelBox.add_child(this._floatingPanelToggle);
+        leftColumn.add_child(floatingPanelBox);
 
         // -- Activate on Hover --
         let hoverHeader = new St.Label({
@@ -347,7 +382,96 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         showDesktopHoverBox.add_child(this._showDesktopHoverToggle);
         leftColumn.add_child(showDesktopHoverBox);
 
+        // Calendar hover toggle
+        let calendarHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let calendarHoverLabel = new St.Label({
+            text: 'Calendar:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        calendarHoverBox.add_child(calendarHoverLabel);
+
+        this._calendarHoverActivate = this._servicesConfig.calendarHoverActivate || false;
+        this._calendarHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._calendarHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._calendarHoverActivate) {
+            this._calendarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._calendarHoverToggle.connect('clicked', () => {
+            this._calendarHoverActivate = !this._calendarHoverActivate;
+            this._calendarHoverToggle.label = this._calendarHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._calendarHoverActivate) {
+                this._calendarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._calendarHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.calendarHoverActivate = this._calendarHoverActivate;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setCalendarHoverActivate(this._calendarHoverActivate);
+            }
+        });
+        calendarHoverBox.add_child(this._calendarHoverToggle);
+        leftColumn.add_child(calendarHoverBox);
+
+        // Quick Access hover toggle
+        let quickAccessHoverBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let quickAccessHoverLabel = new St.Label({
+            text: 'Quick Access:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        quickAccessHoverBox.add_child(quickAccessHoverLabel);
+
+        this._quickAccessHoverActivate = this._servicesConfig.quickAccessHoverActivate || false;
+        this._quickAccessHoverToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._quickAccessHoverActivate ? 'Enabled' : 'Disabled',
+            x_expand: true,
+        });
+        if (this._quickAccessHoverActivate) {
+            this._quickAccessHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._quickAccessHoverToggle.connect('clicked', () => {
+            this._quickAccessHoverActivate = !this._quickAccessHoverActivate;
+            this._quickAccessHoverToggle.label = this._quickAccessHoverActivate ? 'Enabled' : 'Disabled';
+            if (this._quickAccessHoverActivate) {
+                this._quickAccessHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._quickAccessHoverToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._servicesConfig.quickAccessHoverActivate = this._quickAccessHoverActivate;
+            this._saveServicesConfig();
+
+            // Update extension live
+            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            if (ext?.stateObj) {
+                ext.stateObj.setQuickAccessHoverActivate(this._quickAccessHoverActivate);
+            }
+        });
+        quickAccessHoverBox.add_child(this._quickAccessHoverToggle);
+        leftColumn.add_child(quickAccessHoverBox);
+
         columnsBox.add_child(leftColumn);
+
+        // Vertical separator between columns
+        let columnSeparator = new St.Widget({
+            style: 'background-color: rgba(255, 255, 255, 0.15); width: 1px; margin: 0 12px;',
+            y_expand: true,
+        });
+        columnsBox.add_child(columnSeparator);
 
         // === RIGHT COLUMN: Posture Monitoring, Artificial Intelligence ===
         let rightColumn = new St.BoxLayout({
@@ -360,11 +484,21 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._initPostureDBus();
 
         // -- Posture Monitoring --
+        let postureHeaderBox = new St.BoxLayout({
+            x_expand: true,
+        });
         let postureHeader = new St.Label({
             text: 'Posture Monitoring',
             style_class: 'praya-preferences-section-header',
         });
-        rightColumn.add_child(postureHeader);
+        postureHeaderBox.add_child(postureHeader);
+        let postureExperimentalLabel = new St.Label({
+            text: '(Experimental)',
+            style_class: 'praya-preferences-experimental-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        postureHeaderBox.add_child(postureExperimentalLabel);
+        rightColumn.add_child(postureHeaderBox);
 
         let postureEnableBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
@@ -710,6 +844,9 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
             showDesktopHoverActivate: false,
+            calendarHoverActivate: false,
+            quickAccessHoverActivate: false,
+            floatingPanel: false,
             panelPosition: 'top',
         };
 
