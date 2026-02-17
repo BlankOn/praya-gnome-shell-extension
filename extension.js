@@ -38,9 +38,6 @@ export default class PrayaExtension extends Extension {
         // Load services configuration
         this._loadServicesConfig();
 
-        // Start praya services
-        this._startPrayaServices();
-
         // Save and apply gsettings
         this._applySettings();
 
@@ -56,11 +53,14 @@ export default class PrayaExtension extends Extension {
             this._removeWorkAreaMargins();
             this._setupWorkAreaMargins();
         });
-        // Re-apply panel position after GNOME Shell startup completes,
-        // because LayoutManager._relayout() resets panelBox to the top
-        // during the startup animation sequence (e.g. login from GDM).
+        // Defer services start and panel re-apply to after GNOME Shell
+        // startup completes.  At that point display env vars
+        // (WAYLAND_DISPLAY, DISPLAY, …) are guaranteed to be set, so
+        // the systemd environment import succeeds on the first try and
+        // apps launched via systemd scopes can connect to the compositor.
         if (!Main.layoutManager._startingUp) {
             // Already started up (e.g. extension enabled from prefs)
+            this._startPrayaServices();
         } else {
             this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
                 Main.layoutManager.disconnect(this._startupCompleteId);
@@ -68,6 +68,7 @@ export default class PrayaExtension extends Extension {
                 this._applyPanelPosition(this._panelPosition || 'top');
                 this._removeWorkAreaMargins();
                 this._setupWorkAreaMargins();
+                this._startPrayaServices();
             });
         }
 
