@@ -2248,6 +2248,9 @@ class PrayaIndicator extends PanelMenu.Button {
                     if (this._searchEntry.get_text() !== '') {
                         this._searchEntry.set_text('');
                         return Clutter.EVENT_STOP;
+                    } else if (this._navigationStack.length === 0) {
+                        this._hidePanel();
+                        return Clutter.EVENT_STOP;
                     }
                 } else if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter) {
                     // Launch first app in search results

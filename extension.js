@@ -161,6 +161,9 @@ export default class PrayaExtension extends Extension {
         // Override hot corner to open our panel instead of overview
         this._setupHotCorner();
 
+        // Override Super key to open Praya panel instead of Activities
+        this._setupSuperKey();
+
         // Setup Meta+Space keybinding to toggle panel
         this._setupKeybinding();
 
@@ -477,6 +480,85 @@ export default class PrayaExtension extends Extension {
             });
         } catch (e) {
             // Silent failure
+        }
+    }
+
+    _setupSuperKey() {
+        // Ensure the overlay-key is set to Super_L so that
+        // Super (not Alt) triggers the overview toggle.
+        this._mutterSettings = new Gio.Settings({schema_id: 'org.gnome.mutter'});
+        this._originalOverlayKey = this._mutterSettings.get_string('overlay-key');
+        this._mutterSettings.set_string('overlay-key', 'Super_L');
+
+        // Override the overview toggle so pressing the Super key
+        // opens the Praya panel instead of GNOME Activities Overview.
+        this._originalOverviewToggle = Main.overview.toggle.bind(Main.overview);
+        Main.overview.toggle = () => {
+            if (this._indicator) {
+                this._indicator._togglePanel();
+            }
+        };
+
+        // Setup Alt key tap to open GNOME workspace view (Activities Overview)
+        this._setupAltOverview();
+    }
+
+    _setupAltOverview() {
+        this._altTapState = null;
+
+        this._altCapturedEventId = global.stage.connect('captured-event', (actor, event) => {
+            let type = event.type();
+
+            if (type === Clutter.EventType.KEY_PRESS) {
+                let symbol = event.get_key_symbol();
+                if (symbol === Clutter.KEY_Alt_L || symbol === Clutter.KEY_Alt_R) {
+                    if (!this._altTapState) {
+                        this._altTapState = 'pressed';
+                    }
+                } else {
+                    // Another key was pressed, cancel Alt tap
+                    this._altTapState = null;
+                }
+            } else if (type === Clutter.EventType.KEY_RELEASE) {
+                let symbol = event.get_key_symbol();
+                if ((symbol === Clutter.KEY_Alt_L || symbol === Clutter.KEY_Alt_R) &&
+                    this._altTapState === 'pressed') {
+                    this._altTapState = null;
+                    // Open GNOME Activities Overview (workspace view)
+                    if (this._originalOverviewToggle) {
+                        this._originalOverviewToggle();
+                    }
+                } else {
+                    this._altTapState = null;
+                }
+            }
+
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _removeAltOverview() {
+        if (this._altCapturedEventId) {
+            global.stage.disconnect(this._altCapturedEventId);
+            this._altCapturedEventId = null;
+        }
+        this._altTapState = null;
+    }
+
+    _restoreSuperKey() {
+        // Remove Alt overview handler
+        this._removeAltOverview();
+
+        // Restore original overlay-key
+        if (this._mutterSettings && this._originalOverlayKey !== undefined) {
+            this._mutterSettings.set_string('overlay-key', this._originalOverlayKey);
+            this._mutterSettings = null;
+            this._originalOverlayKey = undefined;
+        }
+
+        if (this._originalOverviewToggle) {
+            Main.overview.toggle = this._originalOverviewToggle;
+            this._originalOverviewToggle = null;
         }
     }
 
@@ -1538,6 +1620,9 @@ export default class PrayaExtension extends Extension {
 
         // Restore gsettings
         this._restoreSettings();
+
+        // Restore Super key to default overview behavior
+        this._restoreSuperKey();
 
         // Remove keybinding
         this._removeKeybinding();
