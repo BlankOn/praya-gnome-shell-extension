@@ -20,6 +20,7 @@ import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
+import Mtk from 'gi://Mtk';
 import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -48,10 +49,12 @@ export default class PrayaExtension extends Extension {
         // Apply panel position (top or bottom)
         this._applyPanelPosition(this._servicesConfig.panelPosition || 'top');
         this._setupWorkAreaMargins();
+        this._setupIconGeometryTracking();
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             this._applyPanelPosition(this._panelPosition || 'top');
             this._removeWorkAreaMargins();
             this._setupWorkAreaMargins();
+            this._updateAllWindowsIconGeometry();
         });
         // Defer services start and panel re-apply to after GNOME Shell
         // startup completes.  At that point display env vars
@@ -68,6 +71,7 @@ export default class PrayaExtension extends Extension {
                 this._applyPanelPosition(this._panelPosition || 'top');
                 this._removeWorkAreaMargins();
                 this._setupWorkAreaMargins();
+                this._updateAllWindowsIconGeometry();
                 this._startPrayaServices();
             });
         }
@@ -279,6 +283,7 @@ export default class PrayaExtension extends Extension {
         this._applyPanelPosition(position);
         this._removeWorkAreaMargins();
         this._setupWorkAreaMargins();
+        this._updateAllWindowsIconGeometry();
     }
 
     _setupWorkAreaMargins() {
@@ -336,6 +341,52 @@ export default class PrayaExtension extends Extension {
                 strut.destroy();
             }
             this._marginStruts = null;
+        }
+    }
+
+    _setWindowIconGeometry(window) {
+        if (!window || window.get_window_type() !== Meta.WindowType.NORMAL)
+            return;
+        let monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor) return;
+
+        let rect = new Mtk.Rectangle();
+        rect.x = monitor.x;
+        rect.width = Main.panel.width;
+        rect.height = Main.layoutManager.panelBox.height;
+        if (this._panelPosition === 'bottom') {
+            rect.y = monitor.y + monitor.height - rect.height;
+        } else {
+            rect.y = monitor.y;
+        }
+        window.set_icon_geometry(rect);
+    }
+
+    _updateAllWindowsIconGeometry() {
+        let windows = global.get_window_actors()
+            .map(a => a.meta_window);
+        for (let w of windows) {
+            this._setWindowIconGeometry(w);
+        }
+    }
+
+    _setupIconGeometryTracking() {
+        this._windowCreatedId = global.display.connect('window-created', (_display, window) => {
+            this._setWindowIconGeometry(window);
+        });
+        this._updateAllWindowsIconGeometry();
+    }
+
+    _removeIconGeometryTracking() {
+        if (this._windowCreatedId) {
+            global.display.disconnect(this._windowCreatedId);
+            this._windowCreatedId = null;
+        }
+        let windows = global.get_window_actors()
+            .map(a => a.meta_window);
+        for (let w of windows) {
+            if (w.get_window_type() === Meta.WindowType.NORMAL)
+                w.set_icon_geometry(null);
         }
     }
 
@@ -1607,6 +1658,7 @@ export default class PrayaExtension extends Extension {
         }
 
         // Restore panel to default state
+        this._removeIconGeometryTracking();
         if (this._monitorsChangedId) {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = null;

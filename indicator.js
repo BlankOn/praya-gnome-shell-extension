@@ -50,6 +50,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Track panel visibility
         this._panelVisible = false;
+        this._isPanelTransitioning = false;
         this._panel = null;
         this._hoverZone = null;
         this._navigationStack = [];
@@ -452,6 +453,10 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _showPanel() {
+        // Prevent overlapping show/hide transitions
+        if (this._isPanelTransitioning) return;
+        this._isPanelTransitioning = true;
+
         // Clean up any existing hover zone first to prevent orphaned zones
         if (this._hoverZone) {
             try {
@@ -566,6 +571,7 @@ class PrayaIndicator extends PanelMenu.Button {
             duration: 200,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onComplete: () => {
+                this._isPanelTransitioning = false;
                 // Grab keyboard focus
                 if (this._isChatbotMode && this._chatbotPanel) {
                     this._chatbotPanel.focusInput();
@@ -822,6 +828,10 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _hidePanel() {
+        // Prevent overlapping show/hide transitions
+        if (this._isPanelTransitioning) return;
+        this._isPanelTransitioning = true;
+
         // Close context menu first
         this._closeContextMenu();
 
@@ -908,6 +918,11 @@ class PrayaIndicator extends PanelMenu.Button {
             this._hoverZone = null;
         }
 
+        if (!this._panel) {
+            this._isPanelTransitioning = false;
+            return;
+        }
+
         if (this._panel) {
             // Fade out + slide to left animation
             this._panel.ease({
@@ -936,6 +951,7 @@ class PrayaIndicator extends PanelMenu.Button {
                     }
                     // Clear the stored monitor reference
                     this._currentMonitor = null;
+                    this._isPanelTransitioning = false;
                 }
             });
         }
@@ -2697,6 +2713,8 @@ class PrayaIndicator extends PanelMenu.Button {
             this._appSystem.disconnect(this._installedChangedId);
             this._installedChangedId = null;
         }
+        // Force cleanup regardless of transition state
+        this._isPanelTransitioning = false;
         this._hidePanel();
         super.destroy();
     }
