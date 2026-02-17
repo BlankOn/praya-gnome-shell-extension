@@ -86,72 +86,26 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
 
-        // === LEFT COLUMN: Praya Service, App Menu Option, Taskbar Behaviour ===
+        // === LEFT COLUMN: App Menu Option, Taskbar Behaviour ===
         let leftColumn = new St.BoxLayout({
             vertical: true,
             style_class: 'praya-preferences-column',
             x_expand: true,
         });
 
-        // -- Praya Service Status --
-        let serviceHeader = new St.Label({
-            text: 'Praya Service',
+        // -- Panel Option --
+        let panelOptionHeader = new St.Label({
+            text: 'Panel Option',
             style_class: 'praya-preferences-section-header',
         });
-        leftColumn.add_child(serviceHeader);
-
-        let serviceStatusBox = new St.BoxLayout({
-            style_class: 'praya-preferences-row',
-            x_expand: true,
-        });
-        let serviceStatusLabel = new St.Label({
-            text: 'Status:',
-            style_class: 'praya-preferences-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        serviceStatusBox.add_child(serviceStatusLabel);
-
-        this._serviceStatusValue = new St.Label({
-            text: 'Checking...',
-            style_class: 'praya-preferences-record-value',
-            x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        serviceStatusBox.add_child(this._serviceStatusValue);
-
-        this._refreshServiceButton = new St.Button({
-            style_class: 'praya-preferences-toggle-btn',
-            child: new St.Icon({
-                icon_name: 'view-refresh-symbolic',
-                icon_size: 16,
-            }),
-        });
-        this._refreshServiceButton.connect('clicked', () => {
-            this._checkPrayaServiceStatus();
-        });
-        serviceStatusBox.add_child(this._refreshServiceButton);
-        leftColumn.add_child(serviceStatusBox);
-
-        this._checkPrayaServiceStatus();
-
-        // -- App Menu Option --
-        let appMenuHeaderBox = new St.BoxLayout({
-            style_class: 'praya-preferences-section-header-box',
-            x_expand: true,
-        });
-        let appMenuHeader = new St.Label({
-            text: 'App Menu Option',
-            style_class: 'praya-preferences-section-header',
-        });
-        appMenuHeaderBox.add_child(appMenuHeader);
-        leftColumn.add_child(appMenuHeaderBox);
+        leftColumn.add_child(panelOptionHeader);
 
         let layoutBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
             x_expand: true,
         });
         let layoutLabel = new St.Label({
-            text: 'Layout:',
+            text: 'App menu layout:',
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -171,13 +125,6 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         layoutBox.add_child(this._layoutToggleButton);
         leftColumn.add_child(layoutBox);
-
-        // -- Panel Option --
-        let panelPositionHeader = new St.Label({
-            text: 'Panel Option',
-            style_class: 'praya-preferences-section-header',
-        });
-        leftColumn.add_child(panelPositionHeader);
 
         let panelPositionBox = new St.BoxLayout({
             style_class: 'praya-preferences-row',
@@ -473,18 +420,60 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
         columnsBox.add_child(columnSeparator);
 
-        // === RIGHT COLUMN: Posture Monitoring, Artificial Intelligence ===
+        // === RIGHT COLUMN: Praya Service, Posture Monitoring, Artificial Intelligence ===
         let rightColumn = new St.BoxLayout({
             vertical: true,
             style_class: 'praya-preferences-column',
             x_expand: true,
         });
 
+        // -- Praya Service Status --
+        let serviceHeader = new St.Label({
+            text: 'Praya Service',
+            style_class: 'praya-preferences-section-header',
+        });
+        rightColumn.add_child(serviceHeader);
+
+        let serviceStatusBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let serviceStatusLabel = new St.Label({
+            text: 'Status:',
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        serviceStatusBox.add_child(serviceStatusLabel);
+
+        this._serviceStatusValue = new St.Label({
+            text: 'Checking...',
+            style_class: 'praya-preferences-record-value',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        serviceStatusBox.add_child(this._serviceStatusValue);
+
+        this._refreshServiceButton = new St.Button({
+            style_class: 'praya-preferences-toggle-btn',
+            child: new St.Icon({
+                icon_name: 'view-refresh-symbolic',
+                icon_size: 16,
+            }),
+        });
+        this._refreshServiceButton.connect('clicked', () => {
+            this._checkPrayaServiceStatus();
+        });
+        serviceStatusBox.add_child(this._refreshServiceButton);
+        rightColumn.add_child(serviceStatusBox);
+
+        this._checkPrayaServiceStatus();
+
         // Initialize posture D-Bus connection
         this._initPostureDBus();
 
         // -- Posture Monitoring --
         let postureHeaderBox = new St.BoxLayout({
+            style_class: 'praya-preferences-section-header-box',
             x_expand: true,
         });
         let postureHeader = new St.Label({
@@ -846,7 +835,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             showDesktopHoverActivate: false,
             calendarHoverActivate: false,
             quickAccessHoverActivate: false,
-            floatingPanel: false,
+            floatingPanel: true,
             panelPosition: 'top',
         };
 
