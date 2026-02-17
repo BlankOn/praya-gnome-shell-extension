@@ -199,7 +199,7 @@ export default class PrayaExtension extends Extension {
             showDesktopHoverActivate: false,
             calendarHoverActivate: false,
             quickAccessHoverActivate: false,
-            floatingPanel: false,
+            floatingPanel: true,
             panelPosition: 'top',
         };
 
@@ -1214,47 +1214,69 @@ export default class PrayaExtension extends Extension {
     }
 
     _setupPanelHoverHandler() {
+        // Stage motion handler for hover-to-open (only when enabled)
         this._stageMotionId = global.stage.connect('captured-event', (actor, event) => {
             if (event.type() !== Clutter.EventType.MOTION)
                 return Clutter.EVENT_PROPAGATE;
 
             let [px, py] = event.get_coords();
 
-            // Calendar hover — use .container (the actual panel-level actor)
+            // Calendar hover-to-open
             if (this._calendarHoverActivate) {
                 let dateMenu = Main.panel.statusArea.dateMenu;
                 if (dateMenu) {
                     let nearButton = this._isPointInArea(px, py, dateMenu.container, 10);
-                    let nearPopup = dateMenu.menu.isOpen && this._isPointInArea(px, py, dateMenu.menu.actor, 20);
                     if (nearButton && !dateMenu.menu.isOpen) {
                         this._cancelDateMenuClose();
                         dateMenu.menu.open();
-                    } else if (dateMenu.menu.isOpen && (nearButton || nearPopup)) {
-                        this._cancelDateMenuClose();
-                    } else if (dateMenu.menu.isOpen && !nearButton && !nearPopup) {
-                        this._scheduleDateMenuClose();
                     }
                 }
             }
 
-            // Quick settings hover — use .container
+            // Quick settings hover-to-open
             if (this._quickAccessHoverActivate) {
                 let quickSettings = Main.panel.statusArea.quickSettings;
                 if (quickSettings) {
                     let nearButton = this._isPointInArea(px, py, quickSettings.container, 10);
-                    let nearPopup = quickSettings.menu.isOpen && this._isPointInArea(px, py, quickSettings.menu.actor, 20);
                     if (nearButton && !quickSettings.menu.isOpen) {
                         this._cancelQuickSettingsClose();
                         quickSettings.menu.open();
-                    } else if (quickSettings.menu.isOpen && (nearButton || nearPopup)) {
-                        this._cancelQuickSettingsClose();
-                    } else if (quickSettings.menu.isOpen && !nearButton && !nearPopup) {
-                        this._scheduleQuickSettingsClose();
                     }
                 }
             }
 
             return Clutter.EVENT_PROPAGATE;
+        });
+
+        // Unified poll to close popups when pointer leaves their area
+        this._popupLeavePollId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            // Calendar close-on-leave
+            let dateMenu = Main.panel.statusArea.dateMenu;
+            if (dateMenu && dateMenu.menu.isOpen) {
+                let nearButton = this._isPointerInArea(dateMenu.container, 10);
+                let nearPopup = this._isPointerInArea(dateMenu.menu.actor, 20);
+                if (!nearButton && !nearPopup) {
+                    if (!this._dateMenuCloseTimeoutId)
+                        this._scheduleDateMenuClose();
+                } else {
+                    this._cancelDateMenuClose();
+                }
+            }
+
+            // Quick settings close-on-leave
+            let quickSettings = Main.panel.statusArea.quickSettings;
+            if (quickSettings && quickSettings.menu.isOpen) {
+                let nearButton = this._isPointerInArea(quickSettings.container, 10);
+                let nearPopup = this._isPointerNearQuickSettingsPopup(quickSettings, 7);
+                if (!nearButton && !nearPopup) {
+                    if (!this._quickSettingsCloseTimeoutId)
+                        this._scheduleQuickSettingsClose();
+                } else {
+                    this._cancelQuickSettingsClose();
+                }
+            }
+
+            return GLib.SOURCE_CONTINUE;
         });
     }
 
@@ -1263,6 +1285,14 @@ export default class PrayaExtension extends Extension {
             global.stage.disconnect(this._stageMotionId);
             this._stageMotionId = null;
         }
+
+        if (this._popupLeavePollId) {
+            GLib.source_remove(this._popupLeavePollId);
+            this._popupLeavePollId = null;
+        }
+
+        this._cancelDateMenuClose();
+        this._cancelQuickSettingsClose();
     }
 
     _setupHotCorner() {
@@ -1328,6 +1358,18 @@ export default class PrayaExtension extends Extension {
         this._cancelQuickSettingsClose();
     }
 
+    _isPointerNearQuickSettingsPopup(quickSettings, margin) {
+        let [px, py] = global.get_pointer();
+        // Check the BoxPointer (the visible popup container with arrow)
+        let boxPointer = quickSettings.menu._boxPointer;
+        if (boxPointer && this._isPointInArea(px, py, boxPointer, margin))
+            return true;
+        // Fallback: check menu.actor
+        if (this._isPointInArea(px, py, quickSettings.menu.actor, margin))
+            return true;
+        return false;
+    }
+
     _isPointInArea(px, py, actor, margin) {
         let [ax, ay] = actor.get_transformed_position();
         let [aw, ah] = actor.get_size();
@@ -1373,7 +1415,7 @@ export default class PrayaExtension extends Extension {
             if (!quickSettings || !quickSettings.menu.isOpen) return GLib.SOURCE_REMOVE;
 
             if (this._isPointerInArea(quickSettings.container, 10) ||
-                this._isPointerInArea(quickSettings.menu.actor, 20)) {
+                this._isPointerNearQuickSettingsPopup(quickSettings, 7)) {
                 this._scheduleQuickSettingsClose();
                 return GLib.SOURCE_REMOVE;
             }
