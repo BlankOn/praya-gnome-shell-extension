@@ -56,6 +56,20 @@ export default class PrayaExtension extends Extension {
             this._removeWorkAreaMargins();
             this._setupWorkAreaMargins();
         });
+        // Re-apply panel position after GNOME Shell startup completes,
+        // because LayoutManager._relayout() resets panelBox to the top
+        // during the startup animation sequence (e.g. login from GDM).
+        if (!Main.layoutManager._startingUp) {
+            // Already started up (e.g. extension enabled from prefs)
+        } else {
+            this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
+                Main.layoutManager.disconnect(this._startupCompleteId);
+                this._startupCompleteId = null;
+                this._applyPanelPosition(this._panelPosition || 'top');
+                this._removeWorkAreaMargins();
+                this._setupWorkAreaMargins();
+            });
+        }
 
         // Hide activities button
         this._hideActivities();
@@ -1461,6 +1475,10 @@ export default class PrayaExtension extends Extension {
         if (this._panelPositionIdleId) {
             GLib.source_remove(this._panelPositionIdleId);
             this._panelPositionIdleId = null;
+        }
+        if (this._startupCompleteId) {
+            Main.layoutManager.disconnect(this._startupCompleteId);
+            this._startupCompleteId = null;
         }
 
         // Restore panel to default state
