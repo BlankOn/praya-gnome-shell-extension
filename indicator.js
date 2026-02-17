@@ -755,7 +755,7 @@ class PrayaIndicator extends PanelMenu.Button {
             track_hover: true,
             x: triggerX,
             y: triggerY,
-            width: 75,
+            width: 95,
             height: 25,
             style: 'background-color: transparent;',
         });
