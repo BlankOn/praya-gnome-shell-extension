@@ -73,6 +73,8 @@ export default class PrayaExtension extends Extension {
                 this._setupWorkAreaMargins();
                 this._updateAllWindowsIconGeometry();
                 this._startPrayaServices();
+                // Hide the overview/workspace view on startup
+                Main.overview.hide();
             });
         }
 
