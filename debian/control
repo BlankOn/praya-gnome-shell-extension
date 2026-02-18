@@ -9,7 +9,7 @@ Rules-Requires-Root: no
 
 Package: praya-gnome-shell-extension
 Architecture: all
-Depends: gnome-shell (>= 49~), dconf-cli, ${misc:Depends}
+Depends: gnome-shell (>= 49~), ${misc:Depends}
 Description: Praya GNOME Shell Extension
  A GNOME Shell extension for BlankOn Linux that provides
  the Praya desktop experience.

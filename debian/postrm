@@ -3,11 +3,6 @@ set -e
 
 case "$1" in
     remove|purge)
-        # Update dconf database to remove the system-wide settings
-        if command -v dconf >/dev/null 2>&1; then
-            dconf update || true
-        fi
-
         # Remove autostart desktop file from existing users
         for HOME_DIR in /home/*; do
             [ -d "$HOME_DIR" ] || continue
