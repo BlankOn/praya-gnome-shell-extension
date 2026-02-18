@@ -1,4 +1,5 @@
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/ef4e01ff-7588-4dcc-b809-cc67b02c50db" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c6253173-9fe4-47d0-9fef-f9792c25558a" />
+
 
 # Praya
 
