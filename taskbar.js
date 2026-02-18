@@ -104,6 +104,19 @@ class PrayaTaskbar extends St.BoxLayout {
 
     }
 
+    getWindows() {
+        let workspace = global.workspace_manager.get_active_workspace();
+        let windows = global.get_window_actors()
+            .map(a => a.meta_window)
+            .filter(w => {
+                return w.get_workspace() === workspace &&
+                       !w.is_skip_taskbar() &&
+                       w.get_window_type() === Meta.WindowType.NORMAL;
+            });
+        windows.sort((a, b) => a.get_stable_sequence() - b.get_stable_sequence());
+        return windows;
+    }
+
     _createWindowButton(window, app, isFocused) {
         // Outer container - black background, no margin, handles clicks
         let button = new St.BoxLayout({

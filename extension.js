@@ -620,17 +620,48 @@ export default class PrayaExtension extends Extension {
         // Grab the Super+Space accelerator
         this._acceleratorAction = global.display.grab_accelerator('<Super>space', Meta.KeyBindingFlags.NONE);
 
+        // Grab Super+1 through Super+9 for taskbar window switching
+        this._numberAcceleratorActions = [];
+        for (let i = 1; i <= 9; i++) {
+            let action = global.display.grab_accelerator(`<Super>${i}`, Meta.KeyBindingFlags.NONE);
+            if (action !== Meta.KeyBindingAction.NONE) {
+                let name = Meta.external_binding_name_for_action(action);
+                Main.wm.allowKeybinding(name, Shell.ActionMode.ALL);
+                this._numberAcceleratorActions.push({ action, index: i - 1 });
+            }
+        }
+
         if (this._acceleratorAction !== Meta.KeyBindingAction.NONE) {
             let name = Meta.external_binding_name_for_action(this._acceleratorAction);
             Main.wm.allowKeybinding(name, Shell.ActionMode.ALL);
+        }
 
-            this._acceleratorActivatedId = global.display.connect('accelerator-activated', (display, action) => {
-                if (action === this._acceleratorAction) {
-                    if (this._indicator) {
-                        this._indicator._togglePanel();
-                    }
+        this._acceleratorActivatedId = global.display.connect('accelerator-activated', (display, action) => {
+            if (action === this._acceleratorAction) {
+                if (this._indicator) {
+                    this._indicator._togglePanel();
                 }
-            });
+                return;
+            }
+
+            // Check Super+number actions
+            for (let entry of this._numberAcceleratorActions) {
+                if (action === entry.action) {
+                    this._activateTaskbarWindow(entry.index);
+                    return;
+                }
+            }
+        });
+    }
+
+    _activateTaskbarWindow(index) {
+        if (!this._taskbar) return;
+        let windows = this._taskbar.getWindows();
+        if (index < windows.length) {
+            let window = windows[index];
+            if (window.minimized)
+                window.unminimize();
+            window.activate(global.get_current_time());
         }
     }
 
@@ -643,6 +674,13 @@ export default class PrayaExtension extends Extension {
         if (this._acceleratorAction && this._acceleratorAction !== Meta.KeyBindingAction.NONE) {
             global.display.ungrab_accelerator(this._acceleratorAction);
             this._acceleratorAction = null;
+        }
+
+        if (this._numberAcceleratorActions) {
+            for (let entry of this._numberAcceleratorActions) {
+                global.display.ungrab_accelerator(entry.action);
+            }
+            this._numberAcceleratorActions = [];
         }
     }
 
