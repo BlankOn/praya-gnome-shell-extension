@@ -18,11 +18,9 @@ override_dh_auto_install:
 	install -m 644 stylesheet.css $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets
 	install -m 644 assets/logo-white.png $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets/
-	# Install dconf settings for global user configuration
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/db/local.d
-	install -m 644 debian/dconf/db/local.d/00-praya-global-behaviours $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/db/local.d/
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/profile
-	install -m 644 debian/dconf/profile/user $(CURDIR)/debian/praya-gnome-shell-extension/etc/dconf/profile/
+	# Install GSettings override for global defaults
+	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/glib-2.0/schemas
+	install -m 644 debian/10_praya.gschema.override $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/glib-2.0/schemas/
 	# Install per-user update script
 	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/lib/praya-extension
 	install -m 755 debian/praya-update-user.sh $(CURDIR)/debian/praya-gnome-shell-extension/usr/lib/praya-extension/
