@@ -26,6 +26,7 @@ import St from 'gi://St';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import { _ } from './translations.js';
 import { PrayaIndicator } from './indicator.js';
 import { PrayaTaskbar } from './taskbar.js';
 
@@ -1028,13 +1029,13 @@ export default class PrayaExtension extends Extension {
             });
 
             let label = new St.Label({
-                text: 'Bad Posture Detected',
+                text: _('Bad Posture Detected'),
                 style: 'font-size: 24px; font-weight: bold; color: white;',
                 x_align: Clutter.ActorAlign.CENTER,
             });
 
             let sublabel = new St.Label({
-                text: 'Please correct your posture',
+                text: _('Please correct your posture'),
                 style: 'font-size: 16px; color: #cccccc; margin-top: 10px;',
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -1070,7 +1071,7 @@ export default class PrayaExtension extends Extension {
             this._overlayBarFills.push(barFill);
 
             let dismissLabel = new St.Label({
-                text: 'Click anywhere to dismiss (10s pause)',
+                text: _('Click anywhere to dismiss (10s pause)'),
                 style: 'font-size: 12px; color: #888888; margin-top: 30px;',
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -1096,7 +1097,7 @@ export default class PrayaExtension extends Extension {
             // Recalibrate button
             let recalibrateButton = new St.Button({
                 style_class: 'praya-overlay-recalibrate-btn',
-                label: 'Recalibrate',
+                label: _('Recalibrate'),
                 style: 'background-color: rgba(255, 255, 255, 0.15); color: #cccccc; border-radius: 6px; padding: 8px 16px; font-size: 12px;',
             });
             recalibrateButton.connect('clicked', () => {
@@ -1108,7 +1109,7 @@ export default class PrayaExtension extends Extension {
             // Disable Posture Monitoring button
             let disableButton = new St.Button({
                 style_class: 'praya-overlay-disable-btn',
-                label: 'Disable Posture Monitoring Service',
+                label: _('Disable Posture Monitoring Service'),
                 style: 'background-color: rgba(255, 255, 255, 0.15); color: #cccccc; border-radius: 6px; padding: 8px 16px; font-size: 12px;',
             });
             disableButton.connect('clicked', () => {

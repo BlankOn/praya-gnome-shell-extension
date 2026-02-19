@@ -17,6 +17,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 
+import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
 import { PrayaPreferencesDialog } from './preferences.js';
 import {
@@ -332,7 +333,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
 
         // Create menu item
-        let menuItemText = isFav ? 'Unpin' : 'Pin to Menu';
+        let menuItemText = isFav ? _('Unpin') : _('Pin to Menu');
         let menuItemIcon = isFav ? 'view-pin-symbolic' : 'view-pin-symbolic';
 
         let menuItem = new St.BoxLayout({
@@ -1079,7 +1080,7 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _showMainMenu(animate = true) {
-        this._updateHeader('Menu', false);
+        this._updateHeader(_('Menu'), false);
 
         // Use stored monitor from when panel was opened
         let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
@@ -1164,7 +1165,7 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Applications item (has children)
-        let appsItem = this._createMenuItem('Applications', 'view-app-grid-symbolic', true);
+        let appsItem = this._createMenuItem(_('Applications'), 'view-app-grid-symbolic', true);
         appsItem._hasChildren = true;
         appsItem._activateCallback = () => {
             if (!this._isAnimating) this._showApplicationsList();
@@ -1177,7 +1178,7 @@ class PrayaIndicator extends PanelMenu.Button {
         navItems.push(appsItem);
 
         // Places item (has children)
-        let placesItem = this._createMenuItem('Places', 'folder-symbolic', true);
+        let placesItem = this._createMenuItem(_('Places'), 'folder-symbolic', true);
         placesItem._hasChildren = true;
         placesItem._activateCallback = () => {
             if (!this._isAnimating) this._showPlaces();
@@ -1193,7 +1194,7 @@ class PrayaIndicator extends PanelMenu.Button {
         menuBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
 
         // System Settings item (opens GNOME Settings directly)
-        let settingsItem = this._createMenuItem('System Settings', 'preferences-system-symbolic', false);
+        let settingsItem = this._createMenuItem(_('System Settings'), 'preferences-system-symbolic', false);
         settingsItem._hasChildren = false;
         settingsItem._activateCallback = () => {
             let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
@@ -1214,7 +1215,7 @@ class PrayaIndicator extends PanelMenu.Button {
         navItems.push(settingsItem);
 
         // Praya Preferences item (opens preferences dialog)
-        let prefsItem = this._createMenuItem('Praya Preferences', 'preferences-other-symbolic', false);
+        let prefsItem = this._createMenuItem(_('Praya Preferences'), 'preferences-other-symbolic', false);
         prefsItem._hasChildren = false;
         prefsItem._activateCallback = () => {
             this._hidePanel();
@@ -1243,7 +1244,7 @@ class PrayaIndicator extends PanelMenu.Button {
         navItems.push(prefsItem);
 
         // About BlankOn (has children)
-        let aboutItem = this._createMenuItem('About BlankOn', 'help-about-symbolic', true);
+        let aboutItem = this._createMenuItem(_('About BlankOn'), 'help-about-symbolic', true);
         aboutItem._hasChildren = true;
         aboutItem._activateCallback = () => {
             if (!this._isAnimating) this._showAboutBlankOn();
@@ -1276,27 +1277,27 @@ class PrayaIndicator extends PanelMenu.Button {
     _getCategoryInfo(categoryId) {
         // Map category IDs to display names and icons
         const categoryMap = {
-            'AudioVideo': {name: 'Sound & Video', icon: 'applications-multimedia-symbolic'},
-            'Audio': {name: 'Audio', icon: 'audio-x-generic-symbolic'},
-            'Video': {name: 'Video', icon: 'video-x-generic-symbolic'},
-            'Development': {name: 'Development', icon: 'applications-engineering-symbolic'},
-            'Education': {name: 'Education', icon: 'applications-science-symbolic'},
-            'Game': {name: 'Games', icon: 'applications-games-symbolic'},
-            'Graphics': {name: 'Graphics', icon: 'applications-graphics-symbolic'},
-            'Network': {name: 'Internet', icon: 'applications-internet-symbolic'},
-            'Office': {name: 'Office', icon: 'x-office-document-symbolic'},
-            'Science': {name: 'Science', icon: 'applications-science-symbolic'},
-            'Settings': {name: 'Settings', icon: 'preferences-system-symbolic'},
-            'System': {name: 'System Tools', icon: 'applications-system-symbolic'},
-            'Utility': {name: 'Accessories', icon: 'applications-utilities-symbolic'},
-            'Other': {name: 'Other', icon: 'applications-other-symbolic'},
+            'AudioVideo': {name: _('Sound & Video'), icon: 'applications-multimedia-symbolic'},
+            'Audio': {name: _('Audio'), icon: 'audio-x-generic-symbolic'},
+            'Video': {name: _('Video'), icon: 'video-x-generic-symbolic'},
+            'Development': {name: _('Development'), icon: 'applications-engineering-symbolic'},
+            'Education': {name: _('Education'), icon: 'applications-science-symbolic'},
+            'Game': {name: _('Games'), icon: 'applications-games-symbolic'},
+            'Graphics': {name: _('Graphics'), icon: 'applications-graphics-symbolic'},
+            'Network': {name: _('Internet'), icon: 'applications-internet-symbolic'},
+            'Office': {name: _('Office'), icon: 'x-office-document-symbolic'},
+            'Science': {name: _('Science'), icon: 'applications-science-symbolic'},
+            'Settings': {name: _('Settings'), icon: 'preferences-system-symbolic'},
+            'System': {name: _('System Tools'), icon: 'applications-system-symbolic'},
+            'Utility': {name: _('Accessories'), icon: 'applications-utilities-symbolic'},
+            'Other': {name: _('Other'), icon: 'applications-other-symbolic'},
         };
         return categoryMap[categoryId] || {name: categoryId, icon: 'application-x-executable-symbolic'};
     }
 
     _showApplicationsList() {
         this._navigationStack.push({type: 'main'});
-        this._updateHeader('Applications', true);
+        this._updateHeader(_('Applications'), true);
 
         // Reload apps if categories are empty
         if (Object.keys(this._categories).length === 0) {
@@ -1356,7 +1357,7 @@ class PrayaIndicator extends PanelMenu.Button {
                 menuBox.add_child(gridContainer);
             } else {
                 let noAppsLabel = new St.Label({
-                    text: 'No applications found.',
+                    text: _('No applications found.'),
                     style_class: 'praya-no-results',
                     x_align: Clutter.ActorAlign.CENTER,
                 });
@@ -1416,7 +1417,7 @@ class PrayaIndicator extends PanelMenu.Button {
             // Show message if no categories found
             if (menuBox.get_n_children() === 0) {
                 let noAppsLabel = new St.Label({
-                    text: 'No applications found.\nCategories: ' + Object.keys(this._categories).length,
+                    text: _('No applications found.') + '\nCategories: ' + Object.keys(this._categories).length,
                     style_class: 'praya-no-results',
                     x_align: Clutter.ActorAlign.CENTER,
                 });
@@ -1473,7 +1474,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
     _showPlaces() {
         this._navigationStack.push({type: 'main'});
-        this._updateHeader('Places', true);
+        this._updateHeader(_('Places'), true);
 
         let scrollView = this._createScrollView();
 
@@ -1486,7 +1487,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let navItems = [];
 
         // Home
-        let homeItem = this._createMenuItem('Home', 'user-home-symbolic', false);
+        let homeItem = this._createMenuItem(_('Home'), 'user-home-symbolic', false);
         homeItem._hasChildren = false;
         homeItem._activateCallback = () => this._openPlace(GLib.get_home_dir());
         homeItem.connect('button-press-event', () => {
@@ -1499,7 +1500,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Documents
         let docsPath = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOCUMENTS);
         if (docsPath) {
-            let docsItem = this._createMenuItem('Documents', 'folder-documents-symbolic', false);
+            let docsItem = this._createMenuItem(_('Documents'), 'folder-documents-symbolic', false);
             docsItem._hasChildren = false;
             docsItem._activateCallback = () => this._openPlace(docsPath);
             docsItem.connect('button-press-event', () => {
@@ -1513,7 +1514,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Downloads
         let downloadsPath = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD);
         if (downloadsPath) {
-            let downloadsItem = this._createMenuItem('Downloads', 'folder-download-symbolic', false);
+            let downloadsItem = this._createMenuItem(_('Downloads'), 'folder-download-symbolic', false);
             downloadsItem._hasChildren = false;
             downloadsItem._activateCallback = () => this._openPlace(downloadsPath);
             downloadsItem.connect('button-press-event', () => {
@@ -1527,7 +1528,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Pictures
         let picturesPath = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES);
         if (picturesPath) {
-            let picturesItem = this._createMenuItem('Pictures', 'folder-pictures-symbolic', false);
+            let picturesItem = this._createMenuItem(_('Pictures'), 'folder-pictures-symbolic', false);
             picturesItem._hasChildren = false;
             picturesItem._activateCallback = () => this._openPlace(picturesPath);
             picturesItem.connect('button-press-event', () => {
@@ -1541,7 +1542,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Music
         let musicPath = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_MUSIC);
         if (musicPath) {
-            let musicItem = this._createMenuItem('Music', 'folder-music-symbolic', false);
+            let musicItem = this._createMenuItem(_('Music'), 'folder-music-symbolic', false);
             musicItem._hasChildren = false;
             musicItem._activateCallback = () => this._openPlace(musicPath);
             musicItem.connect('button-press-event', () => {
@@ -1555,7 +1556,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Videos
         let videosPath = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS);
         if (videosPath) {
-            let videosItem = this._createMenuItem('Videos', 'folder-videos-symbolic', false);
+            let videosItem = this._createMenuItem(_('Videos'), 'folder-videos-symbolic', false);
             videosItem._hasChildren = false;
             videosItem._activateCallback = () => this._openPlace(videosPath);
             videosItem.connect('button-press-event', () => {
@@ -1676,8 +1677,8 @@ class PrayaIndicator extends PanelMenu.Button {
             this._chatbotSettings.reload();
             let isChatbotAvailable = this._isAIEnabled() && this._chatbotSettings.isConfigured();
             let noResultsText = isChatbotAvailable
-                ? 'No applications found.\nPress Enter to chat with AI...'
-                : 'No applications found';
+                ? _('No applications found.') + '\n' + _('Press Enter to chat with AI...')
+                : _('No applications found.');
             let noResultsLabel = new St.Label({
                 text: noResultsText,
                 style_class: 'praya-no-results',
@@ -2115,7 +2116,7 @@ class PrayaIndicator extends PanelMenu.Button {
         bottomSection.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
 
         // Lock item (same level as Power)
-        let lockItem = this._createMenuItem('Lock', 'system-lock-screen-symbolic', false);
+        let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
         lockItem.connect('button-press-event', () => {
             Main.screenShield.lock(true);
             this._hidePanel();
@@ -2124,7 +2125,7 @@ class PrayaIndicator extends PanelMenu.Button {
         bottomSection.add_child(lockItem);
 
         // Log Out item (same level as Power)
-        let logoutItem = this._createMenuItem('Log Out', 'system-log-out-symbolic', false);
+        let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
         logoutItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activateLogout();
@@ -2133,7 +2134,7 @@ class PrayaIndicator extends PanelMenu.Button {
         bottomSection.add_child(logoutItem);
 
         // Power item (expandable)
-        let powerItem = this._createExpandableMenuItem('Power', 'system-shutdown-symbolic');
+        let powerItem = this._createExpandableMenuItem(_('Power'), 'system-shutdown-symbolic');
         bottomSection.add_child(powerItem);
 
         // Power options container (initially hidden with 0 height for animation)
@@ -2148,7 +2149,7 @@ class PrayaIndicator extends PanelMenu.Button {
         powerOptionsBox._targetHeight = 150; // 3 items * 42px height + margins + padding
 
         // Suspend
-        let suspendItem = this._createSubMenuItem('Suspend');
+        let suspendItem = this._createSubMenuItem(_('Suspend'));
         suspendItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activateSuspend();
@@ -2157,7 +2158,7 @@ class PrayaIndicator extends PanelMenu.Button {
         powerOptionsBox.add_child(suspendItem);
 
         // Restart
-        let restartItem = this._createSubMenuItem('Restart');
+        let restartItem = this._createSubMenuItem(_('Restart'));
         restartItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activateRestart();
@@ -2166,7 +2167,7 @@ class PrayaIndicator extends PanelMenu.Button {
         powerOptionsBox.add_child(restartItem);
 
         // Power Off
-        let powerOffItem = this._createSubMenuItem('Power Off');
+        let powerOffItem = this._createSubMenuItem(_('Power Off'));
         powerOffItem.connect('button-press-event', () => {
             this._hidePanel();
             this._systemActions.activatePowerOff();
@@ -2250,7 +2251,7 @@ class PrayaIndicator extends PanelMenu.Button {
             // Show search entry (main menu view) - entry first, icon on right
             this._searchEntry = new St.Entry({
                 style_class: 'praya-search-entry',
-                hint_text: 'Search or ask...',
+                hint_text: _('Search or ask...'),
                 can_focus: true,
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
@@ -2300,7 +2301,7 @@ class PrayaIndicator extends PanelMenu.Button {
         } else if (previous.type === 'applications') {
             // Go back to applications categories list
             this._navigationStack.push({type: 'main'});
-            this._updateHeader('Applications', true);
+            this._updateHeader(_('Applications'), true);
 
             let scrollView = this._createScrollView();
             let menuBox = new St.BoxLayout({
@@ -2366,7 +2367,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
     _showSettingsMenu() {
         this._navigationStack.push({type: 'main'});
-        this._updateHeader('Settings', true);
+        this._updateHeader(_('Settings'), true);
 
         let scrollView = this._createScrollView();
 
@@ -2379,7 +2380,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let navItems = [];
 
         // System Settings
-        let systemSettingsItem = this._createMenuItem('System Settings', 'preferences-system-symbolic', false);
+        let systemSettingsItem = this._createMenuItem(_('System Settings'), 'preferences-system-symbolic', false);
         systemSettingsItem._hasChildren = false;
         systemSettingsItem._activateCallback = () => {
             let appInfo = GioUnix.DesktopAppInfo.new('gnome-control-center.desktop');
@@ -2406,7 +2407,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
     _showAboutBlankOn() {
         this._navigationStack.push({type: 'main'});
-        this._updateHeader('About BlankOn', true);
+        this._updateHeader(_('About BlankOn'), true);
 
         let scrollView = this._createScrollView();
 
@@ -2419,7 +2420,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let navItems = [];
 
         // BlankOn Linux
-        let blankonItem = this._createMenuItem('BlankOn Linux', 'help-about-symbolic', false);
+        let blankonItem = this._createMenuItem(_('BlankOn Linux'), 'help-about-symbolic', false);
         blankonItem._hasChildren = false;
         blankonItem._activateCallback = () => {
             this._openUrl('http://blankonlinux.id/');
@@ -2432,7 +2433,7 @@ class PrayaIndicator extends PanelMenu.Button {
         navItems.push(blankonItem);
 
         // BlankOn Foundation
-        let foundationItem = this._createMenuItem('BlankOn Foundation', 'help-about-symbolic', false);
+        let foundationItem = this._createMenuItem(_('BlankOn Foundation'), 'help-about-symbolic', false);
         foundationItem._hasChildren = false;
         foundationItem._activateCallback = () => {
             this._openUrl('https://blankon.id/en');
@@ -2445,7 +2446,7 @@ class PrayaIndicator extends PanelMenu.Button {
         navItems.push(foundationItem);
 
         // Praya Shell Extension
-        let prayaItem = this._createMenuItem('Praya Shell Extension', 'help-about-symbolic', false);
+        let prayaItem = this._createMenuItem(_('Praya Shell Extension'), 'help-about-symbolic', false);
         prayaItem._hasChildren = false;
         prayaItem._activateCallback = () => {
             this._openUrl('https://github.com/BlankOn/praya-gnome-shell-extension');
@@ -2458,7 +2459,7 @@ class PrayaIndicator extends PanelMenu.Button {
         navItems.push(prayaItem);
 
         // Donate
-        let donateItem = this._createMenuItem('Donate', 'help-about-symbolic', false);
+        let donateItem = this._createMenuItem(_('Donate'), 'help-about-symbolic', false);
         donateItem._hasChildren = false;
         donateItem._activateCallback = () => {
             this._openUrl('https://blankon.id/en/donate');

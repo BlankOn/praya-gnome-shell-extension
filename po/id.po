@@ -1,0 +1,363 @@
+# Indonesian translations for praya package.
+# Copyright (C) 2026 THE praya'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the praya package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: praya\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-19 17:13+0700\n"
+"PO-Revision-Date: 2026-02-19 17:13+0700\n"
+"Last-Translator: \n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: extension.js:1032
+msgid "Bad Posture Detected"
+msgstr "Postur Buruk Terdeteksi"
+
+#: extension.js:1038
+msgid "Please correct your posture"
+msgstr "Silakan perbaiki postur tubuh Anda"
+
+#: extension.js:1074
+msgid "Click anywhere to dismiss (10s pause)"
+msgstr "Klik di mana saja untuk menutup (jeda 10 detik)"
+
+#: extension.js:1100 preferences.js:533
+msgid "Recalibrate"
+msgstr "Kalibrasi Ulang"
+
+#: extension.js:1112
+msgid "Disable Posture Monitoring Service"
+msgstr "Nonaktifkan Layanan Pemantau Postur"
+
+#: indicator.js:336
+msgid "Unpin"
+msgstr "Lepas Pin"
+
+#: indicator.js:336
+msgid "Pin to Menu"
+msgstr "Sematkan ke Menu"
+
+#: indicator.js:1083
+msgid "Menu"
+msgstr "Menu"
+
+#: indicator.js:1168 indicator.js:1300 indicator.js:2304
+msgid "Applications"
+msgstr "Aplikasi"
+
+#: indicator.js:1181 indicator.js:1477
+msgid "Places"
+msgstr "Lokasi"
+
+#: indicator.js:1197 indicator.js:2383
+msgid "System Settings"
+msgstr "Pengaturan Sistem"
+
+#: indicator.js:1218 preferences.js:58
+msgid "Praya Preferences"
+msgstr "Preferensi Praya"
+
+#: indicator.js:1247 indicator.js:2410
+msgid "About BlankOn"
+msgstr "Tentang BlankOn"
+
+#: indicator.js:1280
+msgid "Sound & Video"
+msgstr "Suara & Video"
+
+#: indicator.js:1281
+msgid "Audio"
+msgstr "Audio"
+
+#: indicator.js:1282
+msgid "Video"
+msgstr "Video"
+
+#: indicator.js:1283
+msgid "Development"
+msgstr "Pengembangan"
+
+#: indicator.js:1284
+msgid "Education"
+msgstr "Pendidikan"
+
+#: indicator.js:1285
+msgid "Games"
+msgstr "Permainan"
+
+#: indicator.js:1286
+msgid "Graphics"
+msgstr "Grafis"
+
+#: indicator.js:1287
+msgid "Internet"
+msgstr "Internet"
+
+#: indicator.js:1288
+msgid "Office"
+msgstr "Perkantoran"
+
+#: indicator.js:1289
+msgid "Science"
+msgstr "Sains"
+
+#: indicator.js:1290 indicator.js:2370
+msgid "Settings"
+msgstr "Pengaturan"
+
+#: indicator.js:1291
+msgid "System Tools"
+msgstr "Peralatan Sistem"
+
+#: indicator.js:1292
+msgid "Accessories"
+msgstr "Aksesoris"
+
+#: indicator.js:1293
+msgid "Other"
+msgstr "Lainnya"
+
+#: indicator.js:1360 indicator.js:1420 indicator.js:1680 indicator.js:1681
+msgid "No applications found."
+msgstr "Tidak ada aplikasi ditemukan."
+
+#: indicator.js:1490
+msgid "Home"
+msgstr "Beranda"
+
+#: indicator.js:1503
+msgid "Documents"
+msgstr "Dokumen"
+
+#: indicator.js:1517
+msgid "Downloads"
+msgstr "Unduhan"
+
+#: indicator.js:1531
+msgid "Pictures"
+msgstr "Gambar"
+
+#: indicator.js:1545
+msgid "Music"
+msgstr "Musik"
+
+#: indicator.js:1559
+msgid "Videos"
+msgstr "Video"
+
+#: indicator.js:1680
+msgid "Press Enter to chat with AI..."
+msgstr "Tekan Enter untuk ngobrol dengan AI..."
+
+#: indicator.js:2119
+msgid "Lock"
+msgstr "Kunci"
+
+#: indicator.js:2128
+msgid "Log Out"
+msgstr "Keluar"
+
+#: indicator.js:2137
+msgid "Power"
+msgstr "Daya"
+
+#: indicator.js:2152
+msgid "Suspend"
+msgstr "Tidurkan"
+
+#: indicator.js:2161
+msgid "Restart"
+msgstr "Mulai Ulang"
+
+#: indicator.js:2170
+msgid "Power Off"
+msgstr "Matikan"
+
+#: indicator.js:2254
+msgid "Search or ask..."
+msgstr "Cari atau tanya..."
+
+#: indicator.js:2423
+msgid "BlankOn Linux"
+msgstr "BlankOn Linux"
+
+#: indicator.js:2436
+msgid "BlankOn Foundation"
+msgstr "Yayasan BlankOn"
+
+#: indicator.js:2449
+msgid "Praya Shell Extension"
+msgstr "Ekstensi Praya Shell"
+
+#: indicator.js:2462
+msgid "Donate"
+msgstr "Donasi"
+
+#: preferences.js:99
+msgid "Panel Option"
+msgstr "Opsi Panel"
+
+#: preferences.js:109
+msgid "App menu layout:"
+msgstr "Tata letak menu aplikasi:"
+
+#: preferences.js:118 preferences.js:123
+msgid "Grid"
+msgstr "Kisi"
+
+#: preferences.js:118 preferences.js:123
+msgid "List"
+msgstr "Daftar"
+
+#: preferences.js:135
+msgid "Position:"
+msgstr "Posisi:"
+
+#: preferences.js:144 preferences.js:149
+msgid "Bottom"
+msgstr "Bawah"
+
+#: preferences.js:144 preferences.js:149
+msgid "Top"
+msgstr "Atas"
+
+#: preferences.js:168
+msgid "Floating panel:"
+msgstr "Panel mengambang:"
+
+#: preferences.js:177 preferences.js:185 preferences.js:225 preferences.js:233
+#: preferences.js:266 preferences.js:274 preferences.js:307 preferences.js:315
+#: preferences.js:348 preferences.js:356 preferences.js:389 preferences.js:397
+#: preferences.js:624 preferences.js:908 preferences.js:918
+msgid "Enabled"
+msgstr "Aktif"
+
+#: preferences.js:177 preferences.js:185 preferences.js:225 preferences.js:233
+#: preferences.js:266 preferences.js:274 preferences.js:307 preferences.js:315
+#: preferences.js:348 preferences.js:356 preferences.js:389 preferences.js:397
+#: preferences.js:507 preferences.js:624 preferences.js:911 preferences.js:921
+msgid "Disabled"
+msgstr "Nonaktif"
+
+#: preferences.js:205
+msgid "Activate on Hover"
+msgstr "Aktifkan saat Kursor Mendekat"
+
+#: preferences.js:216
+msgid "Main menu:"
+msgstr "Menu utama:"
+
+#: preferences.js:257
+msgid "Taskbar:"
+msgstr "Bilah tugas:"
+
+#: preferences.js:298
+msgid "Show Desktop:"
+msgstr "Tampilkan Desktop:"
+
+#: preferences.js:339
+msgid "Calendar:"
+msgstr "Kalender:"
+
+#: preferences.js:380
+msgid "Quick Access:"
+msgstr "Akses Cepat:"
+
+#: preferences.js:433
+msgid "Praya Service"
+msgstr "Layanan Praya"
+
+#: preferences.js:443 preferences.js:498 preferences.js:615
+msgid "Status:"
+msgstr "Status:"
+
+#: preferences.js:450 preferences.js:757
+msgid "Checking..."
+msgstr "Memeriksa..."
+
+#: preferences.js:481
+msgid "Posture Monitoring"
+msgstr "Pemantauan Postur"
+
+#: preferences.js:486 preferences.js:603
+msgid "(Experimental)"
+msgstr "(Eksperimental)"
+
+#: preferences.js:525
+msgid "Calibration:"
+msgstr "Kalibrasi:"
+
+#: preferences.js:547
+msgid "Current:"
+msgstr "Saat ini:"
+
+#: preferences.js:554
+msgid "Waiting for data..."
+msgstr "Menunggu data..."
+
+#: preferences.js:567
+msgid "Level:"
+msgstr "Tingkat:"
+
+#: preferences.js:598 chatbot.js:209
+msgid "Artificial Intelligence"
+msgstr "Kecerdasan Buatan"
+
+#: preferences.js:645
+msgid "Provider:"
+msgstr "Penyedia:"
+
+#: preferences.js:670
+msgid "Model:"
+msgstr "Model:"
+
+#: preferences.js:702
+msgid "API Key:"
+msgstr "Kunci API:"
+
+#: preferences.js:710
+msgid "Enter your API key"
+msgstr "Masukkan kunci API Anda"
+
+#: preferences.js:774
+msgid "Running"
+msgstr "Berjalan"
+
+#: preferences.js:778
+msgid "Stopped"
+msgstr "Berhenti"
+
+#: preferences.js:787
+msgid "Error checking status"
+msgstr "Gagal memeriksa status"
+
+#: preferences.js:793
+msgid "Service not found"
+msgstr "Layanan tidak ditemukan"
+
+#: preferences.js:1016
+msgid "D-Bus not available"
+msgstr "D-Bus tidak tersedia"
+
+#: preferences.js:1036
+msgid "Service unavailable"
+msgstr "Layanan tidak tersedia"
+
+#: preferences.js:1071
+msgid "Error parsing data"
+msgstr "Gagal mengurai data"
+
+#: chatbot.js:285
+msgid "Type a message... (Shift+Enter for new line)"
+msgstr "Ketik pesan... (Shift+Enter untuk baris baru)"
+
+#: chatbot.js:515 chatbot.js:532
+msgid "Thinking"
+msgstr "Berpikir"
