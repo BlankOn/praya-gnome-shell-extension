@@ -1,2 +1,3 @@
-import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
-export { _ };
+import Gettext from 'gettext';
+const Domain = Gettext.domain('praya');
+export const _ = Domain.gettext.bind(Domain);
