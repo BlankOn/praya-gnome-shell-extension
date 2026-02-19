@@ -11,6 +11,7 @@ import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Soup from 'gi://Soup?version=3.0';
 
+import { _ } from './translations.js';
 import {
     CHATBOT_SETTINGS_FILE,
     CHATBOT_PANEL_WIDTH,
@@ -205,7 +206,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
         });
 
         let titleLabel = new St.Label({
-            text: 'Artificial Intelligence',
+            text: _('Artificial Intelligence'),
             style_class: 'praya-chatbot-title',
         });
         titleContainer.add_child(titleLabel);
@@ -281,7 +282,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
 
         this._inputEntry = new St.Entry({
             style_class: 'praya-chatbot-input',
-            hint_text: 'Type a message... (Shift+Enter for new line)',
+            hint_text: _('Type a message... (Shift+Enter for new line)'),
             can_focus: true,
             x_expand: true,
             y_align: Clutter.ActorAlign.START,
@@ -511,7 +512,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
         });
 
         this._typingLabel = new St.Label({
-            text: 'Thinking.',
+            text: _('Thinking') + '.',
             style_class: 'praya-chatbot-message-text praya-chatbot-typing-text',
         });
         this._typingBox.add_child(this._typingLabel);
@@ -528,7 +529,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
             }
             this._typingDotCount = (this._typingDotCount % 3) + 1;
             let dots = '.'.repeat(this._typingDotCount);
-            this._typingLabel.set_text(`Thinking${dots}`);
+            this._typingLabel.set_text(`${_('Thinking')}${dots}`);
             return GLib.SOURCE_CONTINUE;
         });
 

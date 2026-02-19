@@ -13,6 +13,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
+import { _ } from './translations.js';
 import { ChatbotSettings } from './chatbot.js';
 import { PROVIDERS, VERSION } from './constants.js';
 
@@ -54,7 +55,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         });
 
         let titleLabel = new St.Label({
-            text: 'Praya Preferences',
+            text: _('Praya Preferences'),
             style_class: 'praya-preferences-title',
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
@@ -95,7 +96,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         // -- Panel Option --
         let panelOptionHeader = new St.Label({
-            text: 'Panel Option',
+            text: _('Panel Option'),
             style_class: 'praya-preferences-section-header',
         });
         leftColumn.add_child(panelOptionHeader);
@@ -105,7 +106,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let layoutLabel = new St.Label({
-            text: 'App menu layout:',
+            text: _('App menu layout:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -114,12 +115,12 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._appMenuLayout = this._servicesConfig.appMenuLayout || 'grid';
         this._layoutToggleButton = new St.Button({
             style_class: 'praya-preferences-combo',
-            label: this._appMenuLayout === 'grid' ? 'Grid' : 'List',
+            label: this._appMenuLayout === 'grid' ? _('Grid') : _('List'),
             x_expand: true,
         });
         this._layoutToggleButton.connect('clicked', () => {
             this._appMenuLayout = this._appMenuLayout === 'list' ? 'grid' : 'list';
-            this._layoutToggleButton.label = this._appMenuLayout === 'grid' ? 'Grid' : 'List';
+            this._layoutToggleButton.label = this._appMenuLayout === 'grid' ? _('Grid') : _('List');
             this._servicesConfig.appMenuLayout = this._appMenuLayout;
             this._saveServicesConfig();
         });
@@ -131,7 +132,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let panelPositionLabel = new St.Label({
-            text: 'Position:',
+            text: _('Position:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -140,12 +141,12 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._panelPosition = this._servicesConfig.panelPosition || 'top';
         this._panelPositionToggle = new St.Button({
             style_class: 'praya-preferences-combo',
-            label: this._panelPosition === 'bottom' ? 'Bottom' : 'Top',
+            label: this._panelPosition === 'bottom' ? _('Bottom') : _('Top'),
             x_expand: true,
         });
         this._panelPositionToggle.connect('clicked', () => {
             this._panelPosition = this._panelPosition === 'top' ? 'bottom' : 'top';
-            this._panelPositionToggle.label = this._panelPosition === 'bottom' ? 'Bottom' : 'Top';
+            this._panelPositionToggle.label = this._panelPosition === 'bottom' ? _('Bottom') : _('Top');
             this._servicesConfig.panelPosition = this._panelPosition;
             this._saveServicesConfig();
 
@@ -164,7 +165,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let floatingPanelLabel = new St.Label({
-            text: 'Floating panel:',
+            text: _('Floating panel:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -173,7 +174,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._floatingPanel = this._servicesConfig.floatingPanel || false;
         this._floatingPanelToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: this._floatingPanel ? 'Enabled' : 'Disabled',
+            label: this._floatingPanel ? _('Enabled') : _('Disabled'),
             x_expand: true,
         });
         if (this._floatingPanel) {
@@ -181,7 +182,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         this._floatingPanelToggle.connect('clicked', () => {
             this._floatingPanel = !this._floatingPanel;
-            this._floatingPanelToggle.label = this._floatingPanel ? 'Enabled' : 'Disabled';
+            this._floatingPanelToggle.label = this._floatingPanel ? _('Enabled') : _('Disabled');
             if (this._floatingPanel) {
                 this._floatingPanelToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
@@ -201,7 +202,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         // -- Activate on Hover --
         let hoverHeader = new St.Label({
-            text: 'Activate on Hover',
+            text: _('Activate on Hover'),
             style_class: 'praya-preferences-section-header',
         });
         leftColumn.add_child(hoverHeader);
@@ -212,7 +213,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let mainMenuHoverLabel = new St.Label({
-            text: 'Main menu:',
+            text: _('Main menu:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -221,7 +222,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._mainMenuHoverActivate = this._servicesConfig.mainMenuHoverActivate || false;
         this._mainMenuHoverToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: this._mainMenuHoverActivate ? 'Enabled' : 'Disabled',
+            label: this._mainMenuHoverActivate ? _('Enabled') : _('Disabled'),
             x_expand: true,
         });
         if (this._mainMenuHoverActivate) {
@@ -229,7 +230,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         this._mainMenuHoverToggle.connect('clicked', () => {
             this._mainMenuHoverActivate = !this._mainMenuHoverActivate;
-            this._mainMenuHoverToggle.label = this._mainMenuHoverActivate ? 'Enabled' : 'Disabled';
+            this._mainMenuHoverToggle.label = this._mainMenuHoverActivate ? _('Enabled') : _('Disabled');
             if (this._mainMenuHoverActivate) {
                 this._mainMenuHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
@@ -253,7 +254,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let taskbarHoverLabel = new St.Label({
-            text: 'Taskbar:',
+            text: _('Taskbar:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -262,7 +263,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._taskbarHoverActivate = this._servicesConfig.taskbarHoverActivate || false;
         this._taskbarHoverToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: this._taskbarHoverActivate ? 'Enabled' : 'Disabled',
+            label: this._taskbarHoverActivate ? _('Enabled') : _('Disabled'),
             x_expand: true,
         });
         if (this._taskbarHoverActivate) {
@@ -270,7 +271,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         this._taskbarHoverToggle.connect('clicked', () => {
             this._taskbarHoverActivate = !this._taskbarHoverActivate;
-            this._taskbarHoverToggle.label = this._taskbarHoverActivate ? 'Enabled' : 'Disabled';
+            this._taskbarHoverToggle.label = this._taskbarHoverActivate ? _('Enabled') : _('Disabled');
             if (this._taskbarHoverActivate) {
                 this._taskbarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
@@ -294,7 +295,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let showDesktopHoverLabel = new St.Label({
-            text: 'Show Desktop:',
+            text: _('Show Desktop:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -303,7 +304,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._showDesktopHoverActivate = this._servicesConfig.showDesktopHoverActivate || false;
         this._showDesktopHoverToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: this._showDesktopHoverActivate ? 'Enabled' : 'Disabled',
+            label: this._showDesktopHoverActivate ? _('Enabled') : _('Disabled'),
             x_expand: true,
         });
         if (this._showDesktopHoverActivate) {
@@ -311,7 +312,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         this._showDesktopHoverToggle.connect('clicked', () => {
             this._showDesktopHoverActivate = !this._showDesktopHoverActivate;
-            this._showDesktopHoverToggle.label = this._showDesktopHoverActivate ? 'Enabled' : 'Disabled';
+            this._showDesktopHoverToggle.label = this._showDesktopHoverActivate ? _('Enabled') : _('Disabled');
             if (this._showDesktopHoverActivate) {
                 this._showDesktopHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
@@ -335,7 +336,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let calendarHoverLabel = new St.Label({
-            text: 'Calendar:',
+            text: _('Calendar:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -344,7 +345,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._calendarHoverActivate = this._servicesConfig.calendarHoverActivate || false;
         this._calendarHoverToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: this._calendarHoverActivate ? 'Enabled' : 'Disabled',
+            label: this._calendarHoverActivate ? _('Enabled') : _('Disabled'),
             x_expand: true,
         });
         if (this._calendarHoverActivate) {
@@ -352,7 +353,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         this._calendarHoverToggle.connect('clicked', () => {
             this._calendarHoverActivate = !this._calendarHoverActivate;
-            this._calendarHoverToggle.label = this._calendarHoverActivate ? 'Enabled' : 'Disabled';
+            this._calendarHoverToggle.label = this._calendarHoverActivate ? _('Enabled') : _('Disabled');
             if (this._calendarHoverActivate) {
                 this._calendarHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
@@ -376,7 +377,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let quickAccessHoverLabel = new St.Label({
-            text: 'Quick Access:',
+            text: _('Quick Access:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -385,7 +386,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._quickAccessHoverActivate = this._servicesConfig.quickAccessHoverActivate || false;
         this._quickAccessHoverToggle = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle',
-            label: this._quickAccessHoverActivate ? 'Enabled' : 'Disabled',
+            label: this._quickAccessHoverActivate ? _('Enabled') : _('Disabled'),
             x_expand: true,
         });
         if (this._quickAccessHoverActivate) {
@@ -393,7 +394,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         }
         this._quickAccessHoverToggle.connect('clicked', () => {
             this._quickAccessHoverActivate = !this._quickAccessHoverActivate;
-            this._quickAccessHoverToggle.label = this._quickAccessHoverActivate ? 'Enabled' : 'Disabled';
+            this._quickAccessHoverToggle.label = this._quickAccessHoverActivate ? _('Enabled') : _('Disabled');
             if (this._quickAccessHoverActivate) {
                 this._quickAccessHoverToggle.add_style_class_name('praya-posture-toggle-enabled');
             } else {
@@ -429,7 +430,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         // -- Praya Service Status --
         let serviceHeader = new St.Label({
-            text: 'Praya Service',
+            text: _('Praya Service'),
             style_class: 'praya-preferences-section-header',
         });
         rightColumn.add_child(serviceHeader);
@@ -439,14 +440,14 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let serviceStatusLabel = new St.Label({
-            text: 'Status:',
+            text: _('Status:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
         serviceStatusBox.add_child(serviceStatusLabel);
 
         this._serviceStatusValue = new St.Label({
-            text: 'Checking...',
+            text: _('Checking...'),
             style_class: 'praya-preferences-record-value',
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
@@ -477,12 +478,12 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let postureHeader = new St.Label({
-            text: 'Posture Monitoring',
+            text: _('Posture Monitoring'),
             style_class: 'praya-preferences-section-header',
         });
         postureHeaderBox.add_child(postureHeader);
         let postureExperimentalLabel = new St.Label({
-            text: '(Experimental)',
+            text: _('(Experimental)'),
             style_class: 'praya-preferences-experimental-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -494,7 +495,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let postureEnableLabel = new St.Label({
-            text: 'Status:',
+            text: _('Status:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -503,7 +504,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._postureEnabled = false;
         this._postureToggleButton = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle praya-toggle-disabled',
-            label: 'Disabled',
+            label: _('Disabled'),
             x_expand: true,
             reactive: false,
         });
@@ -521,7 +522,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let recalibrateLabel = new St.Label({
-            text: 'Calibration:',
+            text: _('Calibration:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -529,7 +530,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         this._recalibrateButton = new St.Button({
             style_class: 'praya-preferences-combo',
-            label: 'Recalibrate',
+            label: _('Recalibrate'),
             x_expand: true,
         });
         this._recalibrateButton.connect('clicked', () => {
@@ -543,14 +544,14 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let recordLabel = new St.Label({
-            text: 'Current:',
+            text: _('Current:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
         recordBox.add_child(recordLabel);
 
         this._postureRecordLabel = new St.Label({
-            text: 'Waiting for data...',
+            text: _('Waiting for data...'),
             style_class: 'praya-preferences-record-value',
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
@@ -563,7 +564,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let barLabel = new St.Label({
-            text: 'Level:',
+            text: _('Level:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -594,12 +595,12 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let chatbotHeader = new St.Label({
-            text: 'Artificial Intelligence',
+            text: _('Artificial Intelligence'),
             style_class: 'praya-preferences-section-header',
         });
         chatbotHeaderBox.add_child(chatbotHeader);
         let experimentalLabel = new St.Label({
-            text: '(Experimental)',
+            text: _('(Experimental)'),
             style_class: 'praya-preferences-experimental-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -611,7 +612,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let aiEnableLabel = new St.Label({
-            text: 'Status:',
+            text: _('Status:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -620,7 +621,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         this._aiEnabled = this._servicesConfig.ai || false;
         this._aiToggleButton = new St.Button({
             style_class: 'praya-preferences-combo praya-posture-toggle praya-toggle-disabled',
-            label: this._aiEnabled ? 'Enabled' : 'Disabled',
+            label: this._aiEnabled ? _('Enabled') : _('Disabled'),
             x_expand: true,
             reactive: false,
         });
@@ -641,7 +642,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let providerLabel = new St.Label({
-            text: 'Provider:',
+            text: _('Provider:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -666,7 +667,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let modelLabel = new St.Label({
-            text: 'Model:',
+            text: _('Model:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -698,7 +699,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             x_expand: true,
         });
         let apiKeyLabel = new St.Label({
-            text: 'API Key:',
+            text: _('API Key:'),
             style_class: 'praya-preferences-label',
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -706,7 +707,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
         this._apiKeyEntry = new St.Entry({
             style_class: 'praya-preferences-entry',
-            hint_text: 'Enter your API key',
+            hint_text: _('Enter your API key'),
             can_focus: true,
             x_expand: true,
         });
@@ -753,7 +754,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
     }
 
     _checkPrayaServiceStatus() {
-        this._serviceStatusValue.text = 'Checking...';
+        this._serviceStatusValue.text = _('Checking...');
         this._serviceStatusValue.remove_style_class_name('praya-posture-good');
         this._serviceStatusValue.remove_style_class_name('praya-posture-bad');
         this._serviceRunning = false;
@@ -770,11 +771,11 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                     let status = stdout.trim();
 
                     if (status === 'active') {
-                        this._serviceStatusValue.text = 'Running';
+                        this._serviceStatusValue.text = _('Running');
                         this._serviceStatusValue.add_style_class_name('praya-posture-good');
                         this._serviceRunning = true;
                     } else if (status === 'inactive') {
-                        this._serviceStatusValue.text = 'Stopped';
+                        this._serviceStatusValue.text = _('Stopped');
                         this._serviceStatusValue.add_style_class_name('praya-posture-bad');
                         this._serviceRunning = false;
                     } else {
@@ -783,13 +784,13 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                     }
                     this._updateFeatureTogglesState();
                 } catch (e) {
-                    this._serviceStatusValue.text = 'Error checking status';
+                    this._serviceStatusValue.text = _('Error checking status');
                     this._serviceRunning = false;
                     this._updateFeatureTogglesState();
                 }
             });
         } catch (e) {
-            this._serviceStatusValue.text = 'Service not found';
+            this._serviceStatusValue.text = _('Service not found');
             this._serviceRunning = false;
             this._updateFeatureTogglesState();
         }
@@ -904,20 +905,20 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
     _updatePostureToggleUI() {
         if (this._postureEnabled) {
-            this._postureToggleButton.label = 'Enabled';
+            this._postureToggleButton.label = _('Enabled');
             this._postureToggleButton.add_style_class_name('praya-posture-toggle-enabled');
         } else {
-            this._postureToggleButton.label = 'Disabled';
+            this._postureToggleButton.label = _('Disabled');
             this._postureToggleButton.remove_style_class_name('praya-posture-toggle-enabled');
         }
     }
 
     _updateAIToggleUI() {
         if (this._aiEnabled) {
-            this._aiToggleButton.label = 'Enabled';
+            this._aiToggleButton.label = _('Enabled');
             this._aiToggleButton.add_style_class_name('praya-posture-toggle-enabled');
         } else {
-            this._aiToggleButton.label = 'Disabled';
+            this._aiToggleButton.label = _('Disabled');
             this._aiToggleButton.remove_style_class_name('praya-posture-toggle-enabled');
         }
     }
@@ -1012,7 +1013,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
 
     _fetchUserPosture() {
         if (!this._dbusConnection) {
-            this._postureRecordLabel.text = 'D-Bus not available';
+            this._postureRecordLabel.text = _('D-Bus not available');
             return;
         }
 
@@ -1032,7 +1033,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
                     this._displayUserPosture(reply);
                 } catch (e) {
                     // Service might not be running or method not available
-                    this._postureRecordLabel.text = 'Service unavailable';
+                    this._postureRecordLabel.text = _('Service unavailable');
                     this._postureRecordLabel.remove_style_class_name('praya-posture-good');
                     this._postureRecordLabel.remove_style_class_name('praya-posture-bad');
                     // Reset bar
@@ -1067,7 +1068,7 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             // Update posture bar
             this._updatePostureBar(score);
         } catch (e) {
-            this._postureRecordLabel.text = 'Error parsing data';
+            this._postureRecordLabel.text = _('Error parsing data');
             log(`Praya: Error parsing user posture: ${e.message}`);
         }
     }

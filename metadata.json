@@ -2,6 +2,7 @@
   "name": "praya",
   "description": "Praya GNOME Shell Extension for BlankOn Linux",
   "uuid": "praya@blankonlinux.id",
+  "gettext-domain": "praya",
   "shell-version": [
     "49"
   ]

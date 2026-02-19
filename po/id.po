@@ -1,0 +1,363 @@
+# Indonesian translations for praya package.
+# Copyright (C) 2026 THE praya'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the praya package.
+# Automatically generated, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: praya\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-19 17:13+0700\n"
+"PO-Revision-Date: 2026-02-19 17:13+0700\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ASCII\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: extension.js:1032
+msgid "Bad Posture Detected"
+msgstr ""
+
+#: extension.js:1038
+msgid "Please correct your posture"
+msgstr ""
+
+#: extension.js:1074
+msgid "Click anywhere to dismiss (10s pause)"
+msgstr ""
+
+#: extension.js:1100 preferences.js:533
+msgid "Recalibrate"
+msgstr ""
+
+#: extension.js:1112
+msgid "Disable Posture Monitoring Service"
+msgstr ""
+
+#: indicator.js:336
+msgid "Unpin"
+msgstr ""
+
+#: indicator.js:336
+msgid "Pin to Menu"
+msgstr ""
+
+#: indicator.js:1083
+msgid "Menu"
+msgstr ""
+
+#: indicator.js:1168 indicator.js:1300 indicator.js:2304
+msgid "Applications"
+msgstr ""
+
+#: indicator.js:1181 indicator.js:1477
+msgid "Places"
+msgstr ""
+
+#: indicator.js:1197 indicator.js:2383
+msgid "System Settings"
+msgstr ""
+
+#: indicator.js:1218 preferences.js:58
+msgid "Praya Preferences"
+msgstr ""
+
+#: indicator.js:1247 indicator.js:2410
+msgid "About BlankOn"
+msgstr ""
+
+#: indicator.js:1280
+msgid "Sound & Video"
+msgstr ""
+
+#: indicator.js:1281
+msgid "Audio"
+msgstr ""
+
+#: indicator.js:1282
+msgid "Video"
+msgstr ""
+
+#: indicator.js:1283
+msgid "Development"
+msgstr ""
+
+#: indicator.js:1284
+msgid "Education"
+msgstr ""
+
+#: indicator.js:1285
+msgid "Games"
+msgstr ""
+
+#: indicator.js:1286
+msgid "Graphics"
+msgstr ""
+
+#: indicator.js:1287
+msgid "Internet"
+msgstr ""
+
+#: indicator.js:1288
+msgid "Office"
+msgstr ""
+
+#: indicator.js:1289
+msgid "Science"
+msgstr ""
+
+#: indicator.js:1290 indicator.js:2370
+msgid "Settings"
+msgstr ""
+
+#: indicator.js:1291
+msgid "System Tools"
+msgstr ""
+
+#: indicator.js:1292
+msgid "Accessories"
+msgstr ""
+
+#: indicator.js:1293
+msgid "Other"
+msgstr ""
+
+#: indicator.js:1360 indicator.js:1420 indicator.js:1680 indicator.js:1681
+msgid "No applications found."
+msgstr ""
+
+#: indicator.js:1490
+msgid "Home"
+msgstr ""
+
+#: indicator.js:1503
+msgid "Documents"
+msgstr ""
+
+#: indicator.js:1517
+msgid "Downloads"
+msgstr ""
+
+#: indicator.js:1531
+msgid "Pictures"
+msgstr ""
+
+#: indicator.js:1545
+msgid "Music"
+msgstr ""
+
+#: indicator.js:1559
+msgid "Videos"
+msgstr ""
+
+#: indicator.js:1680
+msgid "Press Enter to chat with AI..."
+msgstr ""
+
+#: indicator.js:2119
+msgid "Lock"
+msgstr ""
+
+#: indicator.js:2128
+msgid "Log Out"
+msgstr ""
+
+#: indicator.js:2137
+msgid "Power"
+msgstr ""
+
+#: indicator.js:2152
+msgid "Suspend"
+msgstr ""
+
+#: indicator.js:2161
+msgid "Restart"
+msgstr ""
+
+#: indicator.js:2170
+msgid "Power Off"
+msgstr ""
+
+#: indicator.js:2254
+msgid "Search or ask..."
+msgstr ""
+
+#: indicator.js:2423
+msgid "BlankOn Linux"
+msgstr ""
+
+#: indicator.js:2436
+msgid "BlankOn Foundation"
+msgstr ""
+
+#: indicator.js:2449
+msgid "Praya Shell Extension"
+msgstr ""
+
+#: indicator.js:2462
+msgid "Donate"
+msgstr ""
+
+#: preferences.js:99
+msgid "Panel Option"
+msgstr ""
+
+#: preferences.js:109
+msgid "App menu layout:"
+msgstr ""
+
+#: preferences.js:118 preferences.js:123
+msgid "Grid"
+msgstr ""
+
+#: preferences.js:118 preferences.js:123
+msgid "List"
+msgstr ""
+
+#: preferences.js:135
+msgid "Position:"
+msgstr ""
+
+#: preferences.js:144 preferences.js:149
+msgid "Bottom"
+msgstr ""
+
+#: preferences.js:144 preferences.js:149
+msgid "Top"
+msgstr ""
+
+#: preferences.js:168
+msgid "Floating panel:"
+msgstr ""
+
+#: preferences.js:177 preferences.js:185 preferences.js:225 preferences.js:233
+#: preferences.js:266 preferences.js:274 preferences.js:307 preferences.js:315
+#: preferences.js:348 preferences.js:356 preferences.js:389 preferences.js:397
+#: preferences.js:624 preferences.js:908 preferences.js:918
+msgid "Enabled"
+msgstr ""
+
+#: preferences.js:177 preferences.js:185 preferences.js:225 preferences.js:233
+#: preferences.js:266 preferences.js:274 preferences.js:307 preferences.js:315
+#: preferences.js:348 preferences.js:356 preferences.js:389 preferences.js:397
+#: preferences.js:507 preferences.js:624 preferences.js:911 preferences.js:921
+msgid "Disabled"
+msgstr ""
+
+#: preferences.js:205
+msgid "Activate on Hover"
+msgstr ""
+
+#: preferences.js:216
+msgid "Main menu:"
+msgstr ""
+
+#: preferences.js:257
+msgid "Taskbar:"
+msgstr ""
+
+#: preferences.js:298
+msgid "Show Desktop:"
+msgstr ""
+
+#: preferences.js:339
+msgid "Calendar:"
+msgstr ""
+
+#: preferences.js:380
+msgid "Quick Access:"
+msgstr ""
+
+#: preferences.js:433
+msgid "Praya Service"
+msgstr ""
+
+#: preferences.js:443 preferences.js:498 preferences.js:615
+msgid "Status:"
+msgstr ""
+
+#: preferences.js:450 preferences.js:757
+msgid "Checking..."
+msgstr ""
+
+#: preferences.js:481
+msgid "Posture Monitoring"
+msgstr ""
+
+#: preferences.js:486 preferences.js:603
+msgid "(Experimental)"
+msgstr ""
+
+#: preferences.js:525
+msgid "Calibration:"
+msgstr ""
+
+#: preferences.js:547
+msgid "Current:"
+msgstr ""
+
+#: preferences.js:554
+msgid "Waiting for data..."
+msgstr ""
+
+#: preferences.js:567
+msgid "Level:"
+msgstr ""
+
+#: preferences.js:598 chatbot.js:209
+msgid "Artificial Intelligence"
+msgstr ""
+
+#: preferences.js:645
+msgid "Provider:"
+msgstr ""
+
+#: preferences.js:670
+msgid "Model:"
+msgstr ""
+
+#: preferences.js:702
+msgid "API Key:"
+msgstr ""
+
+#: preferences.js:710
+msgid "Enter your API key"
+msgstr ""
+
+#: preferences.js:774
+msgid "Running"
+msgstr ""
+
+#: preferences.js:778
+msgid "Stopped"
+msgstr ""
+
+#: preferences.js:787
+msgid "Error checking status"
+msgstr ""
+
+#: preferences.js:793
+msgid "Service not found"
+msgstr ""
+
+#: preferences.js:1016
+msgid "D-Bus not available"
+msgstr ""
+
+#: preferences.js:1036
+msgid "Service unavailable"
+msgstr ""
+
+#: preferences.js:1071
+msgid "Error parsing data"
+msgstr ""
+
+#: chatbot.js:285
+msgid "Type a message... (Shift+Enter for new line)"
+msgstr ""
+
+#: chatbot.js:515 chatbot.js:532
+msgid "Thinking"
+msgstr ""
