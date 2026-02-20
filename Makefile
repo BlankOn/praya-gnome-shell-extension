@@ -1,5 +1,6 @@
 DOMAIN = praya
-POTFILES = $(shell cat po/POTFILES.in)
+POTFILES_JS = $(shell grep '\.js$$' po/POTFILES.in)
+POTFILES_PY = $(shell grep '\.py$$' po/POTFILES.in)
 LINGUAS = $(shell cat po/LINGUAS)
 
 run:
@@ -10,7 +11,13 @@ pot:
 		--keyword=_ --keyword=N_ \
 		--output=po/$(DOMAIN).pot \
 		--package-name=$(DOMAIN) \
-		$(POTFILES)
+		$(POTFILES_JS)
+	xgettext --from-code=UTF-8 --language=Python \
+		--keyword=_ --keyword=N_ \
+		--output=po/$(DOMAIN).pot \
+		--join-existing \
+		--package-name=$(DOMAIN) \
+		$(POTFILES_PY)
 
 update-po:
 	@for lang in $(LINGUAS); do \

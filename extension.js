@@ -196,6 +196,165 @@ export default class PrayaExtension extends Extension {
             // Start posture polling loop (similar to Praya Preferences)
             this._startPosturePolling();
         }
+
+        // Watch config files for changes from external preferences app
+        this._setupConfigMonitor();
+    }
+
+    _setupConfigMonitor() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+
+        this._configDebounceId = null;
+        this._configMonitors = [];
+
+        let filesToWatch = ['services.json', 'chatbot.json'];
+        for (let filename of filesToWatch) {
+            let path = GLib.build_filenamev([configDir, filename]);
+            let file = Gio.File.new_for_path(path);
+            try {
+                let monitor = file.monitor_file(Gio.FileMonitorFlags.NONE, null);
+                monitor.connect('changed', (mon, changedFile, otherFile, eventType) => {
+                    if (eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT ||
+                        eventType === Gio.FileMonitorEvent.CHANGED) {
+                        this._debounceConfigReload(filename);
+                    }
+                });
+                this._configMonitors.push(monitor);
+            } catch (e) {
+                log(`Praya: Error setting up monitor for ${filename}: ${e.message}`);
+            }
+        }
+    }
+
+    _debounceConfigReload(filename) {
+        if (this._configDebounceId) {
+            GLib.source_remove(this._configDebounceId);
+        }
+        this._configDebounceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            this._configDebounceId = null;
+            if (filename === 'services.json') {
+                this._applyServicesConfigChanges();
+            } else if (filename === 'chatbot.json') {
+                this._applyChatbotConfigChanges();
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _applyServicesConfigChanges() {
+        let homeDir = GLib.get_home_dir();
+        let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
+
+        let newConfig;
+        try {
+            let file = Gio.File.new_for_path(configPath);
+            let [success, contents] = file.load_contents(null);
+            if (!success) return;
+            let decoder = new TextDecoder('utf-8');
+            newConfig = JSON.parse(decoder.decode(contents));
+        } catch (e) {
+            return;
+        }
+
+        let old = this._servicesConfig;
+
+        // Panel position
+        if (newConfig.panelPosition !== old.panelPosition) {
+            this.setPanelPosition(newConfig.panelPosition);
+        }
+
+        // Floating panel
+        if (newConfig.floatingPanel !== old.floatingPanel) {
+            this.setFloatingPanel(newConfig.floatingPanel);
+        }
+
+        // Hover toggles
+        if (newConfig.mainMenuHoverActivate !== old.mainMenuHoverActivate) {
+            if (this._indicator) {
+                this._indicator.setMainMenuHoverActivate(newConfig.mainMenuHoverActivate);
+            }
+        }
+        if (newConfig.taskbarHoverActivate !== old.taskbarHoverActivate) {
+            if (this._taskbar) {
+                this._taskbar.setHoverActivate(newConfig.taskbarHoverActivate);
+            }
+        }
+        if (newConfig.showDesktopHoverActivate !== old.showDesktopHoverActivate) {
+            this.setShowDesktopHoverActivate(newConfig.showDesktopHoverActivate);
+        }
+        if (newConfig.calendarHoverActivate !== old.calendarHoverActivate) {
+            this.setCalendarHoverActivate(newConfig.calendarHoverActivate);
+        }
+        if (newConfig.quickAccessHoverActivate !== old.quickAccessHoverActivate) {
+            this.setQuickAccessHoverActivate(newConfig.quickAccessHoverActivate);
+        }
+
+        // App menu layout
+        if (newConfig.appMenuLayout !== old.appMenuLayout) {
+            if (this._indicator) {
+                this._indicator.setAppMenuLayout(newConfig.appMenuLayout);
+            }
+        }
+
+        this._servicesConfig = newConfig;
+    }
+
+    _applyChatbotConfigChanges() {
+        // Reload chatbot settings in indicator if present
+        if (this._indicator && this._indicator._chatbotSettings) {
+            this._indicator._chatbotSettings.reload();
+        }
+    }
+
+    _launchPreferences() {
+        if (this._prefsProc) return;
+
+        let scriptPath = GLib.build_filenamev([this.path, 'praya-preferences.py']);
+
+        try {
+            let launcher = new Gio.SubprocessLauncher({
+                flags: Gio.SubprocessFlags.STDERR_PIPE,
+            });
+            let waylandDisplay = GLib.getenv('WAYLAND_DISPLAY');
+            let display = GLib.getenv('DISPLAY');
+            let xdgRuntime = GLib.getenv('XDG_RUNTIME_DIR');
+            if (waylandDisplay) launcher.setenv('WAYLAND_DISPLAY', waylandDisplay, true);
+            if (display) launcher.setenv('DISPLAY', display, true);
+            if (xdgRuntime) launcher.setenv('XDG_RUNTIME_DIR', xdgRuntime, true);
+            launcher.setenv('GDK_BACKEND', waylandDisplay ? 'wayland' : 'x11', true);
+
+            this._prefsProc = launcher.spawnv(['python3', scriptPath]);
+
+            this._prefsProc.wait_async(null, (proc, result) => {
+                try {
+                    proc.wait_finish(result);
+                } catch (e) {
+                    // Silent failure
+                }
+                this._prefsProc = null;
+            });
+        } catch (e) {
+            log(`Praya: Error launching preferences: ${e.message}`);
+            this._prefsProc = null;
+        }
+    }
+
+    _cleanupConfigMonitor() {
+        if (this._configDebounceId) {
+            GLib.source_remove(this._configDebounceId);
+            this._configDebounceId = null;
+        }
+        if (this._configMonitors) {
+            for (let monitor of this._configMonitors) {
+                monitor.cancel();
+            }
+            this._configMonitors = null;
+        }
+        if (this._prefsProc) {
+            this._prefsProc.force_exit();
+            this._prefsProc = null;
+        }
     }
 
     _loadServicesConfig() {
@@ -1849,6 +2008,9 @@ export default class PrayaExtension extends Extension {
     }
 
     disable() {
+        // Cancel config file monitors and kill preferences subprocess
+        this._cleanupConfigMonitor();
+
         // Cancel lowspec timeout and kill dialog if running
         if (this._lowspecTimeoutId) {
             GLib.source_remove(this._lowspecTimeoutId);
