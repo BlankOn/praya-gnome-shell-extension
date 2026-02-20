@@ -284,7 +284,7 @@ export default class PrayaExtension extends Extension {
                 }
             }
 
-            return cpuCores < 100 || ramMB < 5000;
+            return cpuCores < 3 && ramMB < 5000;
         } catch (e) {
             log(`Praya: Error checking lowspec: ${e.message}`);
             return false;
