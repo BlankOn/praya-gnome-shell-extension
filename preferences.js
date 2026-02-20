@@ -412,6 +412,46 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
         quickAccessHoverBox.add_child(this._quickAccessHoverToggle);
         leftColumn.add_child(quickAccessHoverBox);
 
+        // -- Performance --
+        let performanceHeader = new St.Label({
+            text: _('Performance'),
+            style_class: 'praya-preferences-section-header',
+        });
+        leftColumn.add_child(performanceHeader);
+
+        let lowspecBox = new St.BoxLayout({
+            style_class: 'praya-preferences-row',
+            x_expand: true,
+        });
+        let lowspecLabel = new St.Label({
+            text: _('Low-spec Mode:'),
+            style_class: 'praya-preferences-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        lowspecBox.add_child(lowspecLabel);
+
+        this._lowspecEnabled = this._servicesConfig.lowspecEnabled || false;
+        this._lowspecToggle = new St.Button({
+            style_class: 'praya-preferences-combo praya-posture-toggle',
+            label: this._lowspecEnabled ? _('Enabled') : _('Disabled'),
+            x_expand: true,
+        });
+        if (this._lowspecEnabled) {
+            this._lowspecToggle.add_style_class_name('praya-posture-toggle-enabled');
+        }
+        this._lowspecToggle.connect('clicked', () => {
+            this._lowspecEnabled = !this._lowspecEnabled;
+            this._lowspecToggle.label = this._lowspecEnabled ? _('Enabled') : _('Disabled');
+            if (this._lowspecEnabled) {
+                this._lowspecToggle.add_style_class_name('praya-posture-toggle-enabled');
+            } else {
+                this._lowspecToggle.remove_style_class_name('praya-posture-toggle-enabled');
+            }
+            this._applyLowspecMode(this._lowspecEnabled);
+        });
+        lowspecBox.add_child(this._lowspecToggle);
+        leftColumn.add_child(lowspecBox);
+
         columnsBox.add_child(leftColumn);
 
         // Vertical separator between columns
@@ -1119,6 +1159,56 @@ class PrayaPreferencesDialog extends ModalDialog.ModalDialog {
             return defaultValue;
         } catch (e) {
             return defaultValue;
+        }
+    }
+
+    _applyLowspecMode(enabled) {
+        // Toggle GNOME animations
+        try {
+            let ifaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+            ifaceSettings.set_boolean('enable-animations', !enabled);
+        } catch (e) {
+            log(`Praya: Error toggling animations: ${e.message}`);
+        }
+
+        // Toggle tilingshell extension
+        try {
+            let shellSettings = new Gio.Settings({schema_id: 'org.gnome.shell'});
+            let tilingId = 'tilingshell@ferrarodomenico.com';
+            let enabledExts = shellSettings.get_strv('enabled-extensions');
+            let disabledExts = shellSettings.get_strv('disabled-extensions');
+
+            if (enabled) {
+                // Disable tilingshell
+                enabledExts = enabledExts.filter(id => id !== tilingId);
+                if (!disabledExts.includes(tilingId))
+                    disabledExts.push(tilingId);
+            } else {
+                // Re-enable tilingshell
+                disabledExts = disabledExts.filter(id => id !== tilingId);
+                if (!enabledExts.includes(tilingId))
+                    enabledExts.push(tilingId);
+            }
+            shellSettings.set_strv('enabled-extensions', enabledExts);
+            shellSettings.set_strv('disabled-extensions', disabledExts);
+        } catch (e) {
+            log(`Praya: Error toggling tilingshell: ${e.message}`);
+        }
+
+        // Toggle menu layout
+        let newLayout = enabled ? 'list' : 'grid';
+        this._servicesConfig.appMenuLayout = newLayout;
+        this._appMenuLayout = newLayout;
+        this._layoutToggleButton.label = newLayout === 'grid' ? _('Grid') : _('List');
+
+        // Save config
+        this._servicesConfig.lowspecEnabled = enabled;
+        this._saveServicesConfig();
+
+        // Update indicator menu layout live
+        let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+        if (ext?.stateObj?._indicator) {
+            ext.stateObj._indicator.setAppMenuLayout(newLayout);
         }
     }
 

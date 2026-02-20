@@ -361,3 +361,23 @@ msgstr "Ketik pesan... (Shift+Enter untuk baris baru)"
 #: chatbot.js:515 chatbot.js:532
 msgid "Thinking"
 msgstr "Berpikir"
+
+#: preferences.js
+msgid "Performance"
+msgstr "Performa"
+
+#: preferences.js
+msgid "Low-spec Mode:"
+msgstr "Mode Spek Rendah:"
+
+#: lowspec-dialog.py
+msgid "Not all hardware is the same, and that's okay. If your device needs a little help, just switch off some features to get better performance. You can tweak this later in Praya Preferences."
+msgstr "Tidak semua perangkat keras itu sama, dan itu tidak masalah. Jika perangkatmu butuh sedikit bantuan, cukup matikan beberapa fitur untuk performa yang lebih baik. Kamu bisa mengubahnya nanti di Preferensi Praya."
+
+#: lowspec-dialog.py
+msgid "Ignore"
+msgstr "Abaikan"
+
+#: lowspec-dialog.py
+msgid "Disable a few features"
+msgstr "Nonaktifkan beberapa fitur"

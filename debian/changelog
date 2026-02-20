@@ -1,3 +1,10 @@
+praya-gnome-shell-extension (0.1.21-1) verbeek; urgency=medium
+
+  * Add low-spec hardware detection and dialog.
+  * Add Low-spec Mode toggle in Praya Preferences.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Thu, 20 Feb 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.20-1) verbeek; urgency=medium
 
   *
