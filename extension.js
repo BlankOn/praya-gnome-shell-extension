@@ -62,12 +62,10 @@ export default class PrayaExtension extends Extension {
         // (WAYLAND_DISPLAY, DISPLAY, …) are guaranteed to be set, so
         // the systemd environment import succeeds on the first try and
         // apps launched via systemd scopes can connect to the compositor.
-        // Launch lowspec check immediately
-        this._launchLowspecDialog();
-
         if (!Main.layoutManager._startingUp) {
             // Already started up (e.g. extension enabled from prefs)
             this._startPrayaServices();
+            this._scheduleLowspecCheck();
         } else {
             this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
                 Main.layoutManager.disconnect(this._startupCompleteId);
@@ -284,7 +282,8 @@ export default class PrayaExtension extends Extension {
                 }
             }
 
-            return cpuCores < 3 && ramMB < 5000;
+            log(`Praya: CPU cores=${cpuCores}, RAM=${Math.round(ramMB)}MB`);
+            return cpuCores < 1000 || ramMB < 100000;
         } catch (e) {
             log(`Praya: Error checking lowspec: ${e.message}`);
             return false;
@@ -297,7 +296,8 @@ export default class PrayaExtension extends Extension {
             this._lowspecTimeoutId = null;
             let isLowspec = this._checkLowspec();
             let dismissed = this._servicesConfig.lowspecDismissed;
-            log(`Praya: Lowspec check: isLowspec=${isLowspec}, dismissed=${dismissed}`);
+            log(`Praya: Lowspec check: isLowspec=${isLowspec}, dismissed=${dismissed}, servicesConfig=${JSON.stringify(this._servicesConfig)}`);
+            log(`Praya: Lowspec check: _lowspecProc=${this._lowspecProc}`);
             if (isLowspec && !dismissed) {
                 log('Praya: Launching lowspec dialog');
                 this._launchLowspecDialog();
