@@ -62,6 +62,9 @@ export default class PrayaExtension extends Extension {
         // (WAYLAND_DISPLAY, DISPLAY, …) are guaranteed to be set, so
         // the systemd environment import succeeds on the first try and
         // apps launched via systemd scopes can connect to the compositor.
+        // Launch lowspec check immediately
+        this._launchLowspecDialog();
+
         if (!Main.layoutManager._startingUp) {
             // Already started up (e.g. extension enabled from prefs)
             this._startPrayaServices();
@@ -74,6 +77,7 @@ export default class PrayaExtension extends Extension {
                 this._setupWorkAreaMargins();
                 this._updateAllWindowsIconGeometry();
                 this._startPrayaServices();
+                this._scheduleLowspecCheck();
                 // Hide the overview/workspace view on startup
                 Main.overview.hide();
             });
@@ -248,6 +252,171 @@ export default class PrayaExtension extends Extension {
         } catch (e) {
             log(`Praya: Error loading services config: ${e.message}`);
             this._servicesConfig = defaultConfig;
+        }
+    }
+
+    _checkLowspec() {
+        try {
+            let cpuFile = Gio.File.new_for_path('/proc/cpuinfo');
+            let [cpuSuccess, cpuContents] = cpuFile.load_contents(null);
+            let cpuCores = 0;
+            if (cpuSuccess) {
+                let decoder = new TextDecoder('utf-8');
+                let cpuText = decoder.decode(cpuContents);
+                for (let line of cpuText.split('\n')) {
+                    if (line.startsWith('processor'))
+                        cpuCores++;
+                }
+            }
+
+            let memFile = Gio.File.new_for_path('/proc/meminfo');
+            let [memSuccess, memContents] = memFile.load_contents(null);
+            let ramMB = 0;
+            if (memSuccess) {
+                let decoder = new TextDecoder('utf-8');
+                let memText = decoder.decode(memContents);
+                for (let line of memText.split('\n')) {
+                    if (line.startsWith('MemTotal')) {
+                        let kB = parseInt(line.split(/\s+/)[1], 10);
+                        ramMB = kB / 1024;
+                        break;
+                    }
+                }
+            }
+
+            return cpuCores < 100 || ramMB < 5000;
+        } catch (e) {
+            log(`Praya: Error checking lowspec: ${e.message}`);
+            return false;
+        }
+    }
+
+    _scheduleLowspecCheck() {
+        log('Praya: Scheduling lowspec check in 10 seconds');
+        this._lowspecTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10000, () => {
+            this._lowspecTimeoutId = null;
+            let isLowspec = this._checkLowspec();
+            let dismissed = this._servicesConfig.lowspecDismissed;
+            log(`Praya: Lowspec check: isLowspec=${isLowspec}, dismissed=${dismissed}`);
+            if (isLowspec && !dismissed) {
+                log('Praya: Launching lowspec dialog');
+                this._launchLowspecDialog();
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _launchLowspecDialog() {
+        if (this._lowspecProc) return;
+
+        let scriptPath = GLib.build_filenamev([this.path, 'lowspec-dialog.py']);
+
+        try {
+            let launcher = new Gio.SubprocessLauncher({
+                flags: Gio.SubprocessFlags.STDERR_PIPE,
+            });
+            // Ensure display env vars are set for the subprocess
+            let waylandDisplay = GLib.getenv('WAYLAND_DISPLAY');
+            let display = GLib.getenv('DISPLAY');
+            let xdgRuntime = GLib.getenv('XDG_RUNTIME_DIR');
+            if (waylandDisplay) launcher.setenv('WAYLAND_DISPLAY', waylandDisplay, true);
+            if (display) launcher.setenv('DISPLAY', display, true);
+            if (xdgRuntime) launcher.setenv('XDG_RUNTIME_DIR', xdgRuntime, true);
+            launcher.setenv('GDK_BACKEND', waylandDisplay ? 'wayland' : 'x11', true);
+
+            log(`Praya: Launching lowspec dialog: WAYLAND_DISPLAY=${waylandDisplay}, DISPLAY=${display}`);
+            this._lowspecProc = launcher.spawnv(['python3', scriptPath]);
+
+            this._lowspecProc.wait_async(null, (proc, result) => {
+                try {
+                    proc.wait_finish(result);
+                    let exitCode = proc.get_exit_status();
+                    log(`Praya: Lowspec dialog exited with code ${exitCode}`);
+
+                    // Write stderr to file for debugging
+                    try {
+                        let stderrStream = proc.get_stderr_pipe();
+                        let stderrData = stderrStream.read_bytes(8192, null);
+                        if (stderrData && stderrData.get_size() > 0) {
+                            let decoder = new TextDecoder('utf-8');
+                            let errText = decoder.decode(stderrData.get_data());
+                            log(`Praya: Lowspec stderr: ${errText}`);
+                            let errFile = Gio.File.new_for_path('/tmp/praya-lowspec-error.log');
+                            errFile.replace_contents(errText, null, false, Gio.FileCreateFlags.NONE, null);
+                        }
+                    } catch (e) {
+                        log(`Praya: Error reading lowspec stderr: ${e.message}`);
+                    }
+
+                    if (exitCode === 1) {
+                        // Disable GNOME animations
+                        try {
+                            let ifaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+                            ifaceSettings.set_boolean('enable-animations', false);
+                        } catch (e) {
+                            log(`Praya: Error disabling animations: ${e.message}`);
+                        }
+
+                        // Disable tilingshell extension
+                        try {
+                            let shellSettings = new Gio.Settings({schema_id: 'org.gnome.shell'});
+                            let tilingId = 'tilingshell@ferrarodomenico.com';
+                            let enabled = shellSettings.get_strv('enabled-extensions');
+                            enabled = enabled.filter(id => id !== tilingId);
+                            shellSettings.set_strv('enabled-extensions', enabled);
+                            let disabled = shellSettings.get_strv('disabled-extensions');
+                            if (!disabled.includes(tilingId)) {
+                                disabled.push(tilingId);
+                                shellSettings.set_strv('disabled-extensions', disabled);
+                            }
+                        } catch (e) {
+                            log(`Praya: Error disabling tilingshell: ${e.message}`);
+                        }
+
+                        // Update menu layout to list
+                        this._servicesConfig.appMenuLayout = 'list';
+                        this._servicesConfig.lowspecEnabled = true;
+                    }
+
+                    // Only mark as dismissed if user actually chose (0=Ignore, 1=Apply)
+                    // Exit code 2 means crash/error — don't dismiss, try again next time
+                    if (exitCode === 0 || exitCode === 1) {
+                        this._servicesConfig.lowspecDismissed = true;
+                        this._saveLowspecConfig();
+                    }
+                } catch (e) {
+                    log(`Praya: Error in lowspec dialog: ${e.message}`);
+                }
+                this._lowspecProc = null;
+            });
+        } catch (e) {
+            log(`Praya: Error launching lowspec dialog: ${e.message}`);
+            this._lowspecProc = null;
+        }
+    }
+
+    _saveLowspecConfig() {
+        let homeDir = GLib.get_home_dir();
+        let configDir = GLib.build_filenamev([homeDir, '.config', 'praya']);
+        let configPath = GLib.build_filenamev([configDir, 'services.json']);
+
+        try {
+            let dir = Gio.File.new_for_path(configDir);
+            if (!dir.query_exists(null)) {
+                dir.make_directory_with_parents(null);
+            }
+
+            let configFile = Gio.File.new_for_path(configPath);
+            let content = JSON.stringify(this._servicesConfig, null, 2) + '\n';
+            configFile.replace_contents(
+                content,
+                null,
+                false,
+                Gio.FileCreateFlags.NONE,
+                null
+            );
+        } catch (e) {
+            log(`Praya: Error saving services config: ${e.message}`);
         }
     }
 
@@ -1680,6 +1849,16 @@ export default class PrayaExtension extends Extension {
     }
 
     disable() {
+        // Cancel lowspec timeout and kill dialog if running
+        if (this._lowspecTimeoutId) {
+            GLib.source_remove(this._lowspecTimeoutId);
+            this._lowspecTimeoutId = null;
+        }
+        if (this._lowspecProc) {
+            this._lowspecProc.force_exit();
+            this._lowspecProc = null;
+        }
+
         // Cancel pending timeouts
         if (this._importEnvTimeoutId) {
             GLib.source_remove(this._importEnvTimeoutId);
