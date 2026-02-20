@@ -1,3 +1,10 @@
+praya-gnome-shell-extension (0.1.22-1) verbeek; urgency=medium
+
+  * Rework Praya Preferences to standalone GTK4/Adw window.
+  * Remove pin symbol from favourite apps in grid mode.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Thu, 20 Feb 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.21-1) verbeek; urgency=medium
 
   * Add low-spec hardware detection and dialog.

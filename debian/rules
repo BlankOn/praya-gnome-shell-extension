@@ -12,12 +12,12 @@ override_dh_auto_install:
 	install -m 644 indicator.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 constants.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 chatbot.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 preferences.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 taskbar.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 translations.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 metadata.json $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 stylesheet.css $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 755 lowspec-dialog.py $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
+	install -m 755 praya-preferences.py $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	# Install locale files for translations
 	for lang in $$(cat po/LINGUAS); do \
 		install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/locale/$$lang/LC_MESSAGES; \
