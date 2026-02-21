@@ -19,6 +19,7 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
+import { PrayaPreferencesDialog } from './preferences.js';
 import {
     PANEL_WIDTH,
     HEADER_HEIGHT,
@@ -1119,7 +1120,7 @@ class PrayaIndicator extends PanelMenu.Button {
             if (useGrid) {
                 let gridContainer = this._createAppGridContainer();
                 for (let appData of favouriteApps) {
-                    let gridItem = this._createAppGridItem(appData, false);
+                    let gridItem = this._createAppGridItem(appData, true);
                     gridItem._hasChildren = false;
                     gridItem._appData = appData;
                     gridItem._activateCallback = ((data) => () => {
@@ -1219,10 +1220,21 @@ class PrayaIndicator extends PanelMenu.Button {
         prefsItem._activateCallback = () => {
             this._hidePanel();
 
+            // Pause posture polling while preferences is open
             let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
-            if (ext?.stateObj?._launchPreferences) {
-                ext.stateObj._launchPreferences();
+            if (ext?.stateObj?.pausePosturePolling) {
+                ext.stateObj.pausePosturePolling();
             }
+
+            let dialog = new PrayaPreferencesDialog();
+            dialog.open(global.get_current_time());
+
+            // Resume polling when dialog closes
+            dialog.connect('destroy', () => {
+                if (ext?.stateObj?.resumePosturePolling) {
+                    ext.stateObj.resumePosturePolling();
+                }
+            });
         };
         prefsItem.connect('button-press-event', () => {
             prefsItem._activateCallback();
