@@ -284,7 +284,9 @@ export default class PrayaExtension extends Extension {
                 }
             }
 
-            return cpuCores < 3 && ramMB < 5000;
+            let isLowspec = cpuCores < 3 || ramMB < 5000;
+            log(`Praya: Lowspec check: isLowspec=${isLowspec}, cpuCores=${cpuCores} vs 3, ramMB=${ramMB} vs 5000`);
+            return isLowspec;
         } catch (e) {
             log(`Praya: Error checking lowspec: ${e.message}`);
             return false;
