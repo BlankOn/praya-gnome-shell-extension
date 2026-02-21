@@ -790,6 +790,15 @@ export default class PrayaExtension extends Extension {
         // Grab the Super+Space accelerator
         this._acceleratorAction = global.display.grab_accelerator('<Super>space', Meta.KeyBindingFlags.NONE);
 
+        // Disable GNOME's built-in switch-to-application-N bindings so we can grab Super+N
+        this._savedSwitchToApp = [];
+        let shellKeybindings = new Gio.Settings({ schema_id: 'org.gnome.shell.keybindings' });
+        for (let i = 1; i <= 9; i++) {
+            let key = `switch-to-application-${i}`;
+            this._savedSwitchToApp.push(shellKeybindings.get_strv(key));
+            shellKeybindings.set_strv(key, []);
+        }
+
         // Grab Super+1 through Super+9 for taskbar window switching
         this._numberAcceleratorActions = [];
         for (let i = 1; i <= 9; i++) {
@@ -851,6 +860,15 @@ export default class PrayaExtension extends Extension {
                 global.display.ungrab_accelerator(entry.action);
             }
             this._numberAcceleratorActions = [];
+        }
+
+        // Restore GNOME's switch-to-application-N bindings
+        if (this._savedSwitchToApp) {
+            let shellKeybindings = new Gio.Settings({ schema_id: 'org.gnome.shell.keybindings' });
+            for (let i = 1; i <= 9; i++) {
+                shellKeybindings.set_strv(`switch-to-application-${i}`, this._savedSwitchToApp[i - 1]);
+            }
+            this._savedSwitchToApp = null;
         }
     }
 

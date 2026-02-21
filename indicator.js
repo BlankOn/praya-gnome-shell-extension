@@ -19,7 +19,7 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
-import { PrayaPreferencesDialog } from './preferences.js';
+
 import {
     PANEL_WIDTH,
     HEADER_HEIGHT,
@@ -1220,21 +1220,36 @@ class PrayaIndicator extends PanelMenu.Button {
         prefsItem._activateCallback = () => {
             this._hidePanel();
 
-            // Pause posture polling while preferences is open
             let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
             if (ext?.stateObj?.pausePosturePolling) {
                 ext.stateObj.pausePosturePolling();
             }
 
-            let dialog = new PrayaPreferencesDialog();
-            dialog.open(global.get_current_time());
+            let scriptPath = GLib.build_filenamev([ext.path, 'praya-preferences.py']);
+            try {
+                let launcher = new Gio.SubprocessLauncher({
+                    flags: Gio.SubprocessFlags.NONE,
+                });
+                let waylandDisplay = GLib.getenv('WAYLAND_DISPLAY');
+                let display = GLib.getenv('DISPLAY');
+                let xdgRuntime = GLib.getenv('XDG_RUNTIME_DIR');
+                if (waylandDisplay) launcher.setenv('WAYLAND_DISPLAY', waylandDisplay, true);
+                if (display) launcher.setenv('DISPLAY', display, true);
+                if (xdgRuntime) launcher.setenv('XDG_RUNTIME_DIR', xdgRuntime, true);
+                launcher.setenv('GDK_BACKEND', waylandDisplay ? 'wayland' : 'x11', true);
 
-            // Resume polling when dialog closes
-            dialog.connect('destroy', () => {
+                let proc = launcher.spawnv(['python3', scriptPath]);
+                proc.wait_async(null, () => {
+                    if (ext?.stateObj?.resumePosturePolling) {
+                        ext.stateObj.resumePosturePolling();
+                    }
+                });
+            } catch (e) {
+                log(`Praya: Error launching preferences: ${e.message}`);
                 if (ext?.stateObj?.resumePosturePolling) {
                     ext.stateObj.resumePosturePolling();
                 }
-            });
+            }
         };
         prefsItem.connect('button-press-event', () => {
             prefsItem._activateCallback();

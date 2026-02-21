@@ -13,7 +13,6 @@ override_dh_auto_install:
 	install -m 644 constants.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 chatbot.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 taskbar.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 preferences.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 translations.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 metadata.json $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
 	install -m 644 stylesheet.css $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/

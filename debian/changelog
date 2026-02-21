@@ -1,3 +1,10 @@
+praya-gnome-shell-extension (0.1.25-1) verbeek; urgency=medium
+
+  * Remove dead preferences.js and its CSS classes.
+  * Fix Super+N keybindings to activate taskbar windows instead of GNOME favorites.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sat, 21 Feb 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.24-1) verbeek; urgency=medium
 
   * Remove hide overview logic from startup.
