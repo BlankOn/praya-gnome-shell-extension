@@ -326,6 +326,12 @@ export default class PrayaExtension extends Extension {
             if (xdgRuntime) launcher.setenv('XDG_RUNTIME_DIR', xdgRuntime, true);
             launcher.setenv('GDK_BACKEND', waylandDisplay ? 'wayland' : 'x11', true);
 
+            // Ensure locale env vars are forwarded so gettext works
+            for (let v of ['LANG', 'LANGUAGE', 'LC_ALL', 'LC_MESSAGES']) {
+                let val = GLib.getenv(v);
+                if (val) launcher.setenv(v, val, true);
+            }
+
             log(`Praya: Launching lowspec dialog: WAYLAND_DISPLAY=${waylandDisplay}, DISPLAY=${display}`);
             this._lowspecProc = launcher.spawnv(['python3', scriptPath]);
 
