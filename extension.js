@@ -40,6 +40,9 @@ export default class PrayaExtension extends Extension {
         // Load services configuration
         this._loadServicesConfig();
 
+        // Watch config files for live changes from preferences window
+        this._setupConfigMonitors();
+
         // Save and apply gsettings
         this._applySettings();
 
@@ -252,6 +255,143 @@ export default class PrayaExtension extends Extension {
         } catch (e) {
             log(`Praya: Error loading services config: ${e.message}`);
             this._servicesConfig = defaultConfig;
+        }
+    }
+
+    _setupConfigMonitors() {
+        let homeDir = GLib.get_home_dir();
+        let preferencesPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
+        let chatbotPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'chatbot.json']);
+
+        this._preferencesMonitorDebounceId = null;
+        this._chatbotMonitorDebounceId = null;
+
+        // Monitor services.json for preferences changes
+        try {
+            let preferencesFile = Gio.File.new_for_path(preferencesPath);
+            this._preferencesMonitor = preferencesFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._preferencesMonitor.connect('changed', (_monitor, _file, _otherFile, eventType) => {
+                if (eventType === Gio.FileMonitorEvent.CHANGED ||
+                    eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT ||
+                    eventType === Gio.FileMonitorEvent.CREATED) {
+                    if (this._preferencesMonitorDebounceId) {
+                        GLib.source_remove(this._preferencesMonitorDebounceId);
+                    }
+                    this._preferencesMonitorDebounceId = GLib.timeout_add(
+                        GLib.PRIORITY_DEFAULT, 300, () => {
+                            this._preferencesMonitorDebounceId = null;
+                            this._onPreferencesChanged();
+                            return GLib.SOURCE_REMOVE;
+                        });
+                }
+            });
+            log('Praya: Preferences file monitor set up');
+        } catch (e) {
+            log(`Praya: Error setting up preferences monitor: ${e.message}`);
+        }
+
+        // Monitor chatbot.json for chatbot config changes
+        try {
+            let chatbotFile = Gio.File.new_for_path(chatbotPath);
+            this._chatbotMonitor = chatbotFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._chatbotMonitor.connect('changed', (_monitor, _file, _otherFile, eventType) => {
+                if (eventType === Gio.FileMonitorEvent.CHANGED ||
+                    eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT ||
+                    eventType === Gio.FileMonitorEvent.CREATED) {
+                    if (this._chatbotMonitorDebounceId) {
+                        GLib.source_remove(this._chatbotMonitorDebounceId);
+                    }
+                    this._chatbotMonitorDebounceId = GLib.timeout_add(
+                        GLib.PRIORITY_DEFAULT, 300, () => {
+                            this._chatbotMonitorDebounceId = null;
+                            this._onChatbotConfigChanged();
+                            return GLib.SOURCE_REMOVE;
+                        });
+                }
+            });
+            log('Praya: Chatbot file monitor set up');
+        } catch (e) {
+            log(`Praya: Error setting up chatbot monitor: ${e.message}`);
+        }
+    }
+
+    _onPreferencesChanged() {
+        let oldConfig = this._servicesConfig;
+        this._loadServicesConfig();
+        let newConfig = this._servicesConfig;
+
+        // Apply panel position change
+        if (oldConfig.panelPosition !== newConfig.panelPosition) {
+            this.setPanelPosition(newConfig.panelPosition || 'top');
+        }
+
+        // Apply floating panel change
+        if (oldConfig.floatingPanel !== newConfig.floatingPanel) {
+            this._applyPanelPosition(newConfig.panelPosition || 'top');
+            this._removeWorkAreaMargins();
+            this._setupWorkAreaMargins();
+        }
+
+        // Apply hover activation settings to indicator
+        if (this._indicator) {
+            this._indicator.setMainMenuHoverActivate(newConfig.mainMenuHoverActivate || false);
+        }
+
+        // Apply hover activation to taskbar
+        if (this._taskbar && oldConfig.taskbarHoverActivate !== newConfig.taskbarHoverActivate) {
+            this._taskbar.setHoverActivate(newConfig.taskbarHoverActivate || false);
+        }
+
+        // Apply hover activation to show desktop
+        if (oldConfig.showDesktopHoverActivate !== newConfig.showDesktopHoverActivate) {
+            this._showDesktopHoverActivate = newConfig.showDesktopHoverActivate || false;
+        }
+
+        // Apply calendar and quick access hover activation
+        if (oldConfig.calendarHoverActivate !== newConfig.calendarHoverActivate) {
+            this._calendarHoverActivate = newConfig.calendarHoverActivate || false;
+        }
+        if (oldConfig.quickAccessHoverActivate !== newConfig.quickAccessHoverActivate) {
+            this._quickAccessHoverActivate = newConfig.quickAccessHoverActivate || false;
+        }
+
+        // Apply posture service toggle
+        if (oldConfig.posture !== newConfig.posture) {
+            if (newConfig.posture) {
+                this._initPostureDBus();
+                this._postureEvalPaused = true;
+                this._startPosturePolling();
+            } else {
+                this._cleanupPostureDBus();
+            }
+        }
+
+        log('Praya: Preferences reloaded');
+    }
+
+    _onChatbotConfigChanged() {
+        if (this._indicator && this._indicator._chatbotSettings) {
+            this._indicator._chatbotSettings.reload();
+        }
+        log('Praya: Chatbot config reloaded');
+    }
+
+    _cleanupConfigMonitors() {
+        if (this._preferencesMonitorDebounceId) {
+            GLib.source_remove(this._preferencesMonitorDebounceId);
+            this._preferencesMonitorDebounceId = null;
+        }
+        if (this._chatbotMonitorDebounceId) {
+            GLib.source_remove(this._chatbotMonitorDebounceId);
+            this._chatbotMonitorDebounceId = null;
+        }
+        if (this._preferencesMonitor) {
+            this._preferencesMonitor.cancel();
+            this._preferencesMonitor = null;
+        }
+        if (this._chatbotMonitor) {
+            this._chatbotMonitor.cancel();
+            this._chatbotMonitor = null;
         }
     }
 
@@ -1875,6 +2015,9 @@ export default class PrayaExtension extends Extension {
     }
 
     disable() {
+        // Stop config file monitors
+        this._cleanupConfigMonitors();
+
         // Cancel lowspec timeout and kill dialog if running
         if (this._lowspecTimeoutId) {
             GLib.source_remove(this._lowspecTimeoutId);
