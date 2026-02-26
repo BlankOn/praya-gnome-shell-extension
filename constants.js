@@ -7,7 +7,7 @@
 import GLib from 'gi://GLib';
 
 // Version
-export const VERSION = '0.1.27';
+export const VERSION = '0.1.28';
 
 // Panel dimensions
 export const PANEL_WIDTH = 325;

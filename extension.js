@@ -29,6 +29,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { _ } from './translations.js';
 import { PrayaIndicator } from './indicator.js';
 import { PrayaTaskbar } from './taskbar.js';
+import { connectClickHandler } from './touch-helper.js';
 
 // D-Bus constants for posture service
 const POSTURE_BUS_NAME = 'com.github.blankon.praya';
@@ -135,15 +136,14 @@ export default class PrayaExtension extends Extension {
                 });
             }
         });
-        // Click handler for show desktop (works regardless of hover setting)
-        this._showDesktopHoverArea.connect('button-press-event', () => {
+        // Click/touch handler for show desktop (works regardless of hover setting)
+        connectClickHandler(this._showDesktopHoverArea, () => {
             this._toggleShowDesktop();
             this._showDesktopOverlay.ease({
                 opacity: this._showDesktopActive ? 0 : 76,
                 duration: 150,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
-            return Clutter.EVENT_STOP;
         });
         Main.panel._rightBox.add_child(this._showDesktopHoverArea);
         GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
@@ -1455,8 +1455,8 @@ export default class PrayaExtension extends Extension {
 
             overlay.add_child(buttonContainer);
 
-            // Allow clicking to dismiss the overlay with 10-second pause
-            overlay.connect('button-press-event', (actor, event) => {
+            // Allow clicking/touching to dismiss the overlay with 10-second pause
+            connectClickHandler(overlay, (actor, event) => {
                 // Don't dismiss if clicking the button container
                 let [x, y] = event.get_coords();
                 let [cx, cy] = buttonContainer.get_transformed_position();
@@ -1465,7 +1465,6 @@ export default class PrayaExtension extends Extension {
                     return Clutter.EVENT_PROPAGATE;
                 }
                 this._dismissWithPause();
-                return Clutter.EVENT_STOP;
             });
 
             // Add to UI chrome (above everything)

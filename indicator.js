@@ -19,6 +19,7 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
+import { connectClickHandler } from './touch-helper.js';
 
 import {
     PANEL_WIDTH,
@@ -117,8 +118,8 @@ class PrayaIndicator extends PanelMenu.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Click handler for indicator button
-        this.connect('button-press-event', () => {
+        // Click/touch handler for indicator button
+        connectClickHandler(this, () => {
             // Cancel any pending hide timeout
             if (this._hoverTimeoutId) {
                 GLib.source_remove(this._hoverTimeoutId);
@@ -137,7 +138,6 @@ class PrayaIndicator extends PanelMenu.Button {
                     this._showPanel();
                 }
             }
-            return Clutter.EVENT_STOP;
         });
 
         // Disable the default menu
@@ -355,7 +355,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         menuItem.add_child(label);
 
-        menuItem.connect('button-press-event', () => {
+        connectClickHandler(menuItem, () => {
             if (isFav) {
                 this._removeFavourite(appData.id);
             } else {
@@ -369,7 +369,6 @@ class PrayaIndicator extends PanelMenu.Button {
                 this._searchEntry.set_text('');
             }
             this._showMainMenu(false);
-            return Clutter.EVENT_STOP;
         });
 
         this._contextMenu.add_child(menuItem);
@@ -382,9 +381,9 @@ class PrayaIndicator extends PanelMenu.Button {
 
         Main.layoutManager.addTopChrome(this._contextMenu);
 
-        // Close context menu when clicking elsewhere
+        // Close context menu when clicking/touching elsewhere
         this._contextMenuCaptureId = global.stage.connect('captured-event', (actor, event) => {
-            if (event.type() === Clutter.EventType.BUTTON_PRESS) {
+            if (event.type() === Clutter.EventType.BUTTON_PRESS || event.type() === Clutter.EventType.TOUCH_BEGIN) {
                 let [eventX, eventY] = event.get_coords();
                 let dominated = this._contextMenu.contains(global.stage.get_actor_at_pos(Clutter.PickMode.ALL, eventX, eventY));
                 if (!dominated) {
@@ -694,9 +693,9 @@ class PrayaIndicator extends PanelMenu.Button {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Add click-outside handler for stage (desktop background)
+        // Add click/touch-outside handler for stage (desktop background)
         this._captureEventId = global.stage.connect('captured-event', (actor, event) => {
-            if (event.type() === Clutter.EventType.BUTTON_PRESS) {
+            if (event.type() === Clutter.EventType.BUTTON_PRESS || event.type() === Clutter.EventType.TOUCH_BEGIN) {
                 let [x, y] = event.get_coords();
 
                 // Check if click is on the indicator button or menu button hover area (don't hide)
@@ -767,13 +766,12 @@ class PrayaIndicator extends PanelMenu.Button {
             style: 'background-color: transparent;',
         });
 
-        this._menuButtonHoverArea.connect('button-press-event', () => {
+        connectClickHandler(this._menuButtonHoverArea, () => {
             if (this._panelVisible) {
                 this._hidePanel();
             } else {
                 this._showPanel();
             }
-            return Clutter.EVENT_STOP;
         });
 
         // Hover behavior same as indicator button
@@ -1127,13 +1125,12 @@ class PrayaIndicator extends PanelMenu.Button {
                         this._launchAppFromData(data);
                         this._hidePanel();
                     })(appData);
-                    gridItem.connect('button-press-event', (actor, event) => {
-                        if (event.get_button() === 3) {
-                            this._showContextMenu(appData, actor);
-                            return Clutter.EVENT_STOP;
-                        }
+                    connectClickHandler(gridItem, () => {
                         gridItem._activateCallback();
-                        return Clutter.EVENT_STOP;
+                    }, {
+                        onRightClick: (actor) => {
+                            this._showContextMenu(appData, actor);
+                        },
                     });
                     gridContainer._addGridItem(gridItem);
                     navItems.push(gridItem);
@@ -1148,13 +1145,12 @@ class PrayaIndicator extends PanelMenu.Button {
                         this._launchAppFromData(data);
                         this._hidePanel();
                     })(appData);
-                    appItem.connect('button-press-event', (actor, event) => {
-                        if (event.get_button() === 3) {
-                            this._showContextMenu(appData, actor);
-                            return Clutter.EVENT_STOP;
-                        }
+                    connectClickHandler(appItem, () => {
                         appItem._activateCallback();
-                        return Clutter.EVENT_STOP;
+                    }, {
+                        onRightClick: (actor) => {
+                            this._showContextMenu(appData, actor);
+                        },
                     });
                     menuBox.add_child(appItem);
                     navItems.push(appItem);
@@ -1170,9 +1166,8 @@ class PrayaIndicator extends PanelMenu.Button {
         appsItem._activateCallback = () => {
             if (!this._isAnimating) this._showApplicationsList();
         };
-        appsItem.connect('button-press-event', () => {
+        connectClickHandler(appsItem, () => {
             appsItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(appsItem);
         navItems.push(appsItem);
@@ -1183,9 +1178,8 @@ class PrayaIndicator extends PanelMenu.Button {
         placesItem._activateCallback = () => {
             if (!this._isAnimating) this._showPlaces();
         };
-        placesItem.connect('button-press-event', () => {
+        connectClickHandler(placesItem, () => {
             placesItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(placesItem);
         navItems.push(placesItem);
@@ -1207,9 +1201,8 @@ class PrayaIndicator extends PanelMenu.Button {
             }
             this._hidePanel();
         };
-        settingsItem.connect('button-press-event', () => {
+        connectClickHandler(settingsItem, () => {
             settingsItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(settingsItem);
         navItems.push(settingsItem);
@@ -1251,9 +1244,8 @@ class PrayaIndicator extends PanelMenu.Button {
                 }
             }
         };
-        prefsItem.connect('button-press-event', () => {
+        connectClickHandler(prefsItem, () => {
             prefsItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(prefsItem);
         navItems.push(prefsItem);
@@ -1264,9 +1256,8 @@ class PrayaIndicator extends PanelMenu.Button {
         aboutItem._activateCallback = () => {
             if (!this._isAnimating) this._showAboutBlankOn();
         };
-        aboutItem.connect('button-press-event', () => {
+        connectClickHandler(aboutItem, () => {
             aboutItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(aboutItem);
         navItems.push(aboutItem);
@@ -1358,13 +1349,12 @@ class PrayaIndicator extends PanelMenu.Button {
                         this._launchAppFromData(data);
                         this._hidePanel();
                     })(appData);
-                    gridItem.connect('button-press-event', (actor, event) => {
-                        if (event.get_button() === 3) {
-                            this._showContextMenu(appData, actor);
-                            return Clutter.EVENT_STOP;
-                        }
+                    connectClickHandler(gridItem, () => {
                         gridItem._activateCallback();
-                        return Clutter.EVENT_STOP;
+                    }, {
+                        onRightClick: (actor) => {
+                            this._showContextMenu(appData, actor);
+                        },
                     });
                     gridContainer._addGridItem(gridItem);
                     navItems.push(gridItem);
@@ -1398,9 +1388,8 @@ class PrayaIndicator extends PanelMenu.Button {
                     categoryItem._activateCallback = ((catId) => () => {
                         if (!this._isAnimating) this._showCategoryApps(catId);
                     })(categoryId);
-                    categoryItem.connect('button-press-event', () => {
+                    connectClickHandler(categoryItem, () => {
                         categoryItem._activateCallback();
-                        return Clutter.EVENT_STOP;
                     });
                     menuBox.add_child(categoryItem);
                     navItems.push(categoryItem);
@@ -1420,9 +1409,8 @@ class PrayaIndicator extends PanelMenu.Button {
                     categoryItem._activateCallback = ((catId) => () => {
                         if (!this._isAnimating) this._showCategoryApps(catId);
                     })(categoryId);
-                    categoryItem.connect('button-press-event', () => {
+                    connectClickHandler(categoryItem, () => {
                         categoryItem._activateCallback();
-                        return Clutter.EVENT_STOP;
                     });
                     menuBox.add_child(categoryItem);
                     navItems.push(categoryItem);
@@ -1468,15 +1456,12 @@ class PrayaIndicator extends PanelMenu.Button {
                 this._launchAppFromData(data);
                 this._hidePanel();
             })(appData);
-            appItem.connect('button-press-event', (actor, event) => {
-                if (event.get_button() === 3) {
-                    // Right-click - show context menu
-                    this._showContextMenu(appData, actor);
-                    return Clutter.EVENT_STOP;
-                }
-                // Left-click - launch app
+            connectClickHandler(appItem, () => {
                 appItem._activateCallback();
-                return Clutter.EVENT_STOP;
+            }, {
+                onRightClick: (actor) => {
+                    this._showContextMenu(appData, actor);
+                },
             });
             menuBox.add_child(appItem);
             navItems.push(appItem);
@@ -1505,9 +1490,8 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeItem = this._createMenuItem(_('Home'), 'user-home-symbolic', false);
         homeItem._hasChildren = false;
         homeItem._activateCallback = () => this._openPlace(GLib.get_home_dir());
-        homeItem.connect('button-press-event', () => {
+        connectClickHandler(homeItem, () => {
             homeItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(homeItem);
         navItems.push(homeItem);
@@ -1518,9 +1502,8 @@ class PrayaIndicator extends PanelMenu.Button {
             let docsItem = this._createMenuItem(_('Documents'), 'folder-documents-symbolic', false);
             docsItem._hasChildren = false;
             docsItem._activateCallback = () => this._openPlace(docsPath);
-            docsItem.connect('button-press-event', () => {
+            connectClickHandler(docsItem, () => {
                 docsItem._activateCallback();
-                return Clutter.EVENT_STOP;
             });
             menuBox.add_child(docsItem);
             navItems.push(docsItem);
@@ -1532,9 +1515,8 @@ class PrayaIndicator extends PanelMenu.Button {
             let downloadsItem = this._createMenuItem(_('Downloads'), 'folder-download-symbolic', false);
             downloadsItem._hasChildren = false;
             downloadsItem._activateCallback = () => this._openPlace(downloadsPath);
-            downloadsItem.connect('button-press-event', () => {
+            connectClickHandler(downloadsItem, () => {
                 downloadsItem._activateCallback();
-                return Clutter.EVENT_STOP;
             });
             menuBox.add_child(downloadsItem);
             navItems.push(downloadsItem);
@@ -1546,9 +1528,8 @@ class PrayaIndicator extends PanelMenu.Button {
             let picturesItem = this._createMenuItem(_('Pictures'), 'folder-pictures-symbolic', false);
             picturesItem._hasChildren = false;
             picturesItem._activateCallback = () => this._openPlace(picturesPath);
-            picturesItem.connect('button-press-event', () => {
+            connectClickHandler(picturesItem, () => {
                 picturesItem._activateCallback();
-                return Clutter.EVENT_STOP;
             });
             menuBox.add_child(picturesItem);
             navItems.push(picturesItem);
@@ -1560,9 +1541,8 @@ class PrayaIndicator extends PanelMenu.Button {
             let musicItem = this._createMenuItem(_('Music'), 'folder-music-symbolic', false);
             musicItem._hasChildren = false;
             musicItem._activateCallback = () => this._openPlace(musicPath);
-            musicItem.connect('button-press-event', () => {
+            connectClickHandler(musicItem, () => {
                 musicItem._activateCallback();
-                return Clutter.EVENT_STOP;
             });
             menuBox.add_child(musicItem);
             navItems.push(musicItem);
@@ -1574,9 +1554,8 @@ class PrayaIndicator extends PanelMenu.Button {
             let videosItem = this._createMenuItem(_('Videos'), 'folder-videos-symbolic', false);
             videosItem._hasChildren = false;
             videosItem._activateCallback = () => this._openPlace(videosPath);
-            videosItem.connect('button-press-event', () => {
+            connectClickHandler(videosItem, () => {
                 videosItem._activateCallback();
-                return Clutter.EVENT_STOP;
             });
             menuBox.add_child(videosItem);
             navItems.push(videosItem);
@@ -1726,15 +1705,12 @@ class PrayaIndicator extends PanelMenu.Button {
                     this._launchAppFromData(data);
                     this._hidePanel();
                 })(appData);
-                appItem.connect('button-press-event', (actor, event) => {
-                    if (event.get_button() === 3) {
-                        // Right-click - show context menu
-                        this._showContextMenu(appData, actor);
-                        return Clutter.EVENT_STOP;
-                    }
-                    // Left-click - launch app
+                connectClickHandler(appItem, () => {
                     appItem._activateCallback();
-                    return Clutter.EVENT_STOP;
+                }, {
+                    onRightClick: (actor) => {
+                        this._showContextMenu(appData, actor);
+                    },
                 });
 
                 // Start with opacity 0 and slide in from left
@@ -2095,8 +2071,8 @@ class PrayaIndicator extends PanelMenu.Button {
 
         item.add_child(nameBox);
 
-        // Click to open Settings -> System -> Users
-        item.connect('button-press-event', () => {
+        // Click/touch to open Settings -> System -> Users
+        connectClickHandler(item, () => {
             this._hidePanel();
             try {
                 let subprocess = Gio.Subprocess.new(
@@ -2109,7 +2085,6 @@ class PrayaIndicator extends PanelMenu.Button {
                 if (appInfo)
                     appInfo.launch([], null);
             }
-            return Clutter.EVENT_STOP;
         });
 
         return item;
@@ -2132,19 +2107,17 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Lock item (same level as Power)
         let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
-        lockItem.connect('button-press-event', () => {
+        connectClickHandler(lockItem, () => {
             Main.screenShield.lock(true);
             this._hidePanel();
-            return Clutter.EVENT_STOP;
         });
         bottomSection.add_child(lockItem);
 
         // Log Out item (same level as Power)
         let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
-        logoutItem.connect('button-press-event', () => {
+        connectClickHandler(logoutItem, () => {
             this._hidePanel();
             this._systemActions.activateLogout();
-            return Clutter.EVENT_STOP;
         });
         bottomSection.add_child(logoutItem);
 
@@ -2165,35 +2138,32 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Suspend
         let suspendItem = this._createSubMenuItem(_('Suspend'));
-        suspendItem.connect('button-press-event', () => {
+        connectClickHandler(suspendItem, () => {
             this._hidePanel();
             this._systemActions.activateSuspend();
-            return Clutter.EVENT_STOP;
         });
         powerOptionsBox.add_child(suspendItem);
 
         // Restart
         let restartItem = this._createSubMenuItem(_('Restart'));
-        restartItem.connect('button-press-event', () => {
+        connectClickHandler(restartItem, () => {
             this._hidePanel();
             this._systemActions.activateRestart();
-            return Clutter.EVENT_STOP;
         });
         powerOptionsBox.add_child(restartItem);
 
         // Power Off
         let powerOffItem = this._createSubMenuItem(_('Power Off'));
-        powerOffItem.connect('button-press-event', () => {
+        connectClickHandler(powerOffItem, () => {
             this._hidePanel();
             this._systemActions.activatePowerOff();
-            return Clutter.EVENT_STOP;
         });
         powerOptionsBox.add_child(powerOffItem);
 
         bottomSection.add_child(powerOptionsBox);
 
-        // Toggle power options on click with slide animation
-        powerItem.connect('button-press-event', () => {
+        // Toggle power options on click/touch with slide animation
+        connectClickHandler(powerItem, () => {
             let arrow = powerItem.get_last_child();
             if (powerOptionsBox._expanded) {
                 // Collapse with animation
@@ -2230,7 +2200,6 @@ class PrayaIndicator extends PanelMenu.Button {
                 arrow.icon_name = 'go-down-symbolic';
                 powerOptionsBox._expanded = true;
             }
-            return Clutter.EVENT_STOP;
         });
 
         return bottomSection;
@@ -2339,9 +2308,8 @@ class PrayaIndicator extends PanelMenu.Button {
                         info.icon,
                         true
                     );
-                    categoryItem.connect('button-press-event', () => {
+                    connectClickHandler(categoryItem, () => {
                         if (!this._isAnimating) this._showCategoryApps(categoryId);
-                        return Clutter.EVENT_STOP;
                     });
                     menuBox.add_child(categoryItem);
                 }
@@ -2355,9 +2323,8 @@ class PrayaIndicator extends PanelMenu.Button {
                         info.icon,
                         true
                     );
-                    categoryItem.connect('button-press-event', () => {
+                    connectClickHandler(categoryItem, () => {
                         if (!this._isAnimating) this._showCategoryApps(categoryId);
-                        return Clutter.EVENT_STOP;
                     });
                     menuBox.add_child(categoryItem);
                 }
@@ -2408,9 +2375,8 @@ class PrayaIndicator extends PanelMenu.Button {
             }
             this._hidePanel();
         };
-        systemSettingsItem.connect('button-press-event', () => {
+        connectClickHandler(systemSettingsItem, () => {
             systemSettingsItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(systemSettingsItem);
         navItems.push(systemSettingsItem);
@@ -2440,9 +2406,8 @@ class PrayaIndicator extends PanelMenu.Button {
         blankonItem._activateCallback = () => {
             this._openUrl('http://blankonlinux.id/');
         };
-        blankonItem.connect('button-press-event', () => {
+        connectClickHandler(blankonItem, () => {
             blankonItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(blankonItem);
         navItems.push(blankonItem);
@@ -2453,9 +2418,8 @@ class PrayaIndicator extends PanelMenu.Button {
         foundationItem._activateCallback = () => {
             this._openUrl('https://blankon.id/en');
         };
-        foundationItem.connect('button-press-event', () => {
+        connectClickHandler(foundationItem, () => {
             foundationItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(foundationItem);
         navItems.push(foundationItem);
@@ -2466,9 +2430,8 @@ class PrayaIndicator extends PanelMenu.Button {
         prayaItem._activateCallback = () => {
             this._openUrl('https://github.com/BlankOn/praya-gnome-shell-extension');
         };
-        prayaItem.connect('button-press-event', () => {
+        connectClickHandler(prayaItem, () => {
             prayaItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(prayaItem);
         navItems.push(prayaItem);
@@ -2479,9 +2442,8 @@ class PrayaIndicator extends PanelMenu.Button {
         donateItem._activateCallback = () => {
             this._openUrl('https://blankon.id/en/donate');
         };
-        donateItem.connect('button-press-event', () => {
+        connectClickHandler(donateItem, () => {
             donateItem._activateCallback();
-            return Clutter.EVENT_STOP;
         });
         menuBox.add_child(donateItem);
         navItems.push(donateItem);
