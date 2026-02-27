@@ -12,6 +12,8 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 
+import { connectClickHandler } from './touch-helper.js';
+
 export const PrayaTaskbar = GObject.registerClass(
 class PrayaTaskbar extends St.BoxLayout {
     _init() {
@@ -194,40 +196,36 @@ class PrayaTaskbar extends St.BoxLayout {
             }
         });
 
-        // Click handler
-        button.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === 1) {
-                // Ignore clicks during cooldown after hover-unminimize
-                if (this._clickCooldowns.has(window)) {
-                    return Clutter.EVENT_STOP;
-                }
-                if (this._hoverActivate) {
-                    // Hover activate is on - click toggles minimize/restore
-                    if (window.minimized) {
-                        window.unminimize();
-                        this._activateWithFade(window);
-                    } else if (window === global.display.focus_window) {
-                        window.minimize();
-                    }
-                    this._hoverSuppressed = true;
-                } else {
-                    // Left click - focus or unminimize
-                    if (window.minimized) {
-                        window.unminimize();
-                        this._activateWithFade(window);
-                    } else if (window === global.display.focus_window) {
-                        window.minimize();
-                    } else {
-                        this._activateWithFade(window);
-                    }
-                }
-                return Clutter.EVENT_STOP;
-            } else if (event.get_button() === 2) {
-                // Middle click - close window
-                window.delete(global.get_current_time());
-                return Clutter.EVENT_STOP;
+        // Click/touch handler
+        connectClickHandler(button, () => {
+            // Ignore clicks during cooldown after hover-unminimize
+            if (this._clickCooldowns.has(window)) {
+                return;
             }
-            return Clutter.EVENT_PROPAGATE;
+            if (this._hoverActivate) {
+                // Hover activate is on - click toggles minimize/restore
+                if (window.minimized) {
+                    window.unminimize();
+                    this._activateWithFade(window);
+                } else if (window === global.display.focus_window) {
+                    window.minimize();
+                }
+                this._hoverSuppressed = true;
+            } else {
+                // Left click - focus or unminimize
+                if (window.minimized) {
+                    window.unminimize();
+                    this._activateWithFade(window);
+                } else if (window === global.display.focus_window) {
+                    window.minimize();
+                } else {
+                    this._activateWithFade(window);
+                }
+            }
+        }, {
+            onMiddleClick: () => {
+                window.delete(global.get_current_time());
+            },
         });
 
         return button;
