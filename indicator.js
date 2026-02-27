@@ -1956,7 +1956,12 @@ class PrayaIndicator extends PanelMenu.Button {
 
     _launchAppFromData(appData) {
         if (appData.app) {
-            appData.app.activate();
+            let windows = appData.app.get_windows();
+            if (windows.length > 0) {
+                Main.activateWindow(windows[0]);
+            } else {
+                appData.app.activate();
+            }
         } else if (appData.appInfo) {
             appData.appInfo.launch([], null);
         }
