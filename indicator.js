@@ -1959,11 +1959,15 @@ class PrayaIndicator extends PanelMenu.Button {
             let windows = appData.app.get_windows();
             if (windows.length > 0) {
                 Main.activateWindow(windows[0]);
-            } else {
-                appData.app.activate();
+                return;
             }
-        } else if (appData.appInfo) {
+        }
+        // For launching new instances, prefer appInfo.launch() as it's more reliable
+        // than app.activate() which can silently fail for some apps (e.g. Gedit)
+        if (appData.appInfo) {
             appData.appInfo.launch([], null);
+        } else if (appData.app) {
+            appData.app.activate();
         }
     }
 
