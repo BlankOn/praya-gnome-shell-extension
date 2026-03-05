@@ -1,3 +1,10 @@
+praya-gnome-shell-extension (0.1.32-1) verbeek; urgency=medium
+
+  * Filter out NoDisplay desktop entries from search results.
+  * Fix missing Internet and Other category icons.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Wed, 05 Mar 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.31-1) verbeek; urgency=medium
 
   * Prioritize appInfo.Launch() for consistent app launch behaviour.
