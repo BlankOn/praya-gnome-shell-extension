@@ -1624,13 +1624,22 @@ class PrayaIndicator extends PanelMenu.Button {
         // Use GioUnix.DesktopAppInfo.search for search results
         let searchResults = GioUnix.DesktopAppInfo.search(query);
 
-        // Flatten the array of arrays and create app data objects
+        // Flatten the array of arrays and create app data objects, deduplicating by appId
         let matchedApps = [];
+        let seenIds = new Set();
         for (let group of searchResults) {
             for (let appId of group) {
+                if (seenIds.has(appId))
+                    continue;
+                seenIds.add(appId);
+
                 // Get the desktop app info
                 let appInfo = GioUnix.DesktopAppInfo.new(appId);
                 if (!appInfo)
+                    continue;
+
+                // Skip apps marked as NoDisplay
+                if (appInfo.get_nodisplay())
                     continue;
 
                 // Try to get Shell.App
@@ -1962,12 +1971,13 @@ class PrayaIndicator extends PanelMenu.Button {
                 return;
             }
         }
-        // For launching new instances, prefer appInfo.launch() as it's more reliable
-        // than app.activate() which can silently fail for some apps (e.g. Gedit)
-        if (appData.appInfo) {
-            appData.appInfo.launch([], null);
-        } else if (appData.app) {
+        // Prefer app.activate() which properly handles DBusActivatable apps
+        // (e.g. GNOME Software). Fall back to appInfo.launch() for apps
+        // without a Shell.App entry.
+        if (appData.app) {
             appData.app.activate();
+        } else if (appData.appInfo) {
+            appData.appInfo.launch([], null);
         }
     }
 
