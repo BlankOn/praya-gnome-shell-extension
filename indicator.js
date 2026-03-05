@@ -1290,13 +1290,13 @@ class PrayaIndicator extends PanelMenu.Button {
             'Education': {name: _('Education'), icon: 'applications-science-symbolic'},
             'Game': {name: _('Games'), icon: 'applications-games-symbolic'},
             'Graphics': {name: _('Graphics'), icon: 'applications-graphics-symbolic'},
-            'Network': {name: _('Internet'), icon: 'applications-internet-symbolic'},
+            'Network': {name: _('Internet'), icon: 'web-browser-symbolic'},
             'Office': {name: _('Office'), icon: 'x-office-document-symbolic'},
             'Science': {name: _('Science'), icon: 'applications-science-symbolic'},
             'Settings': {name: _('Settings'), icon: 'preferences-system-symbolic'},
             'System': {name: _('System Tools'), icon: 'applications-system-symbolic'},
             'Utility': {name: _('Accessories'), icon: 'applications-utilities-symbolic'},
-            'Other': {name: _('Other'), icon: 'applications-other-symbolic'},
+            'Other': {name: _('Other'), icon: 'view-grid-symbolic'},
         };
         return categoryMap[categoryId] || {name: categoryId, icon: 'application-x-executable-symbolic'};
     }

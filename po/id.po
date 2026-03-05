@@ -349,6 +349,10 @@ msgid "Author"
 msgstr "Pembuat"
 
 #: praya-preferences.py:339
+msgid "Source Code"
+msgstr "Sumber kode"
+
+#: praya-preferences.py:349
 msgid "License"
 msgstr "Lisensi"
 

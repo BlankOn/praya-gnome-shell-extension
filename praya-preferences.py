@@ -21,7 +21,7 @@ gi.require_version('Adw', '1')
 from gi.repository import GLib, Gtk, Adw, Gio
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.31'
+VERSION = '0.1.32'
 
 PROVIDERS = {
     'anthropic': {
@@ -333,6 +333,16 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             subtitle='Herpiko Dwi Aguno &lt;herpiko@gmail.com&gt;',
         )
         about_group.add(author_row)
+
+        # Source code
+        source_row = Adw.ActionRow(
+            title=_('Source Code'),
+            subtitle='https://github.com/BlankOn/praya-gnome-shell-extension',
+            activatable=True,
+        )
+        source_row.add_suffix(Gtk.Image.new_from_icon_name('web-browser-symbolic'))
+        source_row.connect('activated', lambda *_: Gtk.show_uri(self.get_root(), 'https://github.com/BlankOn/praya-gnome-shell-extension', 0))
+        about_group.add(source_row)
 
         # License
         license_row = Adw.ActionRow(
