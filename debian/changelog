@@ -1,3 +1,9 @@
+praya-gnome-shell-extension (0.1.31-1) verbeek; urgency=medium
+
+  * Prioritize appInfo.Launch() for consistent app launch behaviour.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sat, 28 Feb 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.30-1) verbeek; urgency=medium
 
   * Fix app window not brought to front when already running.
