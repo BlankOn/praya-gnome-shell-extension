@@ -21,7 +21,7 @@ gi.require_version('Adw', '1')
 from gi.repository import GLib, Gtk, Adw, Gio
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.32'
+VERSION = '0.1.33'
 
 PROVIDERS = {
     'anthropic': {

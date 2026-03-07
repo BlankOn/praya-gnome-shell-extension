@@ -87,6 +87,9 @@ export default class PrayaExtension extends Extension {
             });
         }
 
+        // Add percentage label to OSD windows
+        this._patchOsdWindows();
+
         // Hide activities button
         this._hideActivities();
 
@@ -2013,6 +2016,76 @@ export default class PrayaExtension extends Extension {
         }
     }
 
+    _patchOsdWindows() {
+        const osdManager = Main.osdWindowManager;
+        if (!osdManager || !osdManager._osdWindows)
+            return;
+
+        for (const osdWindow of osdManager._osdWindows) {
+            if (!osdWindow || osdWindow._prayaPercentLabel)
+                continue;
+
+            const percentLabel = new St.Label({
+                style_class: 'osd-percent-label',
+                style: 'font-size: 1.2em; min-width: 3.5em; text-align: right;',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            percentLabel.visible = false;
+            osdWindow._hbox.add_child(percentLabel);
+            osdWindow._prayaPercentLabel = percentLabel;
+
+            const origSetLevel = osdWindow.setLevel.bind(osdWindow);
+            osdWindow._prayaOrigSetLevel = osdWindow.setLevel;
+            osdWindow.setLevel = function(value) {
+                origSetLevel(value);
+                if (value != null) {
+                    const maxLevel = this._level.maximum_value || 1;
+                    const percent = Math.round((value / maxLevel) * 100);
+                    percentLabel.text = `${percent}%`;
+                    percentLabel.visible = true;
+                } else {
+                    percentLabel.visible = false;
+                }
+            };
+        }
+
+        // Also patch _monitorsChanged to handle new monitors (only once)
+        if (!osdManager._prayaOrigMonitorsChanged) {
+            const self = this;
+            osdManager._prayaOrigMonitorsChanged = osdManager._monitorsChanged;
+            osdManager._monitorsChanged = function() {
+                osdManager._prayaOrigMonitorsChanged.call(osdManager);
+                self._patchOsdWindows();
+            };
+        }
+    }
+
+    _unpatchOsdWindows() {
+        const osdManager = Main.osdWindowManager;
+        if (!osdManager || !osdManager._osdWindows)
+            return;
+
+        // Restore _monitorsChanged
+        if (osdManager._prayaOrigMonitorsChanged) {
+            osdManager._monitorsChanged = osdManager._prayaOrigMonitorsChanged;
+            delete osdManager._prayaOrigMonitorsChanged;
+        }
+
+        for (const osdWindow of osdManager._osdWindows) {
+            if (!osdWindow || !osdWindow._prayaPercentLabel)
+                continue;
+
+            // Restore original setLevel
+            if (osdWindow._prayaOrigSetLevel) {
+                osdWindow.setLevel = osdWindow._prayaOrigSetLevel;
+                delete osdWindow._prayaOrigSetLevel;
+            }
+
+            osdWindow._prayaPercentLabel.destroy();
+            delete osdWindow._prayaPercentLabel;
+        }
+    }
+
     disable() {
         // Stop config file monitors
         this._cleanupConfigMonitors();
@@ -2117,6 +2190,9 @@ export default class PrayaExtension extends Extension {
 
         // Restore date/time to center
         this._restoreDateTimePosition();
+
+        // Remove OSD percentage labels
+        this._unpatchOsdWindows();
 
         // Restore activities button
         this._restoreActivities();
