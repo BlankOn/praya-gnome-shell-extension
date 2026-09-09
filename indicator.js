@@ -1590,33 +1590,13 @@ class PrayaIndicator extends PanelMenu.Button {
         this._showSearchResults(searchText);
     }
 
-    _launchFirstSearchResult() {
-        let searchText = this._searchEntry.get_text().trim();
-        if (searchText === '')
-            return;
-
-        let searchResults = GioUnix.DesktopAppInfo.search(searchText);
-        if (searchResults.length === 0 || searchResults[0].length === 0) {
-            // No results found - enter chatbot mode if AI is enabled and configured
-            // Reload settings to pick up any recent changes
-            this._chatbotSettings.reload();
-            if (this._isAIEnabled() && this._chatbotSettings.isConfigured()) {
-                this._enterChatbotMode(searchText);
-            }
-            return;
-        }
-
-        let appId = searchResults[0][0];
-        let appInfo = GioUnix.DesktopAppInfo.new(appId);
-        if (!appInfo)
-            return;
-
-        this._launchApp(this._appSystem.lookup_app(appId), appInfo, appId);
-        this._hidePanel();
-    }
-
-    _showSearchResults(query) {
-        // Use GioUnix.DesktopAppInfo.search for search results
+    // Collect the apps matching @query, in the order they are displayed.
+    //
+    // GioUnix.DesktopAppInfo.search() returns groups of desktop ids ordered by
+    // relevance, including entries that are not meant to be shown to the user
+    // (NoDisplay=true), such as URL handlers. Those are filtered out here so
+    // that every caller agrees on what "the results" are.
+    _getMatchedApps(query) {
         let searchResults = GioUnix.DesktopAppInfo.search(query);
 
         // Flatten the array of arrays and create app data objects, deduplicating by appId
@@ -1648,6 +1628,34 @@ class PrayaIndicator extends PanelMenu.Button {
                 });
             }
         }
+
+        return matchedApps;
+    }
+
+    _launchFirstSearchResult() {
+        let searchText = this._searchEntry.get_text().trim();
+        if (searchText === '')
+            return;
+
+        // Launch the same entry the results list shows first, so that pressing
+        // Enter and clicking the top result always do the same thing.
+        let matchedApps = this._getMatchedApps(searchText);
+        if (matchedApps.length === 0) {
+            // No results found - enter chatbot mode if AI is enabled and configured
+            // Reload settings to pick up any recent changes
+            this._chatbotSettings.reload();
+            if (this._isAIEnabled() && this._chatbotSettings.isConfigured()) {
+                this._enterChatbotMode(searchText);
+            }
+            return;
+        }
+
+        this._launchAppFromData(matchedApps[0]);
+        this._hidePanel();
+    }
+
+    _showSearchResults(query) {
+        let matchedApps = this._getMatchedApps(query);
 
         // Create results view
         // Use sliding container's actual height (already accounts for bottom section)
@@ -2502,14 +2510,6 @@ class PrayaIndicator extends PanelMenu.Button {
         scrollView.add_child(menuBox);
         this._registerMenuItems(navItems, scrollView);
         this._animateSlide(scrollView, 'forward');
-    }
-
-    _launchApp(desktopId) {
-        let appSystem = Shell.AppSystem.get_default();
-        let app = appSystem.lookup_app(desktopId);
-        if (app) {
-            app.activate();
-        }
     }
 
     _enterChatbotMode(initialMessage) {
