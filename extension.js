@@ -625,7 +625,7 @@ export default class PrayaExtension extends Extension {
             width: margin, height: monitor.height,
             reactive: false,
         });
-        Main.layoutManager.addTopChrome(leftStrut, { affectsStruts: true, affectsInputRegion: false });
+        Main.layoutManager.addTopChrome(leftStrut, { affectsStruts: true });
         this._marginStruts.push(leftStrut);
 
         // Right edge strut
@@ -634,7 +634,7 @@ export default class PrayaExtension extends Extension {
             width: margin, height: monitor.height,
             reactive: false,
         });
-        Main.layoutManager.addTopChrome(rightStrut, { affectsStruts: true, affectsInputRegion: false });
+        Main.layoutManager.addTopChrome(rightStrut, { affectsStruts: true });
         this._marginStruts.push(rightStrut);
 
         // Opposite side of panel
@@ -644,7 +644,7 @@ export default class PrayaExtension extends Extension {
                 width: monitor.width, height: margin,
                 reactive: false,
             });
-            Main.layoutManager.addTopChrome(topStrut, { affectsStruts: true, affectsInputRegion: false });
+            Main.layoutManager.addTopChrome(topStrut, { affectsStruts: true });
             this._marginStruts.push(topStrut);
         } else {
             let bottomStrut = new St.Widget({
@@ -652,7 +652,7 @@ export default class PrayaExtension extends Extension {
                 width: monitor.width, height: margin,
                 reactive: false,
             });
-            Main.layoutManager.addTopChrome(bottomStrut, { affectsStruts: true, affectsInputRegion: false });
+            Main.layoutManager.addTopChrome(bottomStrut, { affectsStruts: true });
             this._marginStruts.push(bottomStrut);
         }
     }
