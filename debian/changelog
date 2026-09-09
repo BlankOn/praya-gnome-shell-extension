@@ -1,3 +1,14 @@
+praya-gnome-shell-extension (0.1.36-1) sinambung; urgency=medium
+
+  * Remove a stale duplicate _launchApp() that shadowed the real
+    implementation and broke launching from the panel entirely.
+  * Launch the same entry the search results list shows first, so that
+    pressing Enter and clicking the top result behave identically.
+    Hidden entries (NoDisplay=true, such as URL handlers) are no longer
+    launched by the Enter key.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Wed, 09 Sep 2026 23:55:00 +0700
+
 praya-gnome-shell-extension (0.1.35-1) sinambung; urgency=medium
 
   * Expand support to GNOME Shell 50.
