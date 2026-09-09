@@ -1,3 +1,12 @@
+praya-gnome-shell-extension (0.1.37-1) sinambung; urgency=medium
+
+  * Fix the start menu icon not responding to clicks. GNOME 50 drives
+    PanelMenu.Button from a Clutter.ClickGesture, which claims the event
+    sequence, so the button-press-event handler was never reached.
+  * Drop the click handling fallback for shells older than GNOME 50.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Thu, 10 Sep 2026 01:55:00 +0700
+
 praya-gnome-shell-extension (0.1.36-1) sinambung; urgency=medium
 
   * Remove a stale duplicate _launchApp() that shadowed the real

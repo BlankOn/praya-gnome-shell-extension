@@ -119,7 +119,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
 
         // Click/touch handler for indicator button
-        connectClickHandler(this, () => {
+        let onIndicatorClick = () => {
             // Cancel any pending hide timeout
             if (this._hoverTimeoutId) {
                 GLib.source_remove(this._hoverTimeoutId);
@@ -138,7 +138,19 @@ class PrayaIndicator extends PanelMenu.Button {
                     this._showPanel();
                 }
             }
+        };
+
+        // PanelMenu.Button is driven by a Clutter.ClickGesture, which claims
+        // the event sequence, so 'button-press-event' is never emitted on this
+        // actor. Take over the gesture: the built-in one only toggles the
+        // default menu, which is hidden below.
+        this._clickGesture.set_enabled(false);
+        this._panelClickGesture = new Clutter.ClickGesture();
+        this._panelClickGesture.set_recognize_on_press(true);
+        this._panelClickGesture.connect('recognize', () => {
+            onIndicatorClick();
         });
+        this.add_action(this._panelClickGesture);
 
         // Disable the default menu
         this.menu.actor.hide();
