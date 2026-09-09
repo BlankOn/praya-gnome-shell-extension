@@ -1611,12 +1611,7 @@ class PrayaIndicator extends PanelMenu.Button {
         if (!appInfo)
             return;
 
-        let app = this._appSystem.lookup_app(appId);
-        if (app) {
-            app.activate();
-        } else {
-            appInfo.launch([], null);
-        }
+        this._launchApp(this._appSystem.lookup_app(appId), appInfo, appId);
         this._hidePanel();
     }
 
@@ -1964,20 +1959,57 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _launchAppFromData(appData) {
-        if (appData.app) {
-            let windows = appData.app.get_windows();
+        this._launchApp(appData.app, appData.appInfo, appData.id);
+    }
+
+    // Launch an application, given a Shell.App and/or a Gio.AppInfo for it.
+    //
+    // Shell.App.activate() is preferred because it handles DBusActivatable
+    // apps (e.g. GNOME Software) and sets up the startup notification and
+    // systemd scope. It is not usable in every case though: when the app is
+    // not in the STOPPED state it degrades to activating an existing window,
+    // which silently does nothing when the shell has not matched any window
+    // to the app. Apps that are slow to map their first window, or whose
+    // window is never matched back to their desktop entry, get stuck in that
+    // state and stop launching entirely. Fall back to launching the desktop
+    // entry directly whenever activation is not applicable or fails.
+    _launchApp(app, appInfo, appId) {
+        if (app) {
+            let windows = app.get_windows();
             if (windows.length > 0) {
                 Main.activateWindow(windows[0]);
                 return;
             }
         }
-        // Prefer app.activate() which properly handles DBusActivatable apps
-        // (e.g. GNOME Software). Fall back to appInfo.launch() for apps
-        // without a Shell.App entry.
-        if (appData.app) {
-            appData.app.activate();
-        } else if (appData.appInfo) {
-            appData.appInfo.launch([], null);
+
+        if (app && app.state === Shell.AppState.STOPPED) {
+            try {
+                app.activate();
+                return;
+            } catch (e) {
+                log(`Praya: Shell.App.activate() failed for ${appId}: ${e.message}`);
+            }
+        }
+
+        if (!appInfo && appId)
+            appInfo = GioUnix.DesktopAppInfo.new(appId);
+
+        if (appInfo) {
+            try {
+                appInfo.launch([], global.create_app_launch_context(0, -1));
+                return;
+            } catch (e) {
+                log(`Praya: Failed to launch ${appId}: ${e.message}`);
+            }
+        }
+
+        // Last resort: let the shell try, even though it may be a no-op.
+        if (app) {
+            try {
+                app.activate();
+            } catch (e) {
+                log(`Praya: Failed to activate ${appId}: ${e.message}`);
+            }
         }
     }
 
