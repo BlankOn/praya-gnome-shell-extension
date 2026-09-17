@@ -21,7 +21,7 @@ gi.require_version('Adw', '1')
 from gi.repository import GLib, Gtk, Adw, Gio
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.37'
+VERSION = '0.1.38'
 
 PROVIDERS = {
     'anthropic': {
@@ -60,6 +60,7 @@ CHATBOT_CONFIG_PATH = os.path.join(CONFIG_DIR, 'chatbot.json')
 DEFAULT_SERVICES_CONFIG = {
     'ai': False,
     'posture': False,
+    'temperature': False,
     'appMenuLayout': 'grid',
     'mainMenuHoverActivate': False,
     'taskbarHoverActivate': False,
@@ -199,6 +200,11 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._lowspec_row.set_active(self._services.get('lowspecEnabled', False))
         self._lowspec_row.connect('notify::active', self._on_lowspec_changed)
         perf_group.add(self._lowspec_row)
+
+        self._temperature_row = Adw.SwitchRow(title=_('Temperature'))
+        self._temperature_row.set_active(self._services.get('temperature', False))
+        self._temperature_row.connect('notify::active', self._on_temperature_changed)
+        perf_group.add(self._temperature_row)
 
         page.add(perf_group)
 
@@ -435,6 +441,10 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._services['appMenuLayout'] = new_layout
         self._layout_row.set_selected(0 if new_layout == 'grid' else 1)
 
+        self._save_services()
+
+    def _on_temperature_changed(self, row, _pspec):
+        self._services['temperature'] = row.get_active()
         self._save_services()
 
     # ==================================================================

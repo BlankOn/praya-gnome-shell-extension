@@ -29,6 +29,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { _ } from './translations.js';
 import { PrayaIndicator } from './indicator.js';
 import { PrayaTaskbar } from './taskbar.js';
+import { PrayaTemperatureIndicator } from './temperature.js';
 import { connectClickHandler } from './touch-helper.js';
 
 // D-Bus constants for posture service
@@ -50,6 +51,9 @@ export default class PrayaExtension extends Extension {
         this._indicator = new PrayaIndicator();
         // Add to the left side of the panel
         Main.panel.addToStatusArea('praya-indicator', this._indicator, 0, 'left');
+
+        // Temperature readout in the status area (next to quick settings)
+        this._setupTemperatureIndicator();
 
         // Apply panel position (top or bottom)
         this._applyPanelPosition(this._servicesConfig.panelPosition || 'top');
@@ -215,6 +219,7 @@ export default class PrayaExtension extends Extension {
         let defaultConfig = {
             ai: false,
             posture: false,
+            temperature: false,
             mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
             showDesktopHoverActivate: false,
@@ -367,6 +372,14 @@ export default class PrayaExtension extends Extension {
             } else {
                 this._cleanupPostureDBus();
             }
+        }
+
+        // Apply temperature indicator toggle
+        if (oldConfig.temperature !== newConfig.temperature) {
+            if (newConfig.temperature)
+                this._setupTemperatureIndicator();
+            else
+                this._removeTemperatureIndicator();
         }
 
         log('Praya: Preferences reloaded');
@@ -1690,6 +1703,20 @@ export default class PrayaExtension extends Extension {
         }
     }
 
+    _setupTemperatureIndicator() {
+        if (!this._servicesConfig.temperature || this._temperatureIndicator)
+            return;
+        this._temperatureIndicator = new PrayaTemperatureIndicator();
+        Main.panel.addToStatusArea('praya-temperature', this._temperatureIndicator, 0, 'right');
+    }
+
+    _removeTemperatureIndicator() {
+        if (this._temperatureIndicator) {
+            this._temperatureIndicator.destroy();
+            this._temperatureIndicator = null;
+        }
+    }
+
     _moveDateTimeToRight() {
         let dateMenu = Main.panel.statusArea.dateMenu;
         if (!dateMenu)
@@ -2181,6 +2208,7 @@ export default class PrayaExtension extends Extension {
             this._indicator = null;
         }
 
+        this._removeTemperatureIndicator();
 
         // Remove panel hover handler
         this._removePanelHoverHandler();
