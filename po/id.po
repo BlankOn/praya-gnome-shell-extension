@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-20 20:01+0700\n"
+"POT-Creation-Date: 2026-09-17 08:13+0700\n"
 "PO-Revision-Date: 2026-02-19 17:13+0700\n"
 "Last-Translator: \n"
 "Language-Team: Indonesian\n"
@@ -16,191 +16,191 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: extension.js:1360
+#: extension.js:1383
 msgid "Bad Posture Detected"
 msgstr "Postur Buruk Terdeteksi"
 
-#: extension.js:1366
+#: extension.js:1389
 msgid "Please correct your posture"
 msgstr "Silakan perbaiki postur tubuh Anda"
 
-#: extension.js:1402
+#: extension.js:1425
 msgid "Click anywhere to dismiss (10s pause)"
 msgstr "Klik di mana saja untuk menutup (jeda 10 detik)"
 
-#: extension.js:1428 praya-preferences.py:245
+#: extension.js:1451 praya-preferences.py:251
 msgid "Recalibrate"
 msgstr "Kalibrasi Ulang"
 
-#: extension.js:1440
+#: extension.js:1463
 msgid "Disable Posture Monitoring Service"
 msgstr "Nonaktifkan Layanan Pemantau Postur"
 
-#: indicator.js:335
+#: indicator.js:348
 msgid "Unpin"
 msgstr "Lepas Pin"
 
-#: indicator.js:335
+#: indicator.js:348
 msgid "Pin to Menu"
 msgstr "Sematkan ke Menu"
 
-#: indicator.js:1082
+#: indicator.js:1093
 msgid "Menu"
 msgstr "Menu"
 
-#: indicator.js:1167 indicator.js:1288 indicator.js:2292
+#: indicator.js:1176 indicator.js:1318 indicator.js:2359
 msgid "Applications"
 msgstr "Aplikasi"
 
-#: indicator.js:1180 indicator.js:1465
+#: indicator.js:1188 indicator.js:1489
 msgid "Places"
 msgstr "Lokasi"
 
-#: indicator.js:1196 indicator.js:2371
+#: indicator.js:1203 indicator.js:2436
 msgid "System Settings"
 msgstr "Pengaturan Sistem"
 
-#: indicator.js:1217 praya-preferences.py:110
+#: indicator.js:1223 praya-preferences.py:111
 msgid "Praya Preferences"
 msgstr "Preferensi Praya"
 
-#: indicator.js:1235 indicator.js:2398
+#: indicator.js:1266 indicator.js:2462
 msgid "About BlankOn"
 msgstr "Tentang BlankOn"
 
-#: indicator.js:1268
+#: indicator.js:1298
 msgid "Sound & Video"
 msgstr "Suara & Video"
 
-#: indicator.js:1269
+#: indicator.js:1299
 msgid "Audio"
 msgstr "Audio"
 
-#: indicator.js:1270
+#: indicator.js:1300
 msgid "Video"
 msgstr "Video"
 
-#: indicator.js:1271
+#: indicator.js:1301
 msgid "Development"
 msgstr "Pengembangan"
 
-#: indicator.js:1272
+#: indicator.js:1302
 msgid "Education"
 msgstr "Pendidikan"
 
-#: indicator.js:1273
+#: indicator.js:1303
 msgid "Games"
 msgstr "Permainan"
 
-#: indicator.js:1274
+#: indicator.js:1304
 msgid "Graphics"
 msgstr "Grafis"
 
-#: indicator.js:1275
+#: indicator.js:1305
 msgid "Internet"
 msgstr "Internet"
 
-#: indicator.js:1276
+#: indicator.js:1306
 msgid "Office"
 msgstr "Perkantoran"
 
-#: indicator.js:1277
+#: indicator.js:1307
 msgid "Science"
 msgstr "Sains"
 
-#: indicator.js:1278 indicator.js:2358
+#: indicator.js:1308 indicator.js:2423
 msgid "Settings"
 msgstr "Pengaturan"
 
-#: indicator.js:1279
+#: indicator.js:1309
 msgid "System Tools"
 msgstr "Peralatan Sistem"
 
-#: indicator.js:1280
+#: indicator.js:1310
 msgid "Accessories"
 msgstr "Aksesoris"
 
-#: indicator.js:1281
+#: indicator.js:1311
 msgid "Other"
 msgstr "Lainnya"
 
-#: indicator.js:1348 indicator.js:1408 indicator.js:1668 indicator.js:1669
+#: indicator.js:1377 indicator.js:1435 indicator.js:1698 indicator.js:1699
 msgid "No applications found."
 msgstr "Tidak ada aplikasi ditemukan."
 
-#: indicator.js:1478
+#: indicator.js:1502
 msgid "Home"
 msgstr "Beranda"
 
-#: indicator.js:1491
+#: indicator.js:1514
 msgid "Documents"
 msgstr "Dokumen"
 
-#: indicator.js:1505
+#: indicator.js:1527
 msgid "Downloads"
 msgstr "Unduhan"
 
-#: indicator.js:1519
+#: indicator.js:1540
 msgid "Pictures"
 msgstr "Gambar"
 
-#: indicator.js:1533
+#: indicator.js:1553
 msgid "Music"
 msgstr "Musik"
 
-#: indicator.js:1547
+#: indicator.js:1566
 msgid "Videos"
 msgstr "Video"
 
-#: indicator.js:1668
+#: indicator.js:1698
 msgid "Press Enter to chat with AI..."
 msgstr "Tekan Enter untuk ngobrol dengan AI..."
 
-#: indicator.js:2107
+#: indicator.js:2180
 msgid "Lock"
 msgstr "Kunci"
 
-#: indicator.js:2116
+#: indicator.js:2188
 msgid "Log Out"
 msgstr "Keluar"
 
-#: indicator.js:2125
+#: indicator.js:2196
 msgid "Power"
 msgstr "Daya"
 
-#: indicator.js:2140
+#: indicator.js:2211
 msgid "Suspend"
 msgstr "Tidurkan"
 
-#: indicator.js:2149
+#: indicator.js:2219
 msgid "Restart"
 msgstr "Mulai Ulang"
 
-#: indicator.js:2158
+#: indicator.js:2227
 msgid "Power Off"
 msgstr "Matikan"
 
-#: indicator.js:2242
+#: indicator.js:2309
 msgid "Search or ask..."
 msgstr "Cari atau tanya..."
 
-#: indicator.js:2411
+#: indicator.js:2475
 msgid "BlankOn Linux"
 msgstr "BlankOn Linux"
 
-#: indicator.js:2424
+#: indicator.js:2487
 msgid "BlankOn Foundation"
 msgstr "Yayasan BlankOn"
 
-#: indicator.js:2437
+#: indicator.js:2499
 msgid "Praya Shell Extension"
 msgstr "Ekstensi Praya Shell"
 
-#: indicator.js:2450
+#: indicator.js:2511
 msgid "Donate"
 msgstr "Donasi"
 
-#: chatbot.js:209 praya-preferences.py:274
+#: chatbot.js:209 praya-preferences.py:280
 msgid "Artificial Intelligence"
 msgstr "Kecerdasan Buatan"
 
@@ -212,171 +212,179 @@ msgstr "Ketik pesan... (Shift+Enter untuk baris baru)"
 msgid "Thinking"
 msgstr "Berpikir"
 
-#: praya-preferences.py:144
+#: temperature.js:87 temperature.js:103 praya-preferences.py:204
+msgid "Temperature"
+msgstr "Suhu"
+
+#: temperature.js:132
+msgid "No sensors found"
+msgstr "Sensor tidak ditemukan"
+
+#: praya-preferences.py:145
 msgid "Panel"
 msgstr "Panel"
 
-#: praya-preferences.py:149
+#: praya-preferences.py:150
 msgid "Panel Options"
 msgstr "Opsi Panel"
 
-#: praya-preferences.py:152
+#: praya-preferences.py:153
 msgid "App menu layout"
 msgstr "Tata letak menu aplikasi"
 
-#: praya-preferences.py:153
+#: praya-preferences.py:154
 msgid "Grid"
 msgstr "Kisi"
 
-#: praya-preferences.py:153
+#: praya-preferences.py:154
 msgid "List"
 msgstr "Daftar"
 
-#: praya-preferences.py:160
+#: praya-preferences.py:161
 msgid "Position"
 msgstr "Posisi"
 
-#: praya-preferences.py:161
+#: praya-preferences.py:162
 msgid "Top"
 msgstr "Atas"
 
-#: praya-preferences.py:161
+#: praya-preferences.py:162
 msgid "Bottom"
 msgstr "Bawah"
 
-#: praya-preferences.py:168
+#: praya-preferences.py:169
 msgid "Floating panel"
 msgstr "Panel mengambang"
 
-#: praya-preferences.py:176
+#: praya-preferences.py:177
 msgid "Activate on Hover"
 msgstr "Aktifkan saat Kursor Mendekat"
 
-#: praya-preferences.py:179
+#: praya-preferences.py:180
 msgid "Main menu"
 msgstr "Menu utama"
 
-#: praya-preferences.py:180
+#: praya-preferences.py:181
 msgid "Taskbar"
 msgstr "Bilah tugas"
 
-#: praya-preferences.py:181
+#: praya-preferences.py:182
 msgid "Show Desktop"
 msgstr "Tampilkan Desktop"
 
-#: praya-preferences.py:182
+#: praya-preferences.py:183
 msgid "Calendar"
 msgstr "Kalender"
 
-#: praya-preferences.py:183
+#: praya-preferences.py:184
 msgid "Quick Access"
 msgstr "Akses Cepat"
 
-#: praya-preferences.py:196
+#: praya-preferences.py:197
 msgid "Performance"
 msgstr "Performa"
 
-#: praya-preferences.py:198
+#: praya-preferences.py:199
 msgid "Low-spec Mode"
 msgstr "Mode Spek Rendah"
 
-#: praya-preferences.py:212
+#: praya-preferences.py:218
 msgid "Services"
 msgstr "Layanan"
 
-#: praya-preferences.py:217
+#: praya-preferences.py:223
 msgid "Praya Service"
 msgstr "Layanan Praya"
 
-#: praya-preferences.py:219
+#: praya-preferences.py:225
 msgid "Status"
 msgstr "Status"
 
-#: praya-preferences.py:220 praya-preferences.py:481
+#: praya-preferences.py:226 praya-preferences.py:501
 msgid "Checking..."
 msgstr "Memeriksa..."
 
-#: praya-preferences.py:234
+#: praya-preferences.py:240
 msgid "Posture Monitoring"
 msgstr "Pemantauan Postur"
 
-#: praya-preferences.py:235 praya-preferences.py:275
+#: praya-preferences.py:241 praya-preferences.py:281
 msgid "(Experimental)"
 msgstr "(Eksperimental)"
 
-#: praya-preferences.py:238 praya-preferences.py:278
+#: praya-preferences.py:244 praya-preferences.py:284
 msgid "Enable"
 msgstr "Aktifkan"
 
-#: praya-preferences.py:244
+#: praya-preferences.py:250
 msgid "Calibration"
 msgstr "Kalibrasi"
 
-#: praya-preferences.py:252
+#: praya-preferences.py:258
 msgid "Current"
 msgstr "Saat ini"
 
-#: praya-preferences.py:253
+#: praya-preferences.py:259
 msgid "Waiting for data..."
 msgstr "Menunggu data..."
 
-#: praya-preferences.py:259
+#: praya-preferences.py:265
 msgid "Level"
 msgstr "Tingkat"
 
-#: praya-preferences.py:284
+#: praya-preferences.py:290
 msgid "Provider"
 msgstr "Penyedia"
 
-#: praya-preferences.py:297
+#: praya-preferences.py:303
 msgid "Model"
 msgstr "Model"
 
-#: praya-preferences.py:303
+#: praya-preferences.py:309
 msgid "API Key"
 msgstr "Kunci API"
 
-#: praya-preferences.py:317
+#: praya-preferences.py:323
 msgid "About Praya"
 msgstr "Tentang Praya"
 
-#: praya-preferences.py:324
+#: praya-preferences.py:330
 msgid "Version"
 msgstr "Versi"
 
-#: praya-preferences.py:332
+#: praya-preferences.py:338
 msgid "Author"
 msgstr "Pembuat"
 
-#: praya-preferences.py:339
+#: praya-preferences.py:345
 msgid "Source Code"
 msgstr "Sumber kode"
 
-#: praya-preferences.py:349
+#: praya-preferences.py:355
 msgid "License"
 msgstr "Lisensi"
 
-#: praya-preferences.py:489
+#: praya-preferences.py:509
 msgid "Running"
 msgstr "Berjalan"
 
-#: praya-preferences.py:492
+#: praya-preferences.py:512
 msgid "Stopped"
 msgstr "Berhenti"
 
-#: praya-preferences.py:495
+#: praya-preferences.py:515
 msgid "Unknown"
 msgstr "Tidak diketahui"
 
-#: praya-preferences.py:498
+#: praya-preferences.py:518
 msgid "Error checking status"
 msgstr "Gagal memeriksa status"
 
-#: praya-preferences.py:509
+#: praya-preferences.py:529
 msgid "D-Bus not available"
 msgstr "D-Bus tidak tersedia"
 
-#: praya-preferences.py:529
+#: praya-preferences.py:549
 msgid "Service unavailable"
 msgstr "Layanan tidak tersedia"
 

@@ -94,6 +94,10 @@
     font-size: 1em;
 }
 
+.praya-temp-indicator-label {
+    font-size: 0.9em;
+}
+
 .praya-menu-item-arrow {
     color: #888888;
 }
