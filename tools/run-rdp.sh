@@ -19,12 +19,13 @@ CERT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/praya-test-rdp"
 UUID="praya@blankonlinux.id"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# Warn if the installed extension is not this working tree.
+# Warn if the installed extension differs from this working tree. `make run`
+# installs first, so this only fires when the script is run on its own.
 EXT_DIR="$HOME/.local/share/gnome-shell/extensions/$UUID"
-if [ -e "$EXT_DIR" ] && [ "$(readlink -f "$EXT_DIR")" != "$REPO_DIR" ]; then
-	echo "!!! $EXT_DIR is not a link to $REPO_DIR"
-	echo "!!! You will be testing whatever is installed there, not your working tree."
-	echo "!!! Fix with: rm -rf $EXT_DIR && ln -s $REPO_DIR $EXT_DIR"
+if ! cmp -s "$REPO_DIR/indicator.js" "$EXT_DIR/indicator.js" 2>/dev/null; then
+	echo "!!! $EXT_DIR does not match this working tree."
+	echo "!!! You would be testing the installed copy, not your edits."
+	echo "!!! Fix with: make install-user"
 	echo
 fi
 
