@@ -65,6 +65,9 @@ class PrayaIndicator extends PanelMenu.Button {
         // Keyboard navigation
         this._focusedIndex = -1;
         this._menuItems = [];
+        this._screenNavItems = [];
+        this._bottomSectionItems = null;
+        this._keyboardGrab = null;
         this._menuBox = null;
 
         // Load applications data
@@ -464,6 +467,52 @@ class PrayaIndicator extends PanelMenu.Button {
         }
     }
 
+    // Take the keyboard for the panel. Chrome actors do not hold it on their
+    // own, so without this the focused window keeps the keyboard and no key
+    // ever reaches our handlers -- which is why navigation used to work only
+    // when the panel was opened with the Super key.
+    //
+    // The grab is on the stage itself, not on _panel: grabbing an actor
+    // confines input to its subtree, and the hover zone, the menu button hover
+    // area, the indicator and the context menu are all separate chrome actors
+    // that would stop receiving clicks. ActionMode NORMAL keeps keybinding
+    // filtering identical to no grab at all; POPUP would make mutter filter the
+    // overlay key and Super would stop closing the panel.
+    _takeKeyboard() {
+        if (this._keyboardGrab)
+            return;
+
+        if (global.display.is_grabbed())
+            return;
+
+        try {
+            this._keyboardGrab = Main.pushModal(global.stage, {
+                actionMode: Shell.ActionMode.NORMAL,
+            });
+            if (GLib.getenv('PRAYA_DEBUG_KEYS'))
+                log(`PRAYADBG grab taken, grabActor===stage: ${global.stage.get_grab_actor() === global.stage}, modalCount=${Main.modalCount}`);
+        } catch (e) {
+            // A failed grab must never stop the panel from opening; the user
+            // just falls back to mouse interaction.
+            log(`Praya: could not take keyboard grab: ${e.message}`);
+            this._keyboardGrab = null;
+        }
+    }
+
+    _releaseKeyboard() {
+        if (!this._keyboardGrab)
+            return;
+
+        try {
+            Main.popModal(this._keyboardGrab);
+            if (GLib.getenv('PRAYA_DEBUG_KEYS'))
+                log(`PRAYADBG grab released, grabActor=${global.stage.get_grab_actor()}, modalCount=${Main.modalCount}`);
+        } catch (e) {
+            log(`Praya: could not release keyboard grab: ${e.message}`);
+        }
+        this._keyboardGrab = null;
+    }
+
     _showPanel() {
         // Prevent overlapping show/hide transitions
         if (this._isPanelTransitioning) return;
@@ -571,6 +620,8 @@ class PrayaIndicator extends PanelMenu.Button {
         this._panel.opacity = 0;
         this._panel.x = monitor.x + MARGIN_LEFT - effectiveWidth;
 
+        this._takeKeyboard();
+
         Main.layoutManager.addTopChrome(this._hoverZone);
         Main.layoutManager.addTopChrome(this._panel);
         this._panelVisible = true;
@@ -584,6 +635,8 @@ class PrayaIndicator extends PanelMenu.Button {
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onComplete: () => {
                 this._isPanelTransitioning = false;
+                if (this._panelVisible)
+                    this._takeKeyboard();
                 // Grab keyboard focus
                 if (this._isChatbotMode && this._chatbotPanel) {
                     this._chatbotPanel.focusInput();
@@ -593,76 +646,17 @@ class PrayaIndicator extends PanelMenu.Button {
             }
         });
 
-        // Add key capture for navigation and search
+        // Add key capture for navigation and search. The heavy lifting lives in
+        // _handleKeyPress() so the search entry can share it: this is a
+        // bubble-phase handler, so it never sees keys the focused ClutterText
+        // already consumed (Left/Right, notably).
         this._keyPressId = global.stage.connect('key-press-event', (actor, event) => {
             if (!this._panelVisible)
                 return Clutter.EVENT_PROPAGATE;
 
             let keyval = event.get_key_symbol();
             let keychar = String.fromCharCode(Clutter.keysym_to_unicode(keyval));
-
-            // Handle arrow key navigation
-            if (keyval === Clutter.KEY_Down) {
-                this._navigateMenu(1);
-                return Clutter.EVENT_STOP;
-            } else if (keyval === Clutter.KEY_Up) {
-                this._navigateMenu(-1);
-                return Clutter.EVENT_STOP;
-            } else if (keyval === Clutter.KEY_Return || keyval === Clutter.KEY_KP_Enter) {
-                // If search entry has focus and has text, launch first result
-                if (this._searchEntry && this._searchEntry.has_key_focus() && this._searchEntry.get_text().trim() !== '') {
-                    this._launchFirstSearchResult();
-                    return Clutter.EVENT_STOP;
-                }
-                // Otherwise activate focused menu item
-                if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
-                    this._activateMenuItem(this._focusedIndex);
-                    return Clutter.EVENT_STOP;
-                }
-            } else if (keyval === Clutter.KEY_Right) {
-                // Enter submenu if focused item has children
-                if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
-                    let item = this._menuItems[this._focusedIndex];
-                    if (item._hasChildren) {
-                        this._activateMenuItem(this._focusedIndex);
-                        return Clutter.EVENT_STOP;
-                    }
-                }
-            } else if (keyval === Clutter.KEY_Left || keyval === Clutter.KEY_BackSpace) {
-                // Go back if in nested menu (but not if typing in search)
-                if (this._navigationStack.length > 0) {
-                    if (keyval === Clutter.KEY_BackSpace && this._searchEntry && this._searchEntry.has_key_focus()) {
-                        return Clutter.EVENT_PROPAGATE;
-                    }
-                    if (!this._isAnimating) this._goBack();
-                    return Clutter.EVENT_STOP;
-                }
-            }
-
-            // Check if it's an alphanumeric character
-            if (/^[a-zA-Z0-9]$/.test(keychar)) {
-                // If we're in a nested menu (no search entry), go back to main first
-                if (!this._searchEntry || this._navigationStack.length > 0) {
-                    this._navigationStack = [];
-                    this._isSearchActive = false;
-                    this._showMainMenu(false);
-                }
-
-                // Now we should have a search entry
-                if (this._searchEntry) {
-                    // Check if search entry already has focus
-                    if (!this._searchEntry.has_key_focus()) {
-                        this._searchEntry.grab_key_focus();
-                        // Insert the character into the search entry
-                        this._searchEntry.set_text(keychar);
-                        // Move cursor to end
-                        this._searchEntry.clutter_text.set_cursor_position(-1);
-                    }
-                }
-                return Clutter.EVENT_STOP;
-            }
-
-            return Clutter.EVENT_PROPAGATE;
+            return this._handleKeyPress(keyval, keychar, false);
         });
 
         // Add hover handler on the panel to keep it open
@@ -839,6 +833,17 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _hidePanel() {
+        // Release the keyboard before any early return can strand it, and
+        // synchronously rather than in the fade-out callback, so an app
+        // launched from the menu can take focus immediately. The focus-window
+        // auto-hide is disconnected first so popping the grab cannot re-enter
+        // here.
+        if (this._focusWindowId) {
+            global.display.disconnect(this._focusWindowId);
+            this._focusWindowId = null;
+        }
+        this._releaseKeyboard();
+
         // Prevent overlapping show/hide transitions
         if (this._isPanelTransitioning) return;
         this._isPanelTransitioning = true;
@@ -866,11 +871,6 @@ class PrayaIndicator extends PanelMenu.Button {
         if (this._keyPressId) {
             global.stage.disconnect(this._keyPressId);
             this._keyPressId = null;
-        }
-
-        if (this._focusWindowId) {
-            global.display.disconnect(this._focusWindowId);
-            this._focusWindowId = null;
         }
 
         if (this._indicatorLeaveId) {
@@ -905,8 +905,13 @@ class PrayaIndicator extends PanelMenu.Button {
         this._searchEntry = null;
         this._focusedIndex = -1;
         this._menuItems = [];
+        this._screenNavItems = [];
+        this._currentScrollView = null;
         this._menuBox = null;
         this._bottomSection = null;
+        // Rebuilt with the panel; holding stale actors would resurrect
+        // destroyed rows in _getBottomNavItems().
+        this._bottomSectionItems = null;
 
         // Remove menu button hover area
         this._removeMenuButtonHoverArea();
@@ -982,6 +987,86 @@ class PrayaIndicator extends PanelMenu.Button {
         return scrollView;
     }
 
+    // Shared key handling for the panel. Called both from the stage
+    // bubble-phase handler and from the search entry's own key handler, which
+    // has to intercept Left/Right before ClutterText turns them into cursor
+    // movement. `fromEntry` marks the latter.
+    _handleKeyPress(keyval, keychar, fromEntry) {
+        if (GLib.getenv('PRAYA_DEBUG_KEYS'))
+            log(`PRAYADBG key=${keyval} fromEntry=${fromEntry} focused=${this._focusedIndex} items=${this._menuItems.length}`);
+        if (keyval === Clutter.KEY_Down) {
+            this._navigateVertical(1);
+            return Clutter.EVENT_STOP;
+        } else if (keyval === Clutter.KEY_Up) {
+            this._navigateVertical(-1);
+            return Clutter.EVENT_STOP;
+        } else if (keyval === Clutter.KEY_Escape) {
+            if (this._focusedIndex >= 0) {
+                // Drop the highlight first, so Escape never feels like a no-op.
+                this._setFocusedIndex(-1);
+                if (this._searchEntry)
+                    this._searchEntry.grab_key_focus();
+            } else if (this._searchEntry && this._searchEntry.get_text() !== '') {
+                this._searchEntry.set_text('');
+            } else if (this._navigationStack.length > 0) {
+                if (!this._isAnimating) this._goBack();
+            } else {
+                this._hidePanel();
+            }
+            return Clutter.EVENT_STOP;
+        } else if (keyval === Clutter.KEY_Return || keyval === Clutter.KEY_KP_Enter) {
+            // If search entry has focus and has text, launch first result
+            if (this._searchEntry && this._searchEntry.has_key_focus() && this._searchEntry.get_text().trim() !== '') {
+                this._launchFirstSearchResult();
+                return Clutter.EVENT_STOP;
+            }
+            // Otherwise activate focused menu item
+            if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
+                this._activateMenuItem(this._focusedIndex);
+                return Clutter.EVENT_STOP;
+            }
+        } else if (keyval === Clutter.KEY_Right) {
+            return this._navigateHorizontal(1);
+        } else if (keyval === Clutter.KEY_Left) {
+            return this._navigateHorizontal(-1);
+        } else if (keyval === Clutter.KEY_BackSpace) {
+            // Go back if in nested menu (but not if typing in search)
+            if (this._navigationStack.length > 0) {
+                if (this._searchEntry && this._searchEntry.has_key_focus()) {
+                    return Clutter.EVENT_PROPAGATE;
+                }
+                if (!this._isAnimating) this._goBack();
+                return Clutter.EVENT_STOP;
+            }
+        }
+
+        // Typing a letter or digit anywhere jumps straight into search. The
+        // entry handles its own typing, so skip this when called from there.
+        if (!fromEntry && /^[a-zA-Z0-9]$/.test(keychar)) {
+            // If we're in a nested menu (no search entry), go back to main first
+            if (!this._searchEntry || this._navigationStack.length > 0) {
+                this._navigationStack = [];
+                this._isSearchActive = false;
+                this._showMainMenu(false);
+            }
+
+            // Now we should have a search entry
+            if (this._searchEntry) {
+                // Check if search entry already has focus
+                if (!this._searchEntry.has_key_focus()) {
+                    this._searchEntry.grab_key_focus();
+                    // Insert the character into the search entry
+                    this._searchEntry.set_text(keychar);
+                    // Move cursor to end
+                    this._searchEntry.clutter_text.set_cursor_position(-1);
+                }
+            }
+            return Clutter.EVENT_STOP;
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     _navigateMenu(direction) {
         if (this._menuItems.length === 0)
             return;
@@ -1002,6 +1087,90 @@ class PrayaIndicator extends PanelMenu.Button {
         this._setFocusedIndex(newIndex);
     }
 
+    // Vertical movement. Inside an app grid this steps a whole row; anywhere
+    // else it is the plain linear walk.
+    _navigateVertical(direction) {
+        let item = this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length
+            ? this._menuItems[this._focusedIndex]
+            : null;
+        let container = item ? item._gridContainer : null;
+
+        if (!container || !container._columns) {
+            this._navigateMenu(direction);
+            return;
+        }
+
+        let columns = container._columns;
+        let total = container._gridCount;
+        let gridIndex = item._gridIndex;
+        // navItems are pushed in the same order the tiles are added, so the
+        // grid's first tile sits at this offset in _menuItems.
+        let base = this._focusedIndex - gridIndex;
+        let target = gridIndex + direction * columns;
+
+        if (target >= 0 && target < total) {
+            this._focusIndex(base + target);
+            return;
+        }
+
+        if (direction > 0) {
+            let lastRow = Math.floor((total - 1) / columns);
+            if (Math.floor(gridIndex / columns) < lastRow) {
+                // Short last row: land on its final tile rather than overshoot.
+                this._focusIndex(base + total - 1);
+                return;
+            }
+            // Out of the grid downwards, wrapping around the whole menu.
+            this._focusIndex(base + total >= this._menuItems.length ? 0 : base + total);
+            return;
+        }
+
+        // Out of the grid upwards, wrapping around the whole menu.
+        this._focusIndex(base - 1 < 0 ? this._menuItems.length - 1 : base - 1);
+    }
+
+    // Horizontal movement. On a grid tile this walks the flat item list, which
+    // is row-major and therefore reads as left/right. On anything else it keeps
+    // the old meaning: Right descends into a submenu, Left goes back.
+    _navigateHorizontal(direction) {
+        let item = this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length
+            ? this._menuItems[this._focusedIndex]
+            : null;
+
+        if (item && item._gridContainer) {
+            this._navigateMenu(direction);
+            return Clutter.EVENT_STOP;
+        }
+
+        if (direction > 0) {
+            if (item && item._hasChildren) {
+                this._activateMenuItem(this._focusedIndex);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        if (this._navigationStack.length > 0) {
+            if (!this._isAnimating) this._goBack();
+            return Clutter.EVENT_STOP;
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    // Focus an index directly, dropping search-entry focus the way
+    // _navigateMenu() does.
+    _focusIndex(index) {
+        if (index < 0 || index >= this._menuItems.length)
+            return;
+
+        if (this._searchEntry && this._searchEntry.has_key_focus()) {
+            global.stage.set_key_focus(null);
+        }
+
+        this._setFocusedIndex(index);
+    }
+
     _setFocusedIndex(index) {
         // Remove highlight from previous item
         if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
@@ -1009,6 +1178,8 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         this._focusedIndex = index;
+        if (GLib.getenv('PRAYA_DEBUG_KEYS'))
+            log(`PRAYADBG focus -> ${index}`);
 
         // Add highlight to new item
         if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
@@ -1044,9 +1215,36 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _registerMenuItems(items, scrollView) {
-        this._menuItems = items;
+        this._screenNavItems = items;
         this._currentScrollView = scrollView;
         this._focusedIndex = -1;
+        this._menuItems = items.concat(this._getBottomNavItems());
+    }
+
+    // The bottom section (Lock / Log Out / Power) lives outside the sliding
+    // container and outlives screen changes, so it is appended to whatever the
+    // current screen registered.
+    _getBottomNavItems() {
+        let items = this._bottomSectionItems;
+        if (!items)
+            return [];
+
+        let navItems = [items.lock, items.logout, items.power];
+        if (items.powerOptionsBox && items.powerOptionsBox._expanded)
+            navItems.push(items.suspend, items.restart, items.powerOff);
+
+        return navItems.filter(item => item);
+    }
+
+    // Re-append the bottom items after the power submenu expands or collapses,
+    // keeping the highlight on whichever actor currently holds it.
+    _refreshBottomNavItems() {
+        let focused = this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length
+            ? this._menuItems[this._focusedIndex]
+            : null;
+
+        this._menuItems = (this._screenNavItems || []).concat(this._getBottomNavItems());
+        this._focusedIndex = focused ? this._menuItems.indexOf(focused) : -1;
     }
 
     _animateSlide(newContent, direction) {
@@ -1972,6 +2170,10 @@ class PrayaIndicator extends PanelMenu.Button {
                 St.BoxLayout.prototype.add_child.call(this, this._gridRow);
             }
             this._gridRow.add_child(child);
+            // Remember where the tile sits, so the arrow keys can move through
+            // the grid in two dimensions. See _navigateVertical().
+            child._gridContainer = this;
+            child._gridIndex = this._gridCount;
             this._gridCount++;
         };
 
@@ -2178,17 +2380,25 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Lock item (same level as Power)
         let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
-        connectClickHandler(lockItem, () => {
+        lockItem._hasChildren = false;
+        lockItem._activateCallback = () => {
             Main.screenShield.lock(true);
             this._hidePanel();
+        };
+        connectClickHandler(lockItem, () => {
+            lockItem._activateCallback();
         });
         bottomSection.add_child(lockItem);
 
         // Log Out item (same level as Power)
         let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
-        connectClickHandler(logoutItem, () => {
+        logoutItem._hasChildren = false;
+        logoutItem._activateCallback = () => {
             this._hidePanel();
             this._systemActions.activateLogout();
+        };
+        connectClickHandler(logoutItem, () => {
+            logoutItem._activateCallback();
         });
         bottomSection.add_child(logoutItem);
 
@@ -2209,32 +2419,45 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Suspend
         let suspendItem = this._createSubMenuItem(_('Suspend'));
-        connectClickHandler(suspendItem, () => {
+        suspendItem._hasChildren = false;
+        suspendItem._activateCallback = () => {
             this._hidePanel();
             this._systemActions.activateSuspend();
+        };
+        connectClickHandler(suspendItem, () => {
+            suspendItem._activateCallback();
         });
         powerOptionsBox.add_child(suspendItem);
 
         // Restart
         let restartItem = this._createSubMenuItem(_('Restart'));
-        connectClickHandler(restartItem, () => {
+        restartItem._hasChildren = false;
+        restartItem._activateCallback = () => {
             this._hidePanel();
             this._systemActions.activateRestart();
+        };
+        connectClickHandler(restartItem, () => {
+            restartItem._activateCallback();
         });
         powerOptionsBox.add_child(restartItem);
 
         // Power Off
         let powerOffItem = this._createSubMenuItem(_('Power Off'));
-        connectClickHandler(powerOffItem, () => {
+        powerOffItem._hasChildren = false;
+        powerOffItem._activateCallback = () => {
             this._hidePanel();
             this._systemActions.activatePowerOff();
+        };
+        connectClickHandler(powerOffItem, () => {
+            powerOffItem._activateCallback();
         });
         powerOptionsBox.add_child(powerOffItem);
 
         bottomSection.add_child(powerOptionsBox);
 
         // Toggle power options on click/touch with slide animation
-        connectClickHandler(powerItem, () => {
+        powerItem._hasChildren = true;
+        powerItem._activateCallback = () => {
             let arrow = powerItem.get_last_child();
             if (powerOptionsBox._expanded) {
                 // Collapse with animation
@@ -2271,7 +2494,24 @@ class PrayaIndicator extends PanelMenu.Button {
                 arrow.icon_name = 'go-down-symbolic';
                 powerOptionsBox._expanded = true;
             }
+
+            // Suspend/Restart/Power Off are only reachable by keyboard while
+            // the submenu is open.
+            this._refreshBottomNavItems();
+        };
+        connectClickHandler(powerItem, () => {
+            powerItem._activateCallback();
         });
+
+        this._bottomSectionItems = {
+            lock: lockItem,
+            logout: logoutItem,
+            power: powerItem,
+            powerOptionsBox,
+            suspend: suspendItem,
+            restart: restartItem,
+            powerOff: powerOffItem,
+        };
 
         return bottomSection;
     }
@@ -2328,6 +2568,14 @@ class PrayaIndicator extends PanelMenu.Button {
                     // Launch first app in search results
                     this._launchFirstSearchResult();
                     return Clutter.EVENT_STOP;
+                } else if (symbol === Clutter.KEY_Left || symbol === Clutter.KEY_Right) {
+                    // ClutterText would swallow these as cursor movement, and
+                    // the stage handler is bubble-phase so it would never see
+                    // them. With text in the box the cursor wins; with an empty
+                    // box they belong to the menu.
+                    if (this._searchEntry.get_text() !== '')
+                        return Clutter.EVENT_PROPAGATE;
+                    return this._handleKeyPress(symbol, '', true);
                 }
                 return Clutter.EVENT_PROPAGATE;
             });
@@ -2371,38 +2619,44 @@ class PrayaIndicator extends PanelMenu.Button {
                 'Utility', 'Settings', 'Other'
             ];
 
+            let navItems = [];
+
+            let addCategoryItem = (categoryId) => {
+                let info = this._getCategoryInfo(categoryId);
+                let categoryItem = this._createMenuItem(
+                    info.name,
+                    info.icon,
+                    true
+                );
+                categoryItem._hasChildren = true;
+                categoryItem._activateCallback = ((catId) => () => {
+                    if (!this._isAnimating) this._showCategoryApps(catId);
+                })(categoryId);
+                connectClickHandler(categoryItem, () => {
+                    categoryItem._activateCallback();
+                });
+                menuBox.add_child(categoryItem);
+                navItems.push(categoryItem);
+            };
+
             for (let categoryId of categoryOrder) {
                 if (this._categories[categoryId] && this._categories[categoryId].length > 0) {
-                    let info = this._getCategoryInfo(categoryId);
-                    let categoryItem = this._createMenuItem(
-                        info.name,
-                        info.icon,
-                        true
-                    );
-                    connectClickHandler(categoryItem, () => {
-                        if (!this._isAnimating) this._showCategoryApps(categoryId);
-                    });
-                    menuBox.add_child(categoryItem);
+                    addCategoryItem(categoryId);
                 }
             }
 
             for (let categoryId in this._categories) {
                 if (!categoryOrder.includes(categoryId) && this._categories[categoryId].length > 0) {
-                    let info = this._getCategoryInfo(categoryId);
-                    let categoryItem = this._createMenuItem(
-                        info.name,
-                        info.icon,
-                        true
-                    );
-                    connectClickHandler(categoryItem, () => {
-                        if (!this._isAnimating) this._showCategoryApps(categoryId);
-                    });
-                    menuBox.add_child(categoryItem);
+                    addCategoryItem(categoryId);
                 }
             }
 
             scrollView.add_child(menuBox);
             this._animateSlide(scrollView, 'back');
+
+            // Without this the arrow keys would keep driving the category
+            // screen we just left, whose actors are being destroyed.
+            this._registerMenuItems(navItems, scrollView);
         }
     }
 
@@ -2757,6 +3011,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Force cleanup regardless of transition state
         this._isPanelTransitioning = false;
         this._hidePanel();
+        this._releaseKeyboard();
         super.destroy();
     }
 });

@@ -899,6 +899,12 @@ export default class PrayaExtension extends Extension {
                 if ((symbol === Clutter.KEY_Alt_L || symbol === Clutter.KEY_Alt_R) &&
                     this._altTapState === 'pressed') {
                     this._altTapState = null;
+                    // Close our panel first: it holds a modal grab, and letting
+                    // the overview stack its own on top leaves Praya lingering
+                    // behind it.
+                    if (this._indicator && this._indicator._panelVisible) {
+                        this._indicator._hidePanel();
+                    }
                     // Open GNOME Activities Overview (workspace view)
                     if (this._originalOverviewToggle) {
                         this._originalOverviewToggle();
@@ -2087,6 +2093,12 @@ export default class PrayaExtension extends Extension {
     }
 
     disable() {
+        // Drop any modal grab first: leaking one leaves the session with a
+        // dead keyboard.
+        if (this._indicator) {
+            this._indicator._releaseKeyboard();
+        }
+
         // Stop config file monitors
         this._cleanupConfigMonitors();
 

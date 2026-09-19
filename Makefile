@@ -8,17 +8,19 @@ EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
 	translations.js touch-helper.js metadata.json stylesheet.css \
 	lowspec-dialog.py praya-preferences.py assets locale
 
-# Install the working tree over the user's installed extension, so a test
-# session runs the code you just edited. Deliberately a copy and not a
-# symlink: the packaged autostart updater (praya-update-user.sh) does
-# `cp -r` into this directory, which through a symlink would overwrite the
-# git working tree.
+# Install the working tree over the user's real installed extension, for
+# trying it in an actual desktop session. `make run` does not need this.
+# Deliberately a copy and not a symlink: the packaged autostart updater
+# (praya-update-user.sh) does `cp -r` into this directory, which through a
+# symlink would overwrite the git working tree.
 install-user: build-mo
 	@mkdir -p $(EXT_DIR)
 	@cp -r $(EXT_FILES) $(EXT_DIR)/
 	@echo "Installed working tree to $(EXT_DIR)"
 
-run: install-user
+# Runs the extension straight from the working tree (see tools/run-rdp.sh);
+# nothing is copied into ~/.local/share. Use install-user for that.
+run: build-mo
 	dbus-run-session -- ./tools/run-rdp.sh
 
 run-devkit-nested:
