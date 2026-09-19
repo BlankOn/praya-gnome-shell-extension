@@ -489,8 +489,6 @@ class PrayaIndicator extends PanelMenu.Button {
             this._keyboardGrab = Main.pushModal(global.stage, {
                 actionMode: Shell.ActionMode.NORMAL,
             });
-            if (GLib.getenv('PRAYA_DEBUG_KEYS'))
-                log(`PRAYADBG grab taken, grabActor===stage: ${global.stage.get_grab_actor() === global.stage}, modalCount=${Main.modalCount}`);
         } catch (e) {
             // A failed grab must never stop the panel from opening; the user
             // just falls back to mouse interaction.
@@ -505,8 +503,6 @@ class PrayaIndicator extends PanelMenu.Button {
 
         try {
             Main.popModal(this._keyboardGrab);
-            if (GLib.getenv('PRAYA_DEBUG_KEYS'))
-                log(`PRAYADBG grab released, grabActor=${global.stage.get_grab_actor()}, modalCount=${Main.modalCount}`);
         } catch (e) {
             log(`Praya: could not release keyboard grab: ${e.message}`);
         }
@@ -656,7 +652,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
             let keyval = event.get_key_symbol();
             let keychar = String.fromCharCode(Clutter.keysym_to_unicode(keyval));
-            return this._handleKeyPress(keyval, keychar, false);
+            return this._handleKeyPress(keyval, keychar, false, event.get_time());
         });
 
         // Add hover handler on the panel to keep it open
@@ -991,9 +987,25 @@ class PrayaIndicator extends PanelMenu.Button {
     // bubble-phase handler and from the search entry's own key handler, which
     // has to intercept Left/Right before ClutterText turns them into cursor
     // movement. `fromEntry` marks the latter.
-    _handleKeyPress(keyval, keychar, fromEntry) {
-        if (GLib.getenv('PRAYA_DEBUG_KEYS'))
-            log(`PRAYADBG key=${keyval} fromEntry=${fromEntry} focused=${this._focusedIndex} items=${this._menuItems.length}`);
+    _handleKeyPress(keyval, keychar, fromEntry, eventTime) {
+        // St.Entry relays key events to its ClutterText, which also receives
+        // them directly, so a single keypress can arrive here twice carrying
+        // the same event time. Acting on both would move the focus two steps.
+        if (eventTime !== undefined &&
+            eventTime === this._lastKeyEventTime &&
+            keyval === this._lastKeyEventSym) {
+            return this._lastKeyEventResult;
+        }
+        this._lastKeyEventTime = eventTime;
+        this._lastKeyEventSym = keyval;
+        this._lastKeyEventResult = Clutter.EVENT_PROPAGATE;
+
+        let result = this._handleKeyPressUnfiltered(keyval, keychar, fromEntry);
+        this._lastKeyEventResult = result;
+        return result;
+    }
+
+    _handleKeyPressUnfiltered(keyval, keychar, fromEntry) {
         if (keyval === Clutter.KEY_Down) {
             this._navigateVertical(1);
             return Clutter.EVENT_STOP;
@@ -1142,8 +1154,23 @@ class PrayaIndicator extends PanelMenu.Button {
             return Clutter.EVENT_STOP;
         }
 
+        if (!item) {
+            if (this._menuItems.length === 0)
+                return Clutter.EVENT_PROPAGATE;
+
+            // Fresh screen with nothing highlighted. Right steps in at the
+            // start; Left goes back when there is somewhere to go back to,
+            // otherwise it wraps in at the end.
+            if (direction < 0 && this._navigationStack.length > 0) {
+                if (!this._isAnimating) this._goBack();
+                return Clutter.EVENT_STOP;
+            }
+            this._navigateMenu(direction);
+            return Clutter.EVENT_STOP;
+        }
+
         if (direction > 0) {
-            if (item && item._hasChildren) {
+            if (item._hasChildren) {
                 this._activateMenuItem(this._focusedIndex);
                 return Clutter.EVENT_STOP;
             }
@@ -1178,8 +1205,6 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         this._focusedIndex = index;
-        if (GLib.getenv('PRAYA_DEBUG_KEYS'))
-            log(`PRAYADBG focus -> ${index}`);
 
         // Add highlight to new item
         if (this._focusedIndex >= 0 && this._focusedIndex < this._menuItems.length) {
@@ -1188,7 +1213,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
             // Scroll item into view if needed
             if (this._currentScrollView) {
-                let adjustment = this._currentScrollView.vscroll.adjustment;
+                let adjustment = this._currentScrollView.get_vadjustment();
                 let [itemX, itemY] = item.get_transformed_position();
                 let [scrollX, scrollY] = this._currentScrollView.get_transformed_position();
                 let relativeY = itemY - scrollY;
@@ -2517,6 +2542,10 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _updateHeader(title, showBack) {
+        // destroy_all_children() disposes the search entry when there is one.
+        // Anything still holding the reference would be touching a disposed
+        // St.Entry, which crashes the shell rather than just throwing.
+        this._searchEntry = null;
         this._header.destroy_all_children();
 
         if (showBack) {
@@ -2565,7 +2594,13 @@ class PrayaIndicator extends PanelMenu.Button {
                         return Clutter.EVENT_STOP;
                     }
                 } else if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter) {
-                    // Launch first app in search results
+                    // With text in the box, Enter launches the top result. With
+                    // an empty box _launchFirstSearchResult() is a no-op, and
+                    // swallowing the key here would stop Enter from activating
+                    // whatever the arrow keys have highlighted.
+                    if (this._searchEntry.get_text().trim() === '')
+                        return this._handleKeyPress(symbol, '', true, event.get_time());
+
                     this._launchFirstSearchResult();
                     return Clutter.EVENT_STOP;
                 } else if (symbol === Clutter.KEY_Left || symbol === Clutter.KEY_Right) {
@@ -2575,7 +2610,7 @@ class PrayaIndicator extends PanelMenu.Button {
                     // box they belong to the menu.
                     if (this._searchEntry.get_text() !== '')
                         return Clutter.EVENT_PROPAGATE;
-                    return this._handleKeyPress(symbol, '', true);
+                    return this._handleKeyPress(symbol, '', true, event.get_time());
                 }
                 return Clutter.EVENT_PROPAGATE;
             });
