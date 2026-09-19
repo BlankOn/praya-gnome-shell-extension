@@ -4,6 +4,9 @@ POTFILES_PY = $(shell grep '\.py$$' po/POTFILES.in)
 LINGUAS = $(shell cat po/LINGUAS)
 
 run:
+	dbus-run-session -- ./tools/run-rdp.sh
+
+run-devkit-nested:
 	dbus-run-session -- gnome-shell --devkit --wayland
 
 pot:
@@ -36,4 +39,4 @@ build-mo:
 
 i18n: pot update-po build-mo
 
-.PHONY: run pot update-po build-mo i18n
+.PHONY: run run-devkit-nested pot update-po build-mo i18n
