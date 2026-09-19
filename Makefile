@@ -2,8 +2,28 @@ DOMAIN = praya
 POTFILES_JS = $(shell grep '\.js$$' po/POTFILES.in)
 POTFILES_PY = $(shell grep '\.py$$' po/POTFILES.in)
 LINGUAS = $(shell cat po/LINGUAS)
+EXT_UUID = praya@blankonlinux.id
+EXT_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(EXT_UUID)
+EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
+	translations.js touch-helper.js metadata.json stylesheet.css \
+	lowspec-dialog.py praya-preferences.py assets locale
 
-run:
+# Install the working tree over the user's real installed extension, for
+# trying it in an actual desktop session. `make run` does not need this.
+# Deliberately a copy and not a symlink: the packaged autostart updater
+# (praya-update-user.sh) does `cp -r` into this directory, which through a
+# symlink would overwrite the git working tree.
+install-user: build-mo
+	@mkdir -p $(EXT_DIR)
+	@cp -r $(EXT_FILES) $(EXT_DIR)/
+	@echo "Installed working tree to $(EXT_DIR)"
+
+# Runs the extension straight from the working tree (see tools/run-rdp.sh);
+# nothing is copied into ~/.local/share. Use install-user for that.
+run: build-mo
+	dbus-run-session -- ./tools/run-rdp.sh
+
+run-devkit-nested:
 	dbus-run-session -- gnome-shell --devkit --wayland
 
 pot:
@@ -36,4 +56,4 @@ build-mo:
 
 i18n: pot update-po build-mo
 
-.PHONY: run pot update-po build-mo i18n
+.PHONY: run install-user run-devkit-nested pot update-po build-mo i18n
