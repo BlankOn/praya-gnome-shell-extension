@@ -1028,7 +1028,7 @@ class PrayaIndicator extends PanelMenu.Button {
             return Clutter.EVENT_STOP;
         } else if (keyval === Clutter.KEY_Return || keyval === Clutter.KEY_KP_Enter) {
             // If search entry has focus and has text, launch first result
-            if (this._searchEntry && this._searchEntry.has_key_focus() && this._searchEntry.get_text().trim() !== '') {
+            if (this._searchEntryHasFocus() && this._searchEntry.get_text().trim() !== '') {
                 this._launchFirstSearchResult();
                 return Clutter.EVENT_STOP;
             }
@@ -1044,7 +1044,7 @@ class PrayaIndicator extends PanelMenu.Button {
         } else if (keyval === Clutter.KEY_BackSpace) {
             // Go back if in nested menu (but not if typing in search)
             if (this._navigationStack.length > 0) {
-                if (this._searchEntry && this._searchEntry.has_key_focus()) {
+                if (this._searchEntryHasFocus()) {
                     return Clutter.EVENT_PROPAGATE;
                 }
                 if (!this._isAnimating) this._goBack();
@@ -1065,7 +1065,7 @@ class PrayaIndicator extends PanelMenu.Button {
             // Now we should have a search entry
             if (this._searchEntry) {
                 // Check if search entry already has focus
-                if (!this._searchEntry.has_key_focus()) {
+                if (!this._searchEntryHasFocus()) {
                     this._searchEntry.grab_key_focus();
                     // Insert the character into the search entry
                     this._searchEntry.set_text(keychar);
@@ -1079,12 +1079,21 @@ class PrayaIndicator extends PanelMenu.Button {
         return Clutter.EVENT_PROPAGATE;
     }
 
+    // St.Entry hands its key focus to the inner ClutterText, so
+    // St.Entry.has_key_focus() is false while the user is typing. Check both.
+    _searchEntryHasFocus() {
+        if (!this._searchEntry)
+            return false;
+        let focus = global.stage.get_key_focus();
+        return focus === this._searchEntry || focus === this._searchEntry.clutter_text;
+    }
+
     _navigateMenu(direction) {
         if (this._menuItems.length === 0)
             return;
 
         // Remove focus from search entry if navigating
-        if (this._searchEntry && this._searchEntry.has_key_focus()) {
+        if (this._searchEntryHasFocus()) {
             global.stage.set_key_focus(null);
         }
 
@@ -1191,7 +1200,7 @@ class PrayaIndicator extends PanelMenu.Button {
         if (index < 0 || index >= this._menuItems.length)
             return;
 
-        if (this._searchEntry && this._searchEntry.has_key_focus()) {
+        if (this._searchEntryHasFocus()) {
             global.stage.set_key_focus(null);
         }
 
