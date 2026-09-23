@@ -380,6 +380,26 @@ msgstr "D-Bus tidak tersedia"
 msgid "Service unavailable"
 msgstr "Layanan tidak tersedia"
 
+#: taskbar.js
+msgid "Minimize"
+msgstr "Minimalkan"
+
+#: taskbar.js
+msgid "Maximize"
+msgstr "Maksimalkan"
+
+#: taskbar.js
+msgid "Move"
+msgstr "Pindahkan"
+
+#: taskbar.js
+msgid "Close"
+msgstr "Tutup"
+
+#: taskbar.js
+msgid "Force Close"
+msgstr "Paksa Tutup"
+
 #~ msgid "Disabled"
 #~ msgstr "Nonaktif"
 

@@ -12,7 +12,11 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+
 import { connectClickHandler } from './touch-helper.js';
+import { _ } from './translations.js';
 
 export const PrayaTaskbar = GObject.registerClass(
 class PrayaTaskbar extends St.BoxLayout {
@@ -33,6 +37,11 @@ class PrayaTaskbar extends St.BoxLayout {
         this._workspaceSignals = [];
         this._titleSignals = [];
         this._clickCooldowns = new Map();
+
+        // Right-click context menu
+        this._menuManager = new PopupMenu.PopupMenuManager(this);
+        this._contextMenu = null;
+        this._updatePending = false;
 
         // Connect to window events
         this._windowAddedId = global.display.connect('window-created', () => {
@@ -68,6 +77,13 @@ class PrayaTaskbar extends St.BoxLayout {
     }
 
     _updateTaskbar() {
+        // Rebuilding would destroy the context menu's source button,
+        // so defer until the menu closes
+        if (this._contextMenu) {
+            this._updatePending = true;
+            return;
+        }
+
         // Disconnect existing title signals
         for (let sig of this._titleSignals) {
             sig.window.disconnect(sig.id);
@@ -226,9 +242,105 @@ class PrayaTaskbar extends St.BoxLayout {
             onMiddleClick: () => {
                 window.delete(global.get_current_time());
             },
+            onRightClick: () => {
+                this._showContextMenu(button, window);
+            },
         });
 
         return button;
+    }
+
+    _showContextMenu(button, window) {
+        this._destroyContextMenu();
+
+        let menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
+        Main.uiGroup.add_child(menu.actor);
+        menu.actor.hide();
+        this._menuManager.addMenu(menu);
+        this._contextMenu = menu;
+
+        let item;
+
+        if (!window.minimized) {
+            item = menu.addAction(_('Minimize'), () => {
+                window.minimize();
+            });
+            if (!window.can_minimize()) {
+                item.setSensitive(false);
+            }
+        }
+
+        if (!window.is_maximized()) {
+            item = menu.addAction(_('Maximize'), (event) => {
+                if (window.minimized) {
+                    window.unminimize();
+                }
+                window.maximize();
+                window.activate(event.get_time());
+            });
+            if (!window.can_maximize()) {
+                item.setSensitive(false);
+            }
+        }
+
+        item = menu.addAction(_('Close'), (event) => {
+            window.delete(event.get_time());
+        });
+        if (!window.can_close()) {
+            item.setSensitive(false);
+        }
+
+        menu.addAction(_('Force Close'), () => {
+            window.kill();
+        });
+
+        item = menu.addAction(_('Move'), (event) => {
+            if (window.minimized) {
+                window.unminimize();
+            }
+            window.activate(event.get_time());
+
+            let backend = global.stage.get_context().get_backend();
+            let sprite = backend.get_sprite(global.stage, event) ||
+                backend.get_pointer_sprite(global.stage);
+            window.begin_grab_op(
+                Meta.GrabOp.KEYBOARD_MOVING,
+                sprite,
+                event.get_time(),
+                null);
+        });
+        if (!window.allows_move()) {
+            item.setSensitive(false);
+        }
+
+        menu.connect('open-state-changed', (m, isOpen) => {
+            if (!isOpen) {
+                // Destroy after the activated item's callback has run
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (this._contextMenu === menu) {
+                        this._destroyContextMenu();
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        });
+
+        menu.open();
+    }
+
+    _destroyContextMenu() {
+        if (!this._contextMenu) {
+            return;
+        }
+        let menu = this._contextMenu;
+        this._contextMenu = null;
+        this._menuManager.removeMenu(menu);
+        menu.destroy();
+
+        if (this._updatePending) {
+            this._updatePending = false;
+            this._updateTaskbar();
+        }
     }
 
     _activateWithFade(window) {
@@ -266,6 +378,9 @@ class PrayaTaskbar extends St.BoxLayout {
     }
 
     destroy() {
+        this._updatePending = false;
+        this._destroyContextMenu();
+
         // Disconnect title signals
         for (let sig of this._titleSignals) {
             sig.window.disconnect(sig.id);
