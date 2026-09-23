@@ -309,6 +309,17 @@
     font-weight: normal;
 }
 
+/* Window count badge on a grouped app button */
+.praya-taskbar-count {
+    color: #ffffff;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
 .praya-taskbar-tooltip {
     background-color: #2d2d2d;
     color: #ffffff;

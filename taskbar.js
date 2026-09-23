@@ -18,6 +18,10 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { connectClickHandler } from './touch-helper.js';
 import { _ } from './translations.js';
 
+// Applications with more windows than this are collapsed into a single
+// grouped taskbar button
+const GROUP_THRESHOLD = 2;
+
 export const PrayaTaskbar = GObject.registerClass(
 class PrayaTaskbar extends St.BoxLayout {
     _init() {
@@ -108,20 +112,55 @@ class PrayaTaskbar extends St.BoxLayout {
 
         let focusedWindow = global.display.focus_window;
 
-        for (let window of windows) {
-            let app = this._windowTracker.get_window_app(window);
-            let button = this._createWindowButton(window, app, window === focusedWindow);
-            this.add_child(button);
+        for (let group of this._groupWindows(windows)) {
+            if (group.windows.length > GROUP_THRESHOLD) {
+                this.add_child(
+                    this._createGroupButton(group.app, group.windows, focusedWindow));
+            } else {
+                for (let window of group.windows) {
+                    this.add_child(this._createWindowButton(
+                        window, group.app, window === focusedWindow));
+                }
+            }
 
             // Connect to title changes
-            let titleId = window.connect('notify::title', () => {
-                this._updateTaskbar();
-            });
-            this._titleSignals.push({ window: window, id: titleId });
+            for (let window of group.windows) {
+                let titleId = window.connect('notify::title', () => {
+                    this._updateTaskbar();
+                });
+                this._titleSignals.push({ window: window, id: titleId });
+            }
         }
 
     }
 
+    // Group windows by their application, preserving the order in which each
+    // application's first window appears. Windows without an application are
+    // kept as single-window groups.
+    _groupWindows(windows) {
+        let groups = new Map();
+
+        for (let window of windows) {
+            let app = this._windowTracker.get_window_app(window);
+            let id = app ? app.get_id() : null;
+            if (!id) {
+                // Keyed by the window itself so it never merges with others
+                groups.set(window, { app: app, windows: [window] });
+                continue;
+            }
+            let group = groups.get(id);
+            if (!group) {
+                group = { app: app, windows: [] };
+                groups.set(id, group);
+            }
+            group.windows.push(window);
+        }
+
+        return [...groups.values()];
+    }
+
+    // Windows in taskbar order: grouped by application, so that the order
+    // matches the buttons shown in the panel
     getWindows() {
         let workspace = global.workspace_manager.get_active_workspace();
         let windows = global.get_window_actors()
@@ -132,7 +171,12 @@ class PrayaTaskbar extends St.BoxLayout {
                        w.get_window_type() === Meta.WindowType.NORMAL;
             });
         windows.sort((a, b) => a.get_stable_sequence() - b.get_stable_sequence());
-        return windows;
+
+        let ordered = [];
+        for (let group of this._groupWindows(windows)) {
+            ordered.push(...group.windows);
+        }
+        return ordered;
     }
 
     _createWindowButton(window, app, isFocused) {
@@ -250,7 +294,118 @@ class PrayaTaskbar extends St.BoxLayout {
         return button;
     }
 
-    _showContextMenu(button, window) {
+    _createGroupButton(app, windows, focusedWindow) {
+        let button = new St.BoxLayout({
+            style_class: 'praya-taskbar-button',
+            reactive: true,
+            track_hover: true,
+        });
+
+        let innerBox = new St.BoxLayout({
+            style_class: 'praya-taskbar-button-inner',
+            y_expand: true,
+            y_align: Clutter.ActorAlign.FILL,
+        });
+
+        if (windows.includes(focusedWindow)) {
+            innerBox.add_style_class_name('praya-taskbar-button-inner-focused');
+        }
+
+        if (windows.every(w => w.minimized)) {
+            button.add_style_class_name('praya-taskbar-button-minimized');
+        }
+
+        let icon;
+        if (app) {
+            icon = app.create_icon_texture(20);
+        } else {
+            icon = new St.Icon({
+                icon_name: 'application-x-executable-symbolic',
+                icon_size: 20,
+            });
+        }
+        icon.style_class = 'praya-taskbar-icon';
+        innerBox.add_child(icon);
+
+        let name = app ? app.get_name() : 'Window';
+        if (name.length > 20) {
+            name = name.substring(0, 18) + '...';
+        }
+        innerBox.add_child(new St.Label({
+            text: name,
+            style_class: 'praya-taskbar-label',
+            y_align: Clutter.ActorAlign.CENTER,
+        }));
+
+        innerBox.add_child(new St.Label({
+            text: `${windows.length}`,
+            style_class: 'praya-taskbar-count',
+            y_align: Clutter.ActorAlign.CENTER,
+        }));
+
+        button.add_child(innerBox);
+
+        // Both left and right click open the window list
+        connectClickHandler(button, () => {
+            this._showGroupMenu(button, app, windows);
+        }, {
+            onRightClick: () => {
+                this._showGroupMenu(button, app, windows);
+            },
+        });
+
+        return button;
+    }
+
+    _showGroupMenu(button, app, windows) {
+        // Clicking the button while its menu is open closes it
+        if (this._contextMenu && this._contextMenu.sourceActor === button) {
+            this._destroyContextMenu();
+            return;
+        }
+
+        let menu = this._createMenu(button);
+        let focusedWindow = global.display.focus_window;
+
+        for (let window of windows) {
+            let title = window.get_title() || (app ? app.get_name() : 'Window');
+            if (title.length > 40) {
+                title = title.substring(0, 38) + '...';
+            }
+            let item = menu.addAction(title, (event) => {
+                if (window.minimized) {
+                    window.unminimize();
+                }
+                window.activate(event ? event.get_time() : global.get_current_time());
+            });
+            if (window === focusedWindow) {
+                item.setOrnament(PopupMenu.Ornament.DOT);
+            }
+        }
+
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        menu.addAction(_('Minimize All'), () => {
+            for (let window of windows) {
+                if (!window.minimized && window.can_minimize()) {
+                    window.minimize();
+                }
+            }
+        });
+
+        menu.addAction(_('Close All'), (event) => {
+            let time = event ? event.get_time() : global.get_current_time();
+            for (let window of windows) {
+                window.delete(time);
+            }
+        });
+
+        menu.open();
+    }
+
+    // Create a popup menu anchored on a taskbar button, replacing any menu
+    // that is currently open
+    _createMenu(button) {
         this._destroyContextMenu();
 
         let menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
@@ -258,6 +413,24 @@ class PrayaTaskbar extends St.BoxLayout {
         menu.actor.hide();
         this._menuManager.addMenu(menu);
         this._contextMenu = menu;
+
+        menu.connect('open-state-changed', (m, isOpen) => {
+            if (!isOpen) {
+                // Destroy after the activated item's callback has run
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (this._contextMenu === menu) {
+                        this._destroyContextMenu();
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        });
+
+        return menu;
+    }
+
+    _showContextMenu(button, window) {
+        let menu = this._createMenu(button);
 
         let item;
 
@@ -312,18 +485,6 @@ class PrayaTaskbar extends St.BoxLayout {
         if (!window.allows_move()) {
             item.setSensitive(false);
         }
-
-        menu.connect('open-state-changed', (m, isOpen) => {
-            if (!isOpen) {
-                // Destroy after the activated item's callback has run
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    if (this._contextMenu === menu) {
-                        this._destroyContextMenu();
-                    }
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-        });
 
         menu.open();
     }
