@@ -20,6 +20,14 @@
     padding-left: 8px;
 }
 
+/* Hint shown next to a sub-view title: typing jumps into search */
+.praya-header-hint {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.5);
+    padding-right: 12px;
+}
+
 .praya-search-icon {
     color: #888888;
     padding-left: 8px;
@@ -261,8 +269,38 @@
 }
 
 .praya-taskbar {
-    spacing: 4px;
     padding: 0 8px;
+    spacing: 2px;
+}
+
+/* Scrollable viewport - buttons running past either edge fade out */
+.praya-taskbar-scroll {
+    -st-hfade-offset: 24px;
+}
+
+/* Button row inside the scrollable taskbar */
+.praya-taskbar-box {
+    spacing: 4px;
+}
+
+/* Left/right scroll arrows, shown only when there is more to scroll to */
+.praya-taskbar-arrow {
+    color: #ffffff;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0;
+    margin: 0 2px;
+    border-radius: 12px;
+    background-color: transparent;
+    transition: background-color 150ms;
+}
+
+.praya-taskbar-arrow:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.praya-taskbar-arrow:active {
+    background-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Outer button container - transparent, no margin, handles clicks */

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 06:16+0700\n"
+"POT-Creation-Date: 2026-09-24 06:59+0700\n"
 "PO-Revision-Date: 2026-02-19 17:13+0700\n"
 "Last-Translator: \n"
 "Language-Team: Indonesian\n"
@@ -48,7 +48,7 @@ msgstr "Sematkan ke Menu"
 msgid "Menu"
 msgstr "Menu"
 
-#: indicator.js:1408 indicator.js:1550 indicator.js:2651
+#: indicator.js:1408 indicator.js:1550 indicator.js:2660
 msgid "Applications"
 msgstr "Aplikasi"
 
@@ -56,7 +56,7 @@ msgstr "Aplikasi"
 msgid "Places"
 msgstr "Lokasi"
 
-#: indicator.js:1435 indicator.js:2734
+#: indicator.js:1435 indicator.js:2743
 msgid "System Settings"
 msgstr "Pengaturan Sistem"
 
@@ -64,7 +64,7 @@ msgstr "Pengaturan Sistem"
 msgid "Praya Preferences"
 msgstr "Preferensi Praya"
 
-#: indicator.js:1498 indicator.js:2760
+#: indicator.js:1498 indicator.js:2769
 msgid "About BlankOn"
 msgstr "Tentang BlankOn"
 
@@ -108,7 +108,7 @@ msgstr "Perkantoran"
 msgid "Science"
 msgstr "Sains"
 
-#: indicator.js:1540 indicator.js:2721
+#: indicator.js:1540 indicator.js:2730
 msgid "Settings"
 msgstr "Pengaturan"
 
@@ -181,22 +181,26 @@ msgid "Power Off"
 msgstr "Matikan"
 
 #: indicator.js:2587
+msgid "Type to search..."
+msgstr "Ketik untuk mencari..."
+
+#: indicator.js:2596
 msgid "Search or ask..."
 msgstr "Cari atau tanya..."
 
-#: indicator.js:2773
+#: indicator.js:2782
 msgid "BlankOn Linux"
 msgstr "BlankOn Linux"
 
-#: indicator.js:2785
+#: indicator.js:2794
 msgid "BlankOn Foundation"
 msgstr "Yayasan BlankOn"
 
-#: indicator.js:2797
+#: indicator.js:2806
 msgid "Praya Shell Extension"
 msgstr "Ekstensi Praya Shell"
 
-#: indicator.js:2809
+#: indicator.js:2818
 msgid "Donate"
 msgstr "Donasi"
 
@@ -212,31 +216,31 @@ msgstr "Ketik pesan... (Shift+Enter untuk baris baru)"
 msgid "Thinking"
 msgstr "Berpikir"
 
-#: taskbar.js:388
+#: taskbar.js:645
 msgid "Minimize All"
 msgstr "Minimalkan Semua"
 
-#: taskbar.js:396
+#: taskbar.js:653
 msgid "Close All"
 msgstr "Tutup Semua"
 
-#: taskbar.js:438
+#: taskbar.js:695
 msgid "Minimize"
 msgstr "Minimalkan"
 
-#: taskbar.js:447
+#: taskbar.js:704
 msgid "Maximize"
 msgstr "Maksimalkan"
 
-#: taskbar.js:459
+#: taskbar.js:716
 msgid "Close"
 msgstr "Tutup"
 
-#: taskbar.js:466
+#: taskbar.js:723
 msgid "Force Close"
 msgstr "Paksa Tutup"
 
-#: taskbar.js:470
+#: taskbar.js:727
 msgid "Move"
 msgstr "Pindahkan"
 

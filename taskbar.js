@@ -22,6 +22,21 @@ import { _ } from './translations.js';
 // grouped taskbar button
 const GROUP_THRESHOLD = 2;
 
+// Pixels scrolled per mouse wheel click
+const SCROLL_STEP = 60;
+
+// Breathing room left between the taskbar and the other panel items
+const WIDTH_SLACK = 24;
+
+// The taskbar never shrinks below this, even on a crowded panel
+const MIN_WIDTH = 120;
+
+// How far an arrow button scrolls, as a fraction of the visible width
+const ARROW_SCROLL_FRACTION = 0.8;
+
+// Duration of the arrow button's scroll animation
+const ARROW_SCROLL_DURATION = 200;
+
 export const PrayaTaskbar = GObject.registerClass(
 class PrayaTaskbar extends St.BoxLayout {
     _init() {
@@ -29,8 +44,52 @@ class PrayaTaskbar extends St.BoxLayout {
             style_class: 'praya-taskbar',
             reactive: true,
             track_hover: true,
+            x_expand: false,
+        });
+
+        // Scroll arrows, shown only when there is something to scroll to
+        this._leftArrow = this._createArrow('pan-start-symbolic', -1);
+        this.add_child(this._leftArrow);
+
+        // Scrollable so a long list of windows never grows over the calendar
+        // and quick settings on the right side of the panel. The buttons that
+        // run past either edge fade out (-st-hfade-offset in the stylesheet).
+        this._scrollView = new St.ScrollView({
+            style_class: 'praya-taskbar-scroll',
+            hscrollbar_policy: St.PolicyType.EXTERNAL,
+            vscrollbar_policy: St.PolicyType.NEVER,
+            reactive: true,
+            track_hover: true,
+            x_expand: true,
+            clip_to_allocation: true,
+        });
+        this.add_child(this._scrollView);
+
+        this._rightArrow = this._createArrow('pan-end-symbolic', 1);
+        this.add_child(this._rightArrow);
+
+        this._box = new St.BoxLayout({
+            style_class: 'praya-taskbar-box',
+            reactive: true,
+            track_hover: true,
             x_expand: true,
         });
+        this._scrollView.set_child(this._box);
+
+        this._maxWidth = -1;
+        this._scrollLaterId = 0;
+
+        // Keep the arrows in sync with the scroll position
+        let adjustment = this._getHAdjustment();
+        this._adjustmentSignals = [];
+        if (adjustment) {
+            for (let signal of ['changed', 'notify::value']) {
+                this._adjustmentSignals.push({
+                    object: adjustment,
+                    id: adjustment.connect(signal, () => this._updateArrows()),
+                });
+            }
+        }
 
         this._windowTracker = Shell.WindowTracker.get_default();
         this._appSystem = Shell.AppSystem.get_default();
@@ -73,11 +132,195 @@ class PrayaTaskbar extends St.BoxLayout {
             this._updateTaskbar();
         });
 
+        // Recompute the available width when the panel or its contents change
+        this._panelSignals = [];
+        this._panelSignals.push({
+            object: Main.panel,
+            id: Main.panel.connect('notify::width', () => this._updateMaxWidth()),
+        });
+        for (let box of [Main.panel._leftBox, Main.panel._centerBox, Main.panel._rightBox]) {
+            if (!box) {
+                continue;
+            }
+            this._panelSignals.push({
+                object: box,
+                id: box.connect('child-added', () => this._updateMaxWidth()),
+            });
+            this._panelSignals.push({
+                object: box,
+                id: box.connect('child-removed', () => this._updateMaxWidth()),
+            });
+        }
+        this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
+            this._updateMaxWidth();
+        });
+
+        // Mouse wheel scrolls the taskbar horizontally
+        this._scrollView.connect('scroll-event', (actor, event) => this._onScroll(event));
+
         // Initial update with delay to ensure windows are loaded
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
             this._updateTaskbar();
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _getHAdjustment() {
+        let view = this._scrollView;
+        if (view.get_hadjustment) {
+            return view.get_hadjustment();
+        }
+        return view.hscroll ? view.hscroll.adjustment : null;
+    }
+
+    _createArrow(iconName, direction) {
+        let arrow = new St.Button({
+            style_class: 'praya-taskbar-arrow',
+            child: new St.Icon({
+                icon_name: iconName,
+                icon_size: 12,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+            }),
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            visible: false,
+        });
+
+        arrow.connect('clicked', () => this._scrollBy(direction));
+        return arrow;
+    }
+
+    // Scroll one screenful in the given direction (-1 left, 1 right)
+    _scrollBy(direction) {
+        let adjustment = this._getHAdjustment();
+        if (!adjustment || adjustment.page_size <= 0) {
+            return;
+        }
+
+        let max = Math.max(0, adjustment.upper - adjustment.page_size);
+        let step = adjustment.page_size * ARROW_SCROLL_FRACTION;
+        let target = Math.min(max, Math.max(0, adjustment.value + direction * step));
+        adjustment.ease(target, {
+            duration: ARROW_SCROLL_DURATION,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+    }
+
+    // An arrow is shown only while there is hidden content on that side
+    _updateArrows() {
+        let adjustment = this._getHAdjustment();
+        if (!adjustment) {
+            return;
+        }
+
+        let max = Math.max(0, adjustment.upper - adjustment.page_size);
+        this._leftArrow.visible = adjustment.value > 1;
+        this._rightArrow.visible = adjustment.value < max - 1;
+    }
+
+    _onScroll(event) {
+        let adjustment = this._getHAdjustment();
+        if (!adjustment) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        let delta = 0;
+        switch (event.get_scroll_direction()) {
+            case Clutter.ScrollDirection.UP:
+            case Clutter.ScrollDirection.LEFT:
+                delta = -SCROLL_STEP;
+                break;
+            case Clutter.ScrollDirection.DOWN:
+            case Clutter.ScrollDirection.RIGHT:
+                delta = SCROLL_STEP;
+                break;
+            case Clutter.ScrollDirection.SMOOTH: {
+                let [dx, dy] = event.get_scroll_delta();
+                delta = (dx + dy) * SCROLL_STEP;
+                break;
+            }
+        }
+
+        if (delta === 0) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+
+        let max = Math.max(0, adjustment.upper - adjustment.page_size);
+        adjustment.value = Math.min(max, Math.max(0, adjustment.value + delta));
+        return Clutter.EVENT_STOP;
+    }
+
+    // Cap the taskbar width at the space the other panel items leave free, so
+    // that the buttons scroll instead of overlapping them
+    _updateMaxWidth() {
+        let panel = Main.panel;
+        if (!panel) {
+            return;
+        }
+
+        let panelWidth = panel.get_width();
+        if (panelWidth <= 0) {
+            let monitor = Main.layoutManager.primaryMonitor;
+            panelWidth = monitor ? monitor.width : 0;
+        }
+        if (panelWidth <= 0) {
+            return;
+        }
+
+        let used = 0;
+        for (let box of [panel._leftBox, panel._centerBox, panel._rightBox]) {
+            // The center box may have been removed from the panel
+            if (!box || !box.get_parent()) {
+                continue;
+            }
+            for (let child of box.get_children()) {
+                if (child === this || !child.visible) {
+                    continue;
+                }
+                used += child.get_preferred_width(-1)[1];
+            }
+        }
+
+        let available = Math.max(MIN_WIDTH, panelWidth - used - WIDTH_SLACK);
+        if (Math.abs(available - this._maxWidth) < 1) {
+            return;
+        }
+        this._maxWidth = available;
+        this.style = `max-width: ${Math.round(available)}px;`;
+    }
+
+    // Keep the focused window's button within the visible part of the taskbar.
+    // Runs after the buttons have been laid out, so their allocation is known.
+    _scrollToButton(button) {
+        this._removeScrollLater();
+
+        let laters = global.compositor.get_laters();
+        this._scrollLaterId = laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+            this._scrollLaterId = 0;
+
+            let adjustment = this._getHAdjustment();
+            if (!adjustment || !button.get_parent() || adjustment.page_size <= 0) {
+                return GLib.SOURCE_REMOVE;
+            }
+
+            let box = button.get_allocation_box();
+            let max = Math.max(0, adjustment.upper - adjustment.page_size);
+            if (box.x1 < adjustment.value) {
+                adjustment.value = Math.max(0, box.x1);
+            } else if (box.x2 > adjustment.value + adjustment.page_size) {
+                adjustment.value = Math.min(max, box.x2 - adjustment.page_size);
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _removeScrollLater() {
+        if (!this._scrollLaterId) {
+            return;
+        }
+        global.compositor.get_laters().remove(this._scrollLaterId);
+        this._scrollLaterId = 0;
     }
 
     _updateTaskbar() {
@@ -95,7 +338,7 @@ class PrayaTaskbar extends St.BoxLayout {
         this._titleSignals = [];
 
         // Remove all existing children
-        this.destroy_all_children();
+        this._box.destroy_all_children();
 
         // Get all windows on current workspace
         let workspace = global.workspace_manager.get_active_workspace();
@@ -112,14 +355,24 @@ class PrayaTaskbar extends St.BoxLayout {
 
         let focusedWindow = global.display.focus_window;
 
+        let focusedButton = null;
+
         for (let group of this._groupWindows(windows)) {
             if (group.windows.length > GROUP_THRESHOLD) {
-                this.add_child(
-                    this._createGroupButton(group.app, group.windows, focusedWindow));
+                let button = this._createGroupButton(
+                    group.app, group.windows, focusedWindow);
+                this._box.add_child(button);
+                if (group.windows.includes(focusedWindow)) {
+                    focusedButton = button;
+                }
             } else {
                 for (let window of group.windows) {
-                    this.add_child(this._createWindowButton(
-                        window, group.app, window === focusedWindow));
+                    let button = this._createWindowButton(
+                        window, group.app, window === focusedWindow);
+                    this._box.add_child(button);
+                    if (window === focusedWindow) {
+                        focusedButton = button;
+                    }
                 }
             }
 
@@ -132,6 +385,12 @@ class PrayaTaskbar extends St.BoxLayout {
             }
         }
 
+        this._updateMaxWidth();
+        this._updateArrows();
+
+        if (focusedButton) {
+            this._scrollToButton(focusedButton);
+        }
     }
 
     // Group windows by their application, preserving the order in which each
@@ -541,6 +800,23 @@ class PrayaTaskbar extends St.BoxLayout {
     destroy() {
         this._updatePending = false;
         this._destroyContextMenu();
+
+        this._removeScrollLater();
+
+        for (let sig of this._panelSignals || []) {
+            sig.object.disconnect(sig.id);
+        }
+        this._panelSignals = [];
+
+        for (let sig of this._adjustmentSignals || []) {
+            sig.object.disconnect(sig.id);
+        }
+        this._adjustmentSignals = [];
+
+        if (this._monitorsChangedId) {
+            Main.layoutManager.disconnect(this._monitorsChangedId);
+            this._monitorsChangedId = null;
+        }
 
         // Disconnect title signals
         for (let sig of this._titleSignals) {

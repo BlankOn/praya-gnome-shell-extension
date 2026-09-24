@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 06:16+0700\n"
+"POT-Creation-Date: 2026-09-24 06:59+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -49,7 +49,7 @@ msgstr ""
 msgid "Menu"
 msgstr ""
 
-#: indicator.js:1408 indicator.js:1550 indicator.js:2651
+#: indicator.js:1408 indicator.js:1550 indicator.js:2660
 msgid "Applications"
 msgstr ""
 
@@ -57,7 +57,7 @@ msgstr ""
 msgid "Places"
 msgstr ""
 
-#: indicator.js:1435 indicator.js:2734
+#: indicator.js:1435 indicator.js:2743
 msgid "System Settings"
 msgstr ""
 
@@ -65,7 +65,7 @@ msgstr ""
 msgid "Praya Preferences"
 msgstr ""
 
-#: indicator.js:1498 indicator.js:2760
+#: indicator.js:1498 indicator.js:2769
 msgid "About BlankOn"
 msgstr ""
 
@@ -109,7 +109,7 @@ msgstr ""
 msgid "Science"
 msgstr ""
 
-#: indicator.js:1540 indicator.js:2721
+#: indicator.js:1540 indicator.js:2730
 msgid "Settings"
 msgstr ""
 
@@ -182,22 +182,26 @@ msgid "Power Off"
 msgstr ""
 
 #: indicator.js:2587
+msgid "Type to search..."
+msgstr ""
+
+#: indicator.js:2596
 msgid "Search or ask..."
 msgstr ""
 
-#: indicator.js:2773
+#: indicator.js:2782
 msgid "BlankOn Linux"
 msgstr ""
 
-#: indicator.js:2785
+#: indicator.js:2794
 msgid "BlankOn Foundation"
 msgstr ""
 
-#: indicator.js:2797
+#: indicator.js:2806
 msgid "Praya Shell Extension"
 msgstr ""
 
-#: indicator.js:2809
+#: indicator.js:2818
 msgid "Donate"
 msgstr ""
 
@@ -213,31 +217,31 @@ msgstr ""
 msgid "Thinking"
 msgstr ""
 
-#: taskbar.js:388
+#: taskbar.js:645
 msgid "Minimize All"
 msgstr ""
 
-#: taskbar.js:396
+#: taskbar.js:653
 msgid "Close All"
 msgstr ""
 
-#: taskbar.js:438
+#: taskbar.js:695
 msgid "Minimize"
 msgstr ""
 
-#: taskbar.js:447
+#: taskbar.js:704
 msgid "Maximize"
 msgstr ""
 
-#: taskbar.js:459
+#: taskbar.js:716
 msgid "Close"
 msgstr ""
 
-#: taskbar.js:466
+#: taskbar.js:723
 msgid "Force Close"
 msgstr ""
 
-#: taskbar.js:470
+#: taskbar.js:727
 msgid "Move"
 msgstr ""
 

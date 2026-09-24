@@ -5,6 +5,10 @@ praya-gnome-shell-extension (0.1.40-1) sinambung; urgency=medium
   * Group applications with more than two windows into a single taskbar
     button showing a window count. Clicking it lists the windows, with
     Minimize All and Close All actions.
+  * Scroll the taskbar horizontally instead of letting it grow over the
+    calendar and quick settings. Buttons fade out at the edges, the mouse
+    wheel scrolls it, and arrow buttons appear on either side when there
+    are more windows in that direction.
 
  -- BlankOn Linux <blankon-dev@googlegroups.com>  Thu, 24 Sep 2026 06:30:00 +0700
 
