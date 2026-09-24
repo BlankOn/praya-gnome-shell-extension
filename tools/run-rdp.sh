@@ -55,12 +55,19 @@ echo "==> Loading $UUID from $REPO_DIR (nothing installed to $REAL_DATA_HOME)"
 # grdctl writes *global* per-user configuration, which a running daemon watches.
 # A second instance would therefore reconfigure the first one out from under
 # itself and kill the session you are using. Take a lock instead.
+#
+# The fd is allocated through {LOCKFD} rather than a fixed `exec 9>`: bash
+# marks those close-on-exec, so processes spawned from the test session (an
+# app launched inside it, say) do not inherit the lock and keep it held after
+# this script has exited.
 LOCK="${XDG_RUNTIME_DIR:-/tmp}/praya-run-rdp.lock"
-exec 9>"$LOCK"
-if ! flock -n 9; then
+exec {LOCKFD}>"$LOCK"
+if ! flock -n "$LOCKFD"; then
 	echo "!!! Another $(basename "$0") is already running."
 	echo "!!! Stop it first - gnome-remote-desktop config is per-user and global,"
 	echo "!!! so a second session would break the one you are already using."
+	echo "!!! If nothing is running, see who holds the lock with:"
+	echo "!!!     fuser -v $LOCK"
 	exit 1
 fi
 

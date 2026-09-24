@@ -2580,6 +2580,15 @@ class PrayaIndicator extends PanelMenu.Button {
                 x_expand: true,
             });
             this._header.add_child(headerLabel);
+
+            // These views have no search entry, so hint that typing still
+            // jumps straight into search
+            let headerHint = new St.Label({
+                text: _('Type to search...'),
+                style_class: 'praya-header-hint',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            this._header.add_child(headerHint);
         } else {
             // Show search entry (main menu view) - entry first, icon on right
             this._searchEntry = new St.Entry({
