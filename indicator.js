@@ -19,7 +19,7 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
-import { connectClickHandler } from './touch-helper.js';
+import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
 
 import {
     PANEL_WIDTH,
@@ -620,6 +620,8 @@ class PrayaIndicator extends PanelMenu.Button {
 
         Main.layoutManager.addTopChrome(this._hoverZone);
         Main.layoutManager.addTopChrome(this._panel);
+        this._stackBelowKeyboard(this._hoverZone);
+        this._stackBelowKeyboard(this._panel);
         this._panelVisible = true;
 
         // Fade in + slide to right animation
@@ -702,6 +704,12 @@ class PrayaIndicator extends PanelMenu.Button {
 
                 // Check if click is on the indicator button or menu button hover area (don't hide)
                 let clickedActor = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y);
+
+                // Typing on the on-screen keyboard is part of using the panel
+                if (this._isOnScreenKeyboardActor(clickedActor)) {
+                    return Clutter.EVENT_PROPAGATE;
+                }
+
                 let dominated = this.contains(clickedActor);
                 if (dominated) {
                     return Clutter.EVENT_PROPAGATE;
@@ -809,9 +817,40 @@ class PrayaIndicator extends PanelMenu.Button {
         }
     }
 
+    // addTopChrome() appends to uiGroup, and the on-screen keyboard's
+    // keyboardBox was added the same way at shell startup, so a freshly added
+    // panel would cover the keyboard. Keep the panel just beneath it.
+    _stackBelowKeyboard(actor) {
+        let keyboardBox = Main.layoutManager.keyboardBox;
+        if (!actor || !keyboardBox || actor.get_parent() !== keyboardBox.get_parent())
+            return;
+
+        actor.get_parent().set_child_below_sibling(actor, keyboardBox);
+    }
+
+    // Keys live in keyboardBox; the long-press extended-key popups are separate
+    // chrome and are recognised the same way gnome-shell's keyboard does.
+    _isOnScreenKeyboardActor(actor) {
+        let keyboardBox = Main.layoutManager.keyboardBox;
+        if (keyboardBox && keyboardBox.contains(actor))
+            return true;
+
+        for (let a = actor; a; a = a.get_parent()) {
+            if (a._extendedKeys || a.extendedKey)
+                return true;
+        }
+        return false;
+    }
+
     _scheduleHidePanel() {
         // Don't schedule hide if context menu is open or transitioning chatbot
         if (this._contextMenu || this._isTransitioningChatbot) {
+            return;
+        }
+
+        // Moving onto the on-screen keyboard leaves the hover zone, but the
+        // user is still typing into the panel.
+        if (Main.keyboard?.visible) {
             return;
         }
 
@@ -980,6 +1019,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Use sliding container height which already accounts for bottom section
         let containerHeight = this._slidingContainer ? this._slidingContainer.height : 400;
         scrollView.set_size(this._getEffectivePanelWidth(), height || containerHeight);
+        enableTouchScroll(scrollView);
         return scrollView;
     }
 
@@ -1343,6 +1383,7 @@ class PrayaIndicator extends PanelMenu.Button {
             x_expand: true,
             y_expand: true,
         });
+        enableTouchScroll(scrollView);
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
@@ -1912,6 +1953,7 @@ class PrayaIndicator extends PanelMenu.Button {
             x_expand: true,
             y_expand: true,
         });
+        enableTouchScroll(scrollView);
         scrollView.set_size(this._getEffectivePanelWidth(), containerHeight);
 
         let menuBox = new St.BoxLayout({

@@ -15,7 +15,7 @@ import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import { connectClickHandler } from './touch-helper.js';
+import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
 import { _ } from './translations.js';
 
 // Applications with more windows than this are collapsed into a single
@@ -63,6 +63,7 @@ class PrayaTaskbar extends St.BoxLayout {
             x_expand: true,
             clip_to_allocation: true,
         });
+        enableTouchScroll(this._scrollView, { horizontal: true });
         this.add_child(this._scrollView);
 
         this._rightArrow = this._createArrow('pan-end-symbolic', 1);

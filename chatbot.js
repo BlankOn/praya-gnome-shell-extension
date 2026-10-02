@@ -12,6 +12,7 @@ import Clutter from 'gi://Clutter';
 import Soup from 'gi://Soup?version=3.0';
 
 import { _ } from './translations.js';
+import { enableTouchScroll } from './touch-helper.js';
 import {
     CHATBOT_SETTINGS_FILE,
     CHATBOT_PANEL_WIDTH,
@@ -249,6 +250,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
             y_expand: true,
             clip_to_allocation: true,
         });
+        enableTouchScroll(this._scrollView);
 
         // Create messages container - y_expand: false ensures it doesn't fill the viewport
         this._messagesBox = new St.BoxLayout({
