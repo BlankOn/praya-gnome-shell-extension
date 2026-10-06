@@ -8,8 +8,8 @@ It covers the behaviour of the menu rework:
 
 - The profile row has a **Lock button** and a **Power toggle**.
 - **Lock has no dropdown** (it locks the screen directly).
-- The **Power dropdown** lists 5 rows — Suspend, Restart, Power Off, a
-  horizontal separator, and Log Out.
+- The **Power dropdown** lists 6 rows — Suspend, Restart, Power Off, a
+  horizontal separator, Log Out, and Switch User.
 - The dropdown starts closed and contributes no height.
 - Toggling Power opens the dropdown to exactly its measured height, the last
   row is **not clipped**, and the bottom section grows to fit.
@@ -37,18 +37,19 @@ PASS Lock button exists in the profile row
 PASS Power toggle exists in the profile row
 PASS Lock has no dropdown (it locks directly)
 PASS Power dropdown exists
-PASS Power dropdown lists 5 rows (got 5)
+PASS Power dropdown lists 6 rows (got 6)
 PASS row 4 is a horizontal separator
+PASS last row is Switch User (got "Switch User")
 PASS dropdown starts closed
 PASS closed dropdown contributes no height
 PASS dropdown opens when toggled
-PASS open dropdown height matches target (233 vs 233)
-PASS last row is fully visible, not clipped (bottom 227.0 <= box 233)
+PASS open dropdown height matches target (285 vs 285)
+PASS last row is fully visible, not clipped (bottom 279.0 <= box 285)
 PASS bottom section height accounts for the open dropdown
 PASS dropdown closes on second toggle
 PASS dropdown height returns to 0
 PASS bottom section returns to its collapsed height
-PASS summary: 16/16 checks passed
+PASS summary: 17/17 checks passed
 DONE
 =====================================
 RESULT: PASS

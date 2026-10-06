@@ -1306,7 +1306,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let navItems = [items.lockButton, items.power];
         if (items.powerOptionsBox && items.powerOptionsBox._expanded)
-            navItems.push(items.suspend, items.restart, items.powerOff, items.logout);
+            navItems.push(items.suspend, items.restart, items.powerOff, items.logout, items.switchUser);
 
         return navItems.filter(item => item);
     }
@@ -1392,7 +1392,8 @@ class PrayaIndicator extends PanelMenu.Button {
         this._refreshBottomNavItems();
     }
 
-    // Toggle the Power dropdown (Suspend / Restart / Power Off / Lock / Log Out).
+    // Toggle the Power dropdown (Suspend / Restart / Power Off / Log Out /
+    // Switch User).
     _togglePowerOptions() {
         let items = this._bottomSectionItems;
         if (!items)
@@ -2636,7 +2637,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         powerOptionsBox.add_child(powerOffItem);
 
-        // Horizontal separator, then the Log Out action moved here from the old
+        // Horizontal separator, then the session actions moved here from the old
         // Lock group.
         powerOptionsBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
 
@@ -2650,6 +2651,17 @@ class PrayaIndicator extends PanelMenu.Button {
             logoutItem._activateCallback();
         });
         powerOptionsBox.add_child(logoutItem);
+
+        let switchUserItem = this._createMenuItem(_('Switch User'), 'system-switch-user-symbolic', false);
+        switchUserItem._hasChildren = false;
+        switchUserItem._activateCallback = () => {
+            this._hidePanel();
+            this._systemActions.activateSwitchUser();
+        };
+        connectClickHandler(switchUserItem, () => {
+            switchUserItem._activateCallback();
+        });
+        powerOptionsBox.add_child(switchUserItem);
 
         powerOptionsBox._targetHeight = this._measureOptionsHeight(powerOptionsBox);
         powerOptionsBox.set_height(0);
@@ -2666,6 +2678,7 @@ class PrayaIndicator extends PanelMenu.Button {
             restart: restartItem,
             powerOff: powerOffItem,
             logout: logoutItem,
+            switchUser: switchUserItem,
         };
 
         return bottomSection;

@@ -164,6 +164,10 @@ msgstr "Kunci"
 msgid "Log Out"
 msgstr "Keluar"
 
+#: indicator.js
+msgid "Switch User"
+msgstr "Ganti Pengguna"
+
 #: indicator.js:2440
 msgid "Power"
 msgstr "Daya"

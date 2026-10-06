@@ -67,13 +67,17 @@ function _prayaTestRun(indicator) {
             }
 
             const rows = box.get_children();
-            _prayaTestCheck(rows.length === 5,
-                `Power dropdown lists 5 rows (got ${rows.length})`);
+            _prayaTestCheck(rows.length === 6,
+                `Power dropdown lists 6 rows (got ${rows.length})`);
 
             const separator = rows[3];
             _prayaTestCheck(!!separator &&
                     (separator.get_style_class_name() || '').includes('praya-separator'),
                 'row 4 is a horizontal separator');
+
+            const lastLabel = rows[5] ? rows[5].get_children()[1] : null;
+            _prayaTestCheck(!!lastLabel && lastLabel.text === _('Switch User'),
+                `last row is Switch User (got "${lastLabel ? lastLabel.text : ''}")`);
 
             _prayaTestCheck(!box._expanded, 'dropdown starts closed');
             _prayaTestCheck(indicator._getSessionActionsHeight() === 0,
