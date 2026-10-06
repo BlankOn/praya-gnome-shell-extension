@@ -67,6 +67,7 @@ class PrayaIndicator extends PanelMenu.Button {
         this._menuItems = [];
         this._screenNavItems = [];
         this._bottomSectionItems = null;
+        this._sessionActionsBox = null;
         this._keyboardGrab = null;
         this._menuBox = null;
 
@@ -545,6 +546,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
         let availableHeight = monitor.height - panelHeight - MARGIN_TOP - bottomMargin;
+        this._availableHeight = availableHeight;
 
         let effectiveWidth = this._getEffectivePanelWidth();
 
@@ -586,10 +588,8 @@ class PrayaIndicator extends PanelMenu.Button {
         // Create persistent bottom section first to measure its height
         this._bottomSection = this._createBottomSection();
 
-        // Base height for bottom section when collapsed (User ~72 + Lock 52 + LogOut 52 + Power 52 + separator ~17 + padding)
-        this._bottomSectionBaseHeight = 260;
-        // Additional height when power menu is expanded
-        this._powerOptionsHeight = 150;
+        // Height of the bottom section with both dropdowns hidden.
+        this._bottomSectionCollapsedHeight = 87;
 
         // Create sliding container for navigation with clipping
         this._slidingContainer = new St.Widget({
@@ -597,7 +597,7 @@ class PrayaIndicator extends PanelMenu.Button {
             x_expand: true,
             clip_to_allocation: true,
         });
-        this._slidingContainer.set_size(effectiveWidth, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
+        this._slidingContainer.set_size(effectiveWidth, availableHeight - HEADER_HEIGHT - this._getBottomSectionHeight());
 
         this._panel.add_child(this._slidingContainer);
         this._panel.add_child(this._bottomSection);
@@ -947,6 +947,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Rebuilt with the panel; holding stale actors would resurrect
         // destroyed rows in _getBottomNavItems().
         this._bottomSectionItems = null;
+        this._sessionActionsBox = null;
 
         // Remove menu button hover area
         this._removeMenuButtonHoverArea();
@@ -1303,11 +1304,112 @@ class PrayaIndicator extends PanelMenu.Button {
         if (!items)
             return [];
 
-        let navItems = [items.lock, items.logout, items.power];
+        let navItems = [items.lockToggle, items.power];
+        if (items.lockOptionsBox && items.lockOptionsBox._expanded)
+            navItems.push(items.lock, items.logout);
         if (items.powerOptionsBox && items.powerOptionsBox._expanded)
             navItems.push(items.suspend, items.restart, items.powerOff);
 
         return navItems.filter(item => item);
+    }
+
+    // Full height of an options box. get_preferred_height() only sums the
+    // children's own heights, so add back their 2px vertical margins and the
+    // box's own 4px vertical padding before we clip the box while collapsed.
+    _measureOptionsHeight(box) {
+        return box.get_preferred_height(-1)[1] + 4 * box.get_n_children() + 8;
+    }
+
+    // Height of the currently open session dropdown, or 0 when both are closed.
+    _getSessionActionsHeight() {
+        let items = this._bottomSectionItems;
+        if (items && items.lockOptionsBox && items.lockOptionsBox._expanded)
+            return items.lockOptionsBox._targetHeight;
+        if (items && items.powerOptionsBox && items.powerOptionsBox._expanded)
+            return items.powerOptionsBox._targetHeight;
+        return 0;
+    }
+
+    // Effective height of the persistent bottom section, taking the open
+    // dropdown into account.
+    _getBottomSectionHeight() {
+        return this._bottomSectionCollapsedHeight + this._getSessionActionsHeight();
+    }
+
+    // Resize the sliding container so the panel keeps its full height while the
+    // bottom section grows or shrinks.
+    _updateSlidingHeight(animate = true) {
+        if (!this._slidingContainer || this._availableHeight === undefined)
+            return;
+
+        let target = this._availableHeight - HEADER_HEIGHT - this._getBottomSectionHeight();
+        if (animate) {
+            this._slidingContainer.ease({
+                height: target,
+                duration: ANIMATION_DURATION,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        } else {
+            this._slidingContainer.set_size(this._slidingContainer.width, target);
+        }
+    }
+
+    // Grow/shrink the dropdown container to fit the open options.
+    _updateSessionActionsHeight() {
+        if (!this._sessionActionsBox)
+            return;
+
+        this._sessionActionsBox.ease({
+            height: this._getSessionActionsHeight(),
+            duration: ANIMATION_DURATION,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+        this._updateSlidingHeight();
+    }
+
+    // Open/close a dropdown, marking its toggle active while it is open.
+    _setSubmenuExpanded(box, toggle, expanded) {
+        if (!box || box._expanded === expanded)
+            return;
+
+        box._expanded = expanded;
+        box.ease({
+            height: expanded ? box._targetHeight : 0,
+            duration: ANIMATION_DURATION,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+
+        if (toggle) {
+            if (expanded)
+                toggle.add_style_class_name('praya-session-toggle-active');
+            else
+                toggle.remove_style_class_name('praya-session-toggle-active');
+        }
+
+        this._updateSessionActionsHeight();
+        this._refreshBottomNavItems();
+    }
+
+    // Toggle the Lock dropdown (Lock / Log Out); only one dropdown at a time.
+    _toggleLockOptions() {
+        let items = this._bottomSectionItems;
+        if (!items)
+            return;
+        let open = !items.lockOptionsBox._expanded;
+        if (open)
+            this._setSubmenuExpanded(items.powerOptionsBox, items.power, false);
+        this._setSubmenuExpanded(items.lockOptionsBox, items.lockToggle, open);
+    }
+
+    // Toggle the Power dropdown (Suspend/Restart/Power Off); only one at a time.
+    _togglePowerOptions() {
+        let items = this._bottomSectionItems;
+        if (!items)
+            return;
+        let open = !items.powerOptionsBox._expanded;
+        if (open)
+            this._setSubmenuExpanded(items.lockOptionsBox, items.lockToggle, false);
+        this._setSubmenuExpanded(items.powerOptionsBox, items.power, open);
     }
 
     // Re-append the bottom items after the power submenu expands or collapses,
@@ -2439,22 +2541,74 @@ class PrayaIndicator extends PanelMenu.Button {
         return item;
     }
 
+    // Icon-only toggle used for the Lock/Power session menus in the profile
+    // row. The open state is shown by the dropdown, so there is no caret.
+    _createSessionToggle(iconName) {
+        let item = new St.BoxLayout({
+            style_class: 'praya-session-toggle',
+            reactive: true,
+            track_hover: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        item.add_child(new St.Icon({
+            icon_name: iconName,
+            icon_size: 24,
+        }));
+
+        return item;
+    }
+
     _createBottomSection() {
-        // Bottom section - sticks to bottom (User + Lock + Log Out + Power)
+        // Bottom section - sticks to bottom (Profile + Lock / Power toggles)
         let bottomSection = new St.BoxLayout({
             style_class: 'praya-bottom-section',
             vertical: true,
             x_expand: true,
         });
 
-        // User component
+        // Profile row: profile info, then the Lock and Power toggles.
+        let userRow = new St.BoxLayout({
+            style_class: 'praya-user-row',
+            x_expand: true,
+        });
+
         let userItem = this._createUserItem();
-        bottomSection.add_child(userItem);
+        userRow.add_child(userItem);
 
-        // Separator between user and session actions
-        bottomSection.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
+        let lockToggle = this._createSessionToggle('system-lock-screen-symbolic');
+        connectClickHandler(lockToggle, () => {
+            this._toggleLockOptions();
+        });
+        userRow.add_child(lockToggle);
 
-        // Lock item (same level as Power)
+        let powerItem = this._createSessionToggle('system-shutdown-symbolic');
+        connectClickHandler(powerItem, () => {
+            this._togglePowerOptions();
+        });
+        userRow.add_child(powerItem);
+
+        bottomSection.add_child(userRow);
+
+        // Dropdown container for the open toggle's options (only one at a time).
+        let sessionActionsBox = new St.BoxLayout({
+            style_class: 'praya-session-actions',
+            vertical: true,
+            x_expand: true,
+            clip_to_allocation: true,
+        });
+        sessionActionsBox.set_height(0);
+
+        // Lock options (Lock / Log Out)
+        let lockOptionsBox = new St.BoxLayout({
+            style_class: 'praya-accordion-options',
+            vertical: true,
+            x_expand: true,
+            clip_to_allocation: true,
+        });
+        lockOptionsBox._expanded = false;
+
+        // Lock screen
         let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
         lockItem._hasChildren = false;
         lockItem._activateCallback = () => {
@@ -2464,9 +2618,9 @@ class PrayaIndicator extends PanelMenu.Button {
         connectClickHandler(lockItem, () => {
             lockItem._activateCallback();
         });
-        bottomSection.add_child(lockItem);
+        lockOptionsBox.add_child(lockItem);
 
-        // Log Out item (same level as Power)
+        // Log Out
         let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
         logoutItem._hasChildren = false;
         logoutItem._activateCallback = () => {
@@ -2476,25 +2630,23 @@ class PrayaIndicator extends PanelMenu.Button {
         connectClickHandler(logoutItem, () => {
             logoutItem._activateCallback();
         });
-        bottomSection.add_child(logoutItem);
+        lockOptionsBox.add_child(logoutItem);
 
-        // Power item (expandable)
-        let powerItem = this._createExpandableMenuItem(_('Power'), 'system-shutdown-symbolic');
-        bottomSection.add_child(powerItem);
+        lockOptionsBox._targetHeight = this._measureOptionsHeight(lockOptionsBox);
+        lockOptionsBox.set_height(0);
+        sessionActionsBox.add_child(lockOptionsBox);
 
-        // Power options container (initially hidden with 0 height for animation)
+        // Power options (Suspend / Restart / Power Off)
         let powerOptionsBox = new St.BoxLayout({
-            style_class: 'praya-power-options',
+            style_class: 'praya-accordion-options',
             vertical: true,
             x_expand: true,
             clip_to_allocation: true,
         });
-        powerOptionsBox.set_height(0);
         powerOptionsBox._expanded = false;
-        powerOptionsBox._targetHeight = 150; // 3 items * 42px height + margins + padding
 
         // Suspend
-        let suspendItem = this._createSubMenuItem(_('Suspend'));
+        let suspendItem = this._createMenuItem(_('Suspend'), 'media-playback-pause-symbolic', false);
         suspendItem._hasChildren = false;
         suspendItem._activateCallback = () => {
             this._hidePanel();
@@ -2506,7 +2658,7 @@ class PrayaIndicator extends PanelMenu.Button {
         powerOptionsBox.add_child(suspendItem);
 
         // Restart
-        let restartItem = this._createSubMenuItem(_('Restart'));
+        let restartItem = this._createMenuItem(_('Restart'), 'system-reboot-symbolic', false);
         restartItem._hasChildren = false;
         restartItem._activateCallback = () => {
             this._hidePanel();
@@ -2518,7 +2670,7 @@ class PrayaIndicator extends PanelMenu.Button {
         powerOptionsBox.add_child(restartItem);
 
         // Power Off
-        let powerOffItem = this._createSubMenuItem(_('Power Off'));
+        let powerOffItem = this._createMenuItem(_('Power Off'), 'system-shutdown-symbolic', false);
         powerOffItem._hasChildren = false;
         powerOffItem._activateCallback = () => {
             this._hidePanel();
@@ -2529,57 +2681,16 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         powerOptionsBox.add_child(powerOffItem);
 
-        bottomSection.add_child(powerOptionsBox);
+        powerOptionsBox._targetHeight = this._measureOptionsHeight(powerOptionsBox);
+        powerOptionsBox.set_height(0);
+        sessionActionsBox.add_child(powerOptionsBox);
 
-        // Toggle power options on click/touch with slide animation
-        powerItem._hasChildren = true;
-        powerItem._activateCallback = () => {
-            let arrow = powerItem.get_last_child();
-            if (powerOptionsBox._expanded) {
-                // Collapse with animation
-                powerOptionsBox.ease({
-                    height: 0,
-                    duration: ANIMATION_DURATION,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
-                // Expand sliding container
-                if (this._slidingContainer) {
-                    this._slidingContainer.ease({
-                        height: this._slidingContainer.height + this._powerOptionsHeight,
-                        duration: ANIMATION_DURATION,
-                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                    });
-                }
-                arrow.icon_name = 'go-up-symbolic';
-                powerOptionsBox._expanded = false;
-            } else {
-                // Expand with animation
-                powerOptionsBox.ease({
-                    height: powerOptionsBox._targetHeight,
-                    duration: ANIMATION_DURATION,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
-                // Shrink sliding container to make room
-                if (this._slidingContainer) {
-                    this._slidingContainer.ease({
-                        height: this._slidingContainer.height - this._powerOptionsHeight,
-                        duration: ANIMATION_DURATION,
-                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                    });
-                }
-                arrow.icon_name = 'go-down-symbolic';
-                powerOptionsBox._expanded = true;
-            }
+        bottomSection.add_child(sessionActionsBox);
 
-            // Suspend/Restart/Power Off are only reachable by keyboard while
-            // the submenu is open.
-            this._refreshBottomNavItems();
-        };
-        connectClickHandler(powerItem, () => {
-            powerItem._activateCallback();
-        });
-
+        this._sessionActionsBox = sessionActionsBox;
         this._bottomSectionItems = {
+            lockToggle,
+            lockOptionsBox,
             lock: lockItem,
             logout: logoutItem,
             power: powerItem,
@@ -3036,7 +3147,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Show and reset sliding container
         this._slidingContainer.show();
-        this._slidingContainer.set_size(effectiveWidth, availableHeight - HEADER_HEIGHT - this._bottomSectionBaseHeight);
+        this._slidingContainer.set_size(effectiveWidth, availableHeight - HEADER_HEIGHT - this._getBottomSectionHeight());
 
         // Show main menu (this will recreate the search entry)
         this._navigationStack = [];
