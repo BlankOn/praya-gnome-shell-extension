@@ -1306,7 +1306,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let navItems = [items.lockButton, items.power];
         if (items.powerOptionsBox && items.powerOptionsBox._expanded)
-            navItems.push(items.suspend, items.restart, items.powerOff, items.lock, items.logout);
+            navItems.push(items.suspend, items.restart, items.powerOff, items.logout);
 
         return navItems.filter(item => item);
     }
@@ -2636,20 +2636,9 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         powerOptionsBox.add_child(powerOffItem);
 
-        // Horizontal separator, then the Lock / Log Out actions moved here from
-        // the old Lock group.
+        // Horizontal separator, then the Log Out action moved here from the old
+        // Lock group.
         powerOptionsBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
-
-        let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
-        lockItem._hasChildren = false;
-        lockItem._activateCallback = () => {
-            Main.screenShield.lock(true);
-            this._hidePanel();
-        };
-        connectClickHandler(lockItem, () => {
-            lockItem._activateCallback();
-        });
-        powerOptionsBox.add_child(lockItem);
 
         let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
         logoutItem._hasChildren = false;
@@ -2676,7 +2665,6 @@ class PrayaIndicator extends PanelMenu.Button {
             suspend: suspendItem,
             restart: restartItem,
             powerOff: powerOffItem,
-            lock: lockItem,
             logout: logoutItem,
         };
 
