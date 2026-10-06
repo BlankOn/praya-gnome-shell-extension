@@ -1304,27 +1304,29 @@ class PrayaIndicator extends PanelMenu.Button {
         if (!items)
             return [];
 
-        let navItems = [items.lockToggle, items.power];
-        if (items.lockOptionsBox && items.lockOptionsBox._expanded)
-            navItems.push(items.lock, items.logout);
+        let navItems = [items.lockButton, items.power];
         if (items.powerOptionsBox && items.powerOptionsBox._expanded)
-            navItems.push(items.suspend, items.restart, items.powerOff);
+            navItems.push(items.suspend, items.restart, items.powerOff, items.lock, items.logout);
 
         return navItems.filter(item => item);
     }
 
-    // Full height of an options box. get_preferred_height() only sums the
-    // children's own heights, so add back their 2px vertical margins and the
-    // box's own 4px vertical padding before we clip the box while collapsed.
+    // Full height of an options box. get_preferred_height() sums only the
+    // children's own heights, so add back their vertical margins (2px per menu
+    // item, 8px per separator) and the box's own 4px vertical padding before we
+    // clip the box while collapsed.
     _measureOptionsHeight(box) {
-        return box.get_preferred_height(-1)[1] + 4 * box.get_n_children() + 8;
+        let extra = 8; // container padding: 4px top + 4px bottom
+        for (let child of box.get_children()) {
+            let styleClass = child.get_style_class_name() || '';
+            extra += styleClass.includes('praya-separator') ? 16 : 4;
+        }
+        return box.get_preferred_height(-1)[1] + extra;
     }
 
-    // Height of the currently open session dropdown, or 0 when both are closed.
+    // Height of the currently open session dropdown, or 0 when closed.
     _getSessionActionsHeight() {
         let items = this._bottomSectionItems;
-        if (items && items.lockOptionsBox && items.lockOptionsBox._expanded)
-            return items.lockOptionsBox._targetHeight;
         if (items && items.powerOptionsBox && items.powerOptionsBox._expanded)
             return items.powerOptionsBox._targetHeight;
         return 0;
@@ -1390,26 +1392,13 @@ class PrayaIndicator extends PanelMenu.Button {
         this._refreshBottomNavItems();
     }
 
-    // Toggle the Lock dropdown (Lock / Log Out); only one dropdown at a time.
-    _toggleLockOptions() {
-        let items = this._bottomSectionItems;
-        if (!items)
-            return;
-        let open = !items.lockOptionsBox._expanded;
-        if (open)
-            this._setSubmenuExpanded(items.powerOptionsBox, items.power, false);
-        this._setSubmenuExpanded(items.lockOptionsBox, items.lockToggle, open);
-    }
-
-    // Toggle the Power dropdown (Suspend/Restart/Power Off); only one at a time.
+    // Toggle the Power dropdown (Suspend / Restart / Power Off / Lock / Log Out).
     _togglePowerOptions() {
         let items = this._bottomSectionItems;
         if (!items)
             return;
-        let open = !items.powerOptionsBox._expanded;
-        if (open)
-            this._setSubmenuExpanded(items.lockOptionsBox, items.lockToggle, false);
-        this._setSubmenuExpanded(items.powerOptionsBox, items.power, open);
+        this._setSubmenuExpanded(items.powerOptionsBox, items.power,
+            !items.powerOptionsBox._expanded);
     }
 
     // Re-append the bottom items after the power submenu expands or collapses,
@@ -2576,12 +2565,15 @@ class PrayaIndicator extends PanelMenu.Button {
         let userItem = this._createUserItem();
         userRow.add_child(userItem);
 
-        let lockToggle = this._createSessionToggle('system-lock-screen-symbolic');
-        connectClickHandler(lockToggle, () => {
-            this._toggleLockOptions();
+        // Lock locks the screen directly.
+        let lockButton = this._createSessionToggle('system-lock-screen-symbolic');
+        connectClickHandler(lockButton, () => {
+            Main.screenShield.lock(true);
+            this._hidePanel();
         });
-        userRow.add_child(lockToggle);
+        userRow.add_child(lockButton);
 
+        // Power opens the session actions dropdown.
         let powerItem = this._createSessionToggle('system-shutdown-symbolic');
         connectClickHandler(powerItem, () => {
             this._togglePowerOptions();
@@ -2590,7 +2582,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         bottomSection.add_child(userRow);
 
-        // Dropdown container for the open toggle's options (only one at a time).
+        // Dropdown container for the Power options.
         let sessionActionsBox = new St.BoxLayout({
             style_class: 'praya-session-actions',
             vertical: true,
@@ -2599,44 +2591,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         sessionActionsBox.set_height(0);
 
-        // Lock options (Lock / Log Out)
-        let lockOptionsBox = new St.BoxLayout({
-            style_class: 'praya-accordion-options',
-            vertical: true,
-            x_expand: true,
-            clip_to_allocation: true,
-        });
-        lockOptionsBox._expanded = false;
-
-        // Lock screen
-        let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
-        lockItem._hasChildren = false;
-        lockItem._activateCallback = () => {
-            Main.screenShield.lock(true);
-            this._hidePanel();
-        };
-        connectClickHandler(lockItem, () => {
-            lockItem._activateCallback();
-        });
-        lockOptionsBox.add_child(lockItem);
-
-        // Log Out
-        let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
-        logoutItem._hasChildren = false;
-        logoutItem._activateCallback = () => {
-            this._hidePanel();
-            this._systemActions.activateLogout();
-        };
-        connectClickHandler(logoutItem, () => {
-            logoutItem._activateCallback();
-        });
-        lockOptionsBox.add_child(logoutItem);
-
-        lockOptionsBox._targetHeight = this._measureOptionsHeight(lockOptionsBox);
-        lockOptionsBox.set_height(0);
-        sessionActionsBox.add_child(lockOptionsBox);
-
-        // Power options (Suspend / Restart / Power Off)
+        // Power options (Suspend / Restart / Power Off, then Lock / Log Out)
         let powerOptionsBox = new St.BoxLayout({
             style_class: 'praya-accordion-options',
             vertical: true,
@@ -2681,6 +2636,32 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         powerOptionsBox.add_child(powerOffItem);
 
+        // Horizontal separator, then the Lock / Log Out actions moved here from
+        // the old Lock group.
+        powerOptionsBox.add_child(new St.Widget({style_class: 'praya-separator', height: 1, x_expand: true}));
+
+        let lockItem = this._createMenuItem(_('Lock'), 'system-lock-screen-symbolic', false);
+        lockItem._hasChildren = false;
+        lockItem._activateCallback = () => {
+            Main.screenShield.lock(true);
+            this._hidePanel();
+        };
+        connectClickHandler(lockItem, () => {
+            lockItem._activateCallback();
+        });
+        powerOptionsBox.add_child(lockItem);
+
+        let logoutItem = this._createMenuItem(_('Log Out'), 'system-log-out-symbolic', false);
+        logoutItem._hasChildren = false;
+        logoutItem._activateCallback = () => {
+            this._hidePanel();
+            this._systemActions.activateLogout();
+        };
+        connectClickHandler(logoutItem, () => {
+            logoutItem._activateCallback();
+        });
+        powerOptionsBox.add_child(logoutItem);
+
         powerOptionsBox._targetHeight = this._measureOptionsHeight(powerOptionsBox);
         powerOptionsBox.set_height(0);
         sessionActionsBox.add_child(powerOptionsBox);
@@ -2689,15 +2670,14 @@ class PrayaIndicator extends PanelMenu.Button {
 
         this._sessionActionsBox = sessionActionsBox;
         this._bottomSectionItems = {
-            lockToggle,
-            lockOptionsBox,
-            lock: lockItem,
-            logout: logoutItem,
+            lockButton,
             power: powerItem,
             powerOptionsBox,
             suspend: suspendItem,
             restart: restartItem,
             powerOff: powerOffItem,
+            lock: lockItem,
+            logout: logoutItem,
         };
 
         return bottomSection;
