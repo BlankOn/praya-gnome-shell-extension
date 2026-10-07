@@ -61,6 +61,7 @@ DEFAULT_SERVICES_CONFIG = {
     'ai': False,
     'posture': False,
     'appMenuLayout': 'grid',
+    'appGridColumns': 3,
     'mainMenuHoverActivate': False,
     'taskbarHoverActivate': False,
     'showDesktopHoverActivate': False,
@@ -155,6 +156,15 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._layout_row.set_selected(0 if self._services.get('appMenuLayout', 'grid') == 'grid' else 1)
         self._layout_row.connect('notify::selected', self._on_layout_changed)
         panel_group.add(self._layout_row)
+
+        # Grid columns
+        self._columns_row = Adw.ComboRow(title=_('Grid columns'))
+        columns_model = Gtk.StringList.new([_('3 Columns'), _('4 Columns')])
+        self._columns_row.set_model(columns_model)
+        self._columns_row.set_selected(1 if int(self._services.get('appGridColumns', 3)) == 4 else 0)
+        self._columns_row.connect('notify::selected', self._on_columns_changed)
+        self._columns_row.set_sensitive(self._services.get('appMenuLayout', 'grid') == 'grid')
+        panel_group.add(self._columns_row)
 
         # Position
         self._position_row = Adw.ComboRow(title=_('Position'))
@@ -383,6 +393,11 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     def _on_layout_changed(self, row, _pspec):
         val = 'grid' if row.get_selected() == 0 else 'list'
         self._services['appMenuLayout'] = val
+        self._columns_row.set_sensitive(val == 'grid')
+        self._save_services()
+
+    def _on_columns_changed(self, row, _pspec):
+        self._services['appGridColumns'] = 3 if row.get_selected() == 0 else 4
         self._save_services()
 
     def _on_position_changed(self, row, _pspec):
@@ -434,6 +449,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         new_layout = 'list' if enabled else 'grid'
         self._services['appMenuLayout'] = new_layout
         self._layout_row.set_selected(0 if new_layout == 'grid' else 1)
+        self._columns_row.set_sensitive(new_layout == 'grid')
 
         self._save_services()
 

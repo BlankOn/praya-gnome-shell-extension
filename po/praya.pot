@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-24 06:59+0700\n"
+"POT-Creation-Date: 2026-10-07 22:35+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,23 +17,23 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: extension.js:1376
+#: extension.js:1378
 msgid "Bad Posture Detected"
 msgstr ""
 
-#: extension.js:1382
+#: extension.js:1384
 msgid "Please correct your posture"
 msgstr ""
 
-#: extension.js:1418
+#: extension.js:1420
 msgid "Click anywhere to dismiss (10s pause)"
 msgstr ""
 
-#: extension.js:1444 praya-preferences.py:245
+#: extension.js:1446 praya-preferences.py:255
 msgid "Recalibrate"
 msgstr ""
 
-#: extension.js:1456
+#: extension.js:1458
 msgid "Disable Posture Monitoring Service"
 msgstr ""
 
@@ -45,370 +45,382 @@ msgstr ""
 msgid "Pin to Menu"
 msgstr ""
 
-#: indicator.js:1325
+#: indicator.js:1365
 msgid "Menu"
 msgstr ""
 
-#: indicator.js:1408 indicator.js:1550 indicator.js:2660
+#: indicator.js:1449 indicator.js:1591 indicator.js:2725
 msgid "Applications"
 msgstr ""
 
-#: indicator.js:1420 indicator.js:1721
+#: indicator.js:1461 indicator.js:1762
 msgid "Places"
 msgstr ""
 
-#: indicator.js:1435 indicator.js:2743
+#: indicator.js:1476 indicator.js:2808
 msgid "System Settings"
 msgstr ""
 
-#: indicator.js:1455 praya-preferences.py:110
+#: indicator.js:1496 praya-preferences.py:111
 msgid "Praya Preferences"
 msgstr ""
 
-#: indicator.js:1498 indicator.js:2769
+#: indicator.js:1539 indicator.js:2834
 msgid "About BlankOn"
 msgstr ""
 
-#: indicator.js:1530
+#: indicator.js:1571
 msgid "Sound & Video"
 msgstr ""
 
-#: indicator.js:1531
+#: indicator.js:1572
 msgid "Audio"
 msgstr ""
 
-#: indicator.js:1532
+#: indicator.js:1573
 msgid "Video"
 msgstr ""
 
-#: indicator.js:1533
+#: indicator.js:1574
 msgid "Development"
 msgstr ""
 
-#: indicator.js:1534
+#: indicator.js:1575
 msgid "Education"
 msgstr ""
 
-#: indicator.js:1535
+#: indicator.js:1576
 msgid "Games"
 msgstr ""
 
-#: indicator.js:1536
+#: indicator.js:1577
 msgid "Graphics"
 msgstr ""
 
-#: indicator.js:1537
+#: indicator.js:1578
 msgid "Internet"
 msgstr ""
 
-#: indicator.js:1538
+#: indicator.js:1579
 msgid "Office"
 msgstr ""
 
-#: indicator.js:1539
+#: indicator.js:1580
 msgid "Science"
 msgstr ""
 
-#: indicator.js:1540 indicator.js:2730
+#: indicator.js:1581 indicator.js:2795
 msgid "Settings"
 msgstr ""
 
-#: indicator.js:1541
+#: indicator.js:1582
 msgid "System Tools"
 msgstr ""
 
-#: indicator.js:1542
+#: indicator.js:1583
 msgid "Accessories"
 msgstr ""
 
-#: indicator.js:1543
+#: indicator.js:1584
 msgid "Other"
 msgstr ""
 
-#: indicator.js:1609 indicator.js:1667 indicator.js:1930 indicator.js:1931
+#: indicator.js:1650 indicator.js:1708 indicator.js:1972 indicator.js:1973
 msgid "No applications found."
 msgstr ""
 
-#: indicator.js:1734
+#: indicator.js:1775
 msgid "Home"
 msgstr ""
 
-#: indicator.js:1746
+#: indicator.js:1787
 msgid "Documents"
 msgstr ""
 
-#: indicator.js:1759
+#: indicator.js:1800
 msgid "Downloads"
 msgstr ""
 
-#: indicator.js:1772
+#: indicator.js:1813
 msgid "Pictures"
 msgstr ""
 
-#: indicator.js:1785
+#: indicator.js:1826
 msgid "Music"
 msgstr ""
 
-#: indicator.js:1798
+#: indicator.js:1839
 msgid "Videos"
 msgstr ""
 
-#: indicator.js:1930
+#: indicator.js:1972
 msgid "Press Enter to chat with AI..."
 msgstr ""
 
-#: indicator.js:2416
+#: indicator.js:2481
 msgid "Lock"
 msgstr ""
 
-#: indicator.js:2428
+#: indicator.js:2493
 msgid "Log Out"
 msgstr ""
 
-#: indicator.js:2440
+#: indicator.js:2505
 msgid "Power"
 msgstr ""
 
-#: indicator.js:2455
+#: indicator.js:2520
 msgid "Suspend"
 msgstr ""
 
-#: indicator.js:2467
+#: indicator.js:2532
 msgid "Restart"
 msgstr ""
 
-#: indicator.js:2479
+#: indicator.js:2544
 msgid "Power Off"
 msgstr ""
 
-#: indicator.js:2587
+#: indicator.js:2652
 msgid "Type to search..."
 msgstr ""
 
-#: indicator.js:2596
+#: indicator.js:2661
 msgid "Search or ask..."
 msgstr ""
 
-#: indicator.js:2782
+#: indicator.js:2847
 msgid "BlankOn Linux"
 msgstr ""
 
-#: indicator.js:2794
+#: indicator.js:2859
 msgid "BlankOn Foundation"
 msgstr ""
 
-#: indicator.js:2806
+#: indicator.js:2871
 msgid "Praya Shell Extension"
 msgstr ""
 
-#: indicator.js:2818
+#: indicator.js:2883
 msgid "Donate"
 msgstr ""
 
-#: chatbot.js:209 praya-preferences.py:274
+#: chatbot.js:210 praya-preferences.py:284
 msgid "Artificial Intelligence"
 msgstr ""
 
-#: chatbot.js:285
+#: chatbot.js:287
 msgid "Type a message... (Shift+Enter for new line)"
 msgstr ""
 
-#: chatbot.js:515 chatbot.js:532
+#: chatbot.js:517 chatbot.js:534
 msgid "Thinking"
 msgstr ""
 
-#: taskbar.js:645
+#: taskbar.js:648
 msgid "Minimize All"
 msgstr ""
 
-#: taskbar.js:653
+#: taskbar.js:656
 msgid "Close All"
 msgstr ""
 
-#: taskbar.js:695
+#: taskbar.js:698
 msgid "Minimize"
 msgstr ""
 
-#: taskbar.js:704
+#: taskbar.js:707
 msgid "Maximize"
 msgstr ""
 
-#: taskbar.js:716
+#: taskbar.js:719
 msgid "Close"
 msgstr ""
 
-#: taskbar.js:723
+#: taskbar.js:726
 msgid "Force Close"
 msgstr ""
 
-#: taskbar.js:727
+#: taskbar.js:730
 msgid "Move"
 msgstr ""
 
-#: praya-preferences.py:144
+#: praya-preferences.py:145
 msgid "Panel"
 msgstr ""
 
-#: praya-preferences.py:149
+#: praya-preferences.py:150
 msgid "Panel Options"
 msgstr ""
 
-#: praya-preferences.py:152
+#: praya-preferences.py:153
 msgid "App menu layout"
 msgstr ""
 
-#: praya-preferences.py:153
+#: praya-preferences.py:154
 msgid "Grid"
 msgstr ""
 
-#: praya-preferences.py:153
+#: praya-preferences.py:154
 msgid "List"
 msgstr ""
 
-#: praya-preferences.py:160
+#: praya-preferences.py:161
+msgid "Grid columns"
+msgstr ""
+
+#: praya-preferences.py:162
+msgid "3 Columns"
+msgstr ""
+
+#: praya-preferences.py:162
+msgid "4 Columns"
+msgstr ""
+
+#: praya-preferences.py:170
 msgid "Position"
 msgstr ""
 
-#: praya-preferences.py:161
+#: praya-preferences.py:171
 msgid "Top"
 msgstr ""
 
-#: praya-preferences.py:161
+#: praya-preferences.py:171
 msgid "Bottom"
 msgstr ""
 
-#: praya-preferences.py:168
+#: praya-preferences.py:178
 msgid "Floating panel"
 msgstr ""
 
-#: praya-preferences.py:176
+#: praya-preferences.py:186
 msgid "Activate on Hover"
 msgstr ""
 
-#: praya-preferences.py:179
+#: praya-preferences.py:189
 msgid "Main menu"
 msgstr ""
 
-#: praya-preferences.py:180
+#: praya-preferences.py:190
 msgid "Taskbar"
 msgstr ""
 
-#: praya-preferences.py:181
+#: praya-preferences.py:191
 msgid "Show Desktop"
 msgstr ""
 
-#: praya-preferences.py:182
+#: praya-preferences.py:192
 msgid "Calendar"
 msgstr ""
 
-#: praya-preferences.py:183
+#: praya-preferences.py:193
 msgid "Quick Access"
 msgstr ""
 
-#: praya-preferences.py:196
+#: praya-preferences.py:206
 msgid "Performance"
 msgstr ""
 
-#: praya-preferences.py:198
+#: praya-preferences.py:208
 msgid "Low-spec Mode"
 msgstr ""
 
-#: praya-preferences.py:212
+#: praya-preferences.py:222
 msgid "Services"
 msgstr ""
 
-#: praya-preferences.py:217
+#: praya-preferences.py:227
 msgid "Praya Service"
 msgstr ""
 
-#: praya-preferences.py:219
+#: praya-preferences.py:229
 msgid "Status"
 msgstr ""
 
-#: praya-preferences.py:220 praya-preferences.py:491
+#: praya-preferences.py:230 praya-preferences.py:507
 msgid "Checking..."
 msgstr ""
 
-#: praya-preferences.py:234
+#: praya-preferences.py:244
 msgid "Posture Monitoring"
 msgstr ""
 
-#: praya-preferences.py:235 praya-preferences.py:275
+#: praya-preferences.py:245 praya-preferences.py:285
 msgid "(Experimental)"
 msgstr ""
 
-#: praya-preferences.py:238 praya-preferences.py:278
+#: praya-preferences.py:248 praya-preferences.py:288
 msgid "Enable"
 msgstr ""
 
-#: praya-preferences.py:244
+#: praya-preferences.py:254
 msgid "Calibration"
 msgstr ""
 
-#: praya-preferences.py:252
+#: praya-preferences.py:262
 msgid "Current"
 msgstr ""
 
-#: praya-preferences.py:253
+#: praya-preferences.py:263
 msgid "Waiting for data..."
 msgstr ""
 
-#: praya-preferences.py:259
+#: praya-preferences.py:269
 msgid "Level"
 msgstr ""
 
-#: praya-preferences.py:284
+#: praya-preferences.py:294
 msgid "Provider"
 msgstr ""
 
-#: praya-preferences.py:297
+#: praya-preferences.py:307
 msgid "Model"
 msgstr ""
 
-#: praya-preferences.py:303
+#: praya-preferences.py:313
 msgid "API Key"
 msgstr ""
 
-#: praya-preferences.py:317
+#: praya-preferences.py:327
 msgid "About Praya"
 msgstr ""
 
-#: praya-preferences.py:324
+#: praya-preferences.py:334
 msgid "Version"
 msgstr ""
 
-#: praya-preferences.py:332
+#: praya-preferences.py:342
 msgid "Author"
 msgstr ""
 
-#: praya-preferences.py:339
+#: praya-preferences.py:349
 msgid "Source Code"
 msgstr ""
 
-#: praya-preferences.py:349
+#: praya-preferences.py:359
 msgid "License"
 msgstr ""
 
-#: praya-preferences.py:499
+#: praya-preferences.py:515
 msgid "Running"
 msgstr ""
 
-#: praya-preferences.py:502
+#: praya-preferences.py:518
 msgid "Stopped"
 msgstr ""
 
-#: praya-preferences.py:505
+#: praya-preferences.py:521
 msgid "Unknown"
 msgstr ""
 
-#: praya-preferences.py:508
+#: praya-preferences.py:524
 msgid "Error checking status"
 msgstr ""
 
-#: praya-preferences.py:519
+#: praya-preferences.py:535
 msgid "D-Bus not available"
 msgstr ""
 
-#: praya-preferences.py:539
+#: praya-preferences.py:555
 msgid "Service unavailable"
 msgstr ""
