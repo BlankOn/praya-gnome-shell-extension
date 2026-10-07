@@ -215,6 +215,8 @@ export default class PrayaExtension extends Extension {
         let defaultConfig = {
             ai: false,
             posture: false,
+            appMenuLayout: 'grid',
+            appGridColumns: 3,
             mainMenuHoverActivate: false,
             taskbarHoverActivate: false,
             showDesktopHoverActivate: false,

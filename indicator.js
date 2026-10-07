@@ -2166,6 +2166,10 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _createAppGridItem(appData, showFavStar = false) {
+        // Tiles are sized by _createAppGridContainer() so that the chosen
+        // number of columns fits the panel width.
+        let itemWidth = this._appGridItemWidth || 96;
+
         let item = new St.BoxLayout({
             style_class: 'praya-grid-item',
             vertical: true,
@@ -2173,21 +2177,25 @@ class PrayaIndicator extends PanelMenu.Button {
             track_hover: true,
             x_align: Clutter.ActorAlign.CENTER,
         });
+        item.set_style(`width: ${itemWidth}px;`);
 
-        // Create 64px icon
+        // Keep a little breathing room around the icon on narrower tiles.
+        let iconSize = itemWidth >= 88 ? 64 : 56;
+
+        // Create icon
         let icon;
         if (appData.app) {
-            icon = appData.app.create_icon_texture(64);
+            icon = appData.app.create_icon_texture(iconSize);
         } else if (appData.appInfo) {
             let gicon = appData.appInfo.get_icon();
             icon = new St.Icon({
                 gicon: gicon,
-                icon_size: 64,
+                icon_size: iconSize,
             });
         } else {
             icon = new St.Icon({
                 icon_name: 'application-x-executable-symbolic',
-                icon_size: 64,
+                icon_size: iconSize,
             });
         }
         icon.style_class = 'praya-grid-item-icon';
@@ -2200,7 +2208,7 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         label.clutter_text.set_line_wrap(false);
         label.clutter_text.set_ellipsize(3); // Pango.EllipsizeMode.END
-        label.set_width(88);
+        label.set_style(`width: ${Math.max(0, itemWidth - 8)}px;`);
         item.add_child(label);
 
         if (showFavStar && this._isFavourite(appData.id)) {
@@ -2219,12 +2227,27 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _createAppGridContainer() {
-        // Calculate how many columns fit in effective width
-        let itemWidth = 96;
+        let maxItemWidth = 96;
         let spacing = 4;
+        let hPadding = 8; // .praya-grid-item horizontal padding (4px each side)
         let padding = 16; // menu-box + grid-container padding
         let availableWidth = this._getEffectivePanelWidth() - padding;
-        let columns = Math.max(1, Math.floor((availableWidth + spacing) / (itemWidth + spacing)));
+
+        // The number of columns is a user preference (3 or 4). An invalid or
+        // missing value falls back to auto-fitting the panel width.
+        let configuredColumns = parseInt(this._servicesConfig.appGridColumns, 10);
+        let columns;
+        if (configuredColumns === 3 || configuredColumns === 4)
+            columns = configuredColumns;
+        else
+            columns = Math.max(1, Math.floor((availableWidth + spacing) / (maxItemWidth + spacing)));
+
+        // Shrink the tiles just enough that the chosen number of columns fits
+        // inside the panel width. With 3 columns they keep their original size.
+        let fittedWidth = Math.floor(
+            (availableWidth - (columns - 1) * spacing - columns * hPadding) / columns);
+        let itemWidth = Math.max(1, Math.min(maxItemWidth, fittedWidth));
+        this._appGridItemWidth = itemWidth;
 
         // Vertical box that holds horizontal rows
         let container = new St.BoxLayout({
@@ -3057,7 +3080,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -3069,6 +3092,8 @@ class PrayaIndicator extends PanelMenu.Button {
                     let config = JSON.parse(jsonStr);
                     // Ensure appMenuLayout has a default
                     if (!config.appMenuLayout) config.appMenuLayout = 'grid';
+                    // Ensure appGridColumns has a default
+                    if (!config.appGridColumns) config.appGridColumns = 3;
                     return config;
                 }
             }
