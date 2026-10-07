@@ -12,7 +12,7 @@ set -e
 RDP_PORT="${RDP_PORT:-3390}"
 RDP_USER="${RDP_USER:-praya}"
 RDP_PASS="${RDP_PASS:-praya}"
-RDP_SIZE="${RDP_SIZE:-1920x1080}"
+RDP_SIZE="${RDP_SIZE:-1920x980}"
 # Set RDP_CLIENT=0 to only serve, and connect yourself (Remmina, another host).
 RDP_CLIENT="${RDP_CLIENT:-1}"
 CERT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/praya-test-rdp"
