@@ -313,7 +313,6 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         except ValueError:
             self._sb_icon_row.set_selected(len(START_BUTTON_ICONS))
         self._sb_icon_row.connect('notify::selected', self._on_sb_icon_changed)
-        self._update_sb_icon_subtitle()
         group.add(self._sb_icon_row)
 
         # Custom icon name (used when "Other…" is selected)
@@ -344,29 +343,30 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         return group
 
     def _build_icon_factory(self):
-        """ComboRow factory showing just the icon; the name is a tooltip."""
+        """ComboRow factory showing each icon next to its name."""
         factory = Gtk.SignalListItemFactory()
 
         def on_setup(_factory, list_item):
             box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             image = Gtk.Image()
             image.set_pixel_size(16)
+            label = Gtk.Label()
             box.append(image)
+            box.append(label)
             list_item.set_child(box)
 
         def on_bind(_factory, list_item):
             box = list_item.get_child()
             image = box.get_first_child()
+            label = image.get_next_sibling()
             name = list_item.get_item().get_string()
+            label.set_text(name)
             if name in START_BUTTON_ICONS:
                 image.set_from_icon_name(name)
-                image.set_visible(True)
-                box.set_tooltip_text(name)
             else:
                 # "Other…" has no icon; show a generic one
                 image.set_from_icon_name('list-add-symbolic')
-                image.set_visible(True)
-                box.set_tooltip_text(name)
+            image.set_visible(True)
 
         factory.connect('setup', on_setup)
         factory.connect('bind', on_bind)
@@ -428,16 +428,8 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         idx = row.get_selected()
         if idx < len(START_BUTTON_ICONS):
             self._start_button['iconName'] = START_BUTTON_ICONS[idx]
-        self._update_sb_icon_subtitle()
         self._update_sb_row_visibility()
         self._save_start_button()
-
-    def _update_sb_icon_subtitle(self):
-        idx = self._sb_icon_row.get_selected()
-        if idx < len(START_BUTTON_ICONS):
-            self._sb_icon_row.set_subtitle(START_BUTTON_ICONS[idx])
-        else:
-            self._sb_icon_row.set_subtitle(_('Custom'))
 
     def _on_sb_icon_custom_changed(self, row):
         text = row.get_text().strip()

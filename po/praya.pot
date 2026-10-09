@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-09 09:02+0700\n"
+"POT-Creation-Date: 2026-10-09 09:04+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -29,7 +29,7 @@ msgstr ""
 msgid "Click anywhere to dismiss (10s pause)"
 msgstr ""
 
-#: extension.js:1459 praya-preferences.py:498
+#: extension.js:1459 praya-preferences.py:490
 msgid "Recalibrate"
 msgstr ""
 
@@ -209,7 +209,7 @@ msgstr ""
 msgid "Donate"
 msgstr ""
 
-#: chatbot.js:210 praya-preferences.py:527
+#: chatbot.js:210 praya-preferences.py:519
 msgid "Artificial Intelligence"
 msgstr ""
 
@@ -353,7 +353,7 @@ msgstr ""
 msgid "GNOME icon"
 msgstr ""
 
-#: praya-preferences.py:278 praya-preferences.py:328
+#: praya-preferences.py:278 praya-preferences.py:327
 msgid "Text"
 msgstr ""
 
@@ -373,11 +373,11 @@ msgstr ""
 msgid "Other…"
 msgstr ""
 
-#: praya-preferences.py:320
+#: praya-preferences.py:319
 msgid "Custom icon name"
 msgstr ""
 
-#: praya-preferences.py:335
+#: praya-preferences.py:334
 msgid "Icon size"
 msgstr ""
 
@@ -389,106 +389,102 @@ msgstr ""
 msgid "Images"
 msgstr ""
 
-#: praya-preferences.py:440
-msgid "Custom"
-msgstr ""
-
-#: praya-preferences.py:465
+#: praya-preferences.py:457
 msgid "Services"
 msgstr ""
 
-#: praya-preferences.py:470
+#: praya-preferences.py:462
 msgid "Praya Service"
 msgstr ""
 
-#: praya-preferences.py:472
+#: praya-preferences.py:464
 msgid "Status"
 msgstr ""
 
-#: praya-preferences.py:473 praya-preferences.py:750
+#: praya-preferences.py:465 praya-preferences.py:742
 msgid "Checking..."
 msgstr ""
 
-#: praya-preferences.py:487
+#: praya-preferences.py:479
 msgid "Posture Monitoring"
 msgstr ""
 
-#: praya-preferences.py:488 praya-preferences.py:528
+#: praya-preferences.py:480 praya-preferences.py:520
 msgid "(Experimental)"
 msgstr ""
 
-#: praya-preferences.py:491 praya-preferences.py:531
+#: praya-preferences.py:483 praya-preferences.py:523
 msgid "Enable"
 msgstr ""
 
-#: praya-preferences.py:497
+#: praya-preferences.py:489
 msgid "Calibration"
 msgstr ""
 
-#: praya-preferences.py:505
+#: praya-preferences.py:497
 msgid "Current"
 msgstr ""
 
-#: praya-preferences.py:506
+#: praya-preferences.py:498
 msgid "Waiting for data..."
 msgstr ""
 
-#: praya-preferences.py:512
+#: praya-preferences.py:504
 msgid "Level"
 msgstr ""
 
-#: praya-preferences.py:537
+#: praya-preferences.py:529
 msgid "Provider"
 msgstr ""
 
-#: praya-preferences.py:550
+#: praya-preferences.py:542
 msgid "Model"
 msgstr ""
 
-#: praya-preferences.py:556
+#: praya-preferences.py:548
 msgid "API Key"
 msgstr ""
 
-#: praya-preferences.py:570
+#: praya-preferences.py:562
 msgid "About Praya"
 msgstr ""
 
-#: praya-preferences.py:577
+#: praya-preferences.py:569
 msgid "Version"
 msgstr ""
 
-#: praya-preferences.py:585
+#: praya-preferences.py:577
 msgid "Author"
 msgstr ""
 
-#: praya-preferences.py:592
+#: praya-preferences.py:584
 msgid "Source Code"
 msgstr ""
 
-#: praya-preferences.py:602
+#: praya-preferences.py:594
 msgid "License"
 msgstr ""
 
-#: praya-preferences.py:758
+#: praya-preferences.py:750
 msgid "Running"
 msgstr ""
 
-#: praya-preferences.py:761
+#: praya-preferences.py:753
 msgid "Stopped"
 msgstr ""
 
-#: praya-preferences.py:764
+#: praya-preferences.py:756
 msgid "Unknown"
 msgstr ""
 
-#: praya-preferences.py:767
+#: praya-preferences.py:759
 msgid "Error checking status"
 msgstr ""
 
-#: praya-preferences.py:778
+#: praya-preferences.py:770
 msgid "D-Bus not available"
 msgstr ""
 
-#: praya-preferences.py:798
+#: praya-preferences.py:790
 msgid "Service unavailable"
 msgstr ""
