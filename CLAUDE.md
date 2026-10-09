@@ -14,3 +14,15 @@ When adding or modifying UI strings, always maintain both **English** and **Baha
 
 - Wrap strings with `_('...')` for translation support
 - Update **`po/id.po`** with the corresponding Bahasa Indonesia translation
+
+## Tests
+
+Run the unit tests with:
+
+```
+make test
+```
+
+This runs the Node tests for the JS helpers (`*.test.js` via `node --test`)
+and the Python `unittest` suite (`test_*.py`). The pure start-button logic
+lives in **`startButton.js`** so it can be tested without GNOME Shell.

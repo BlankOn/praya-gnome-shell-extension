@@ -21,6 +21,14 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
 import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
+import {
+    normalizeStartButtonConfig,
+    clampStartButtonHeight,
+    maxImageWidth,
+    imageWidthForHeight,
+    escapeCssUrl,
+    startButtonRenderKind,
+} from './startButton.js';
 
 import {
     PANEL_WIDTH,
@@ -164,18 +172,11 @@ class PrayaIndicator extends PanelMenu.Button {
     // services.json under the "startButton" key and is applied live.
     // -----------------------------------------------------------------
     _defaultStartButtonConfig() {
-        return {
-            mode: 'default',
-            imagePath: '',
-            iconName: 'start-here-symbolic',
-            text: 'Start',
-            imageHeight: 16,
-        };
+        return normalizeStartButtonConfig(null);
     }
 
     _applyStartButtonConfig() {
-        let cfg = Object.assign(
-            this._defaultStartButtonConfig(),
+        let cfg = normalizeStartButtonConfig(
             (this._servicesConfig && this._servicesConfig.startButton) || {}
         );
 
@@ -185,11 +186,11 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _buildStartButtonContent(cfg) {
-        let mode = cfg.mode || 'default';
-        let height = this._clampStartButtonHeight(cfg.imageHeight);
+        let height = clampStartButtonHeight(cfg.imageHeight);
+        let kind = startButtonRenderKind(cfg);
 
-        // Default: keep the existing CSS-background logo untouched
-        if (mode === 'default' || (mode === 'image' && !cfg.imagePath)) {
+        // Default logo or an image mode without a chosen file.
+        if (kind === 'logo') {
             return new St.Widget({
                 style_class: 'praya-panel-logo',
                 y_align: Clutter.ActorAlign.CENTER,
@@ -197,7 +198,7 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Text only
-        if (mode === 'text') {
+        if (kind === 'text') {
             return new St.Label({
                 text: cfg.text || _('Start'),
                 style_class: 'praya-panel-start-text',
@@ -206,7 +207,7 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Icon only or icon + text
-        if (mode === 'icon' || mode === 'icon_text') {
+        if (kind === 'icon' || kind === 'icon_text') {
             let box = new St.BoxLayout({
                 style_class: 'praya-panel-start-box',
                 y_align: Clutter.ActorAlign.CENTER,
@@ -217,7 +218,7 @@ class PrayaIndicator extends PanelMenu.Button {
                 style_class: 'praya-panel-start-icon',
                 y_align: Clutter.ActorAlign.CENTER,
             }));
-            if (mode === 'icon_text') {
+            if (kind === 'icon_text') {
                 box.add_child(new St.Label({
                     text: cfg.text || _('Start'),
                     style_class: 'praya-panel-start-text',
@@ -228,23 +229,7 @@ class PrayaIndicator extends PanelMenu.Button {
         }
 
         // Custom image (SVG/PNG/JPG), scaled to fit the container height
-        if (mode === 'image') {
-            let imageConfig = Object.assign({}, cfg, { imageHeight: height });
-            return this._buildStartButtonImage(imageConfig);
-        }
-
-        // Unknown mode: fall back to the default logo
-        return new St.Widget({
-            style_class: 'praya-panel-logo',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-    }
-
-    _clampStartButtonHeight(value) {
-        let height = parseInt(value, 10);
-        if (isNaN(height) || height <= 0)
-            height = 16;
-        return Math.max(8, Math.min(64, height));
+        return this._buildStartButtonImage(Object.assign({}, cfg, { imageHeight: height }));
     }
 
     _buildStartButtonImage(cfg) {
@@ -260,7 +245,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let image = new St.Widget({
             style_class: 'praya-panel-start-image',
             y_align: Clutter.ActorAlign.CENTER,
-            style: `background-image: url("${this._escapeCssUrl(cfg.imagePath)}");` +
+            style: `background-image: url("${escapeCssUrl(this._fileUri(cfg.imagePath))}");` +
                 `background-size: contain;` +
                 `background-repeat: no-repeat;` +
                 `background-position: center;` +
@@ -281,46 +266,43 @@ class PrayaIndicator extends PanelMenu.Button {
         // Measure the aspect ratio from the decoded image (SVG/PNG/JPG) and
         // derive the width at the requested height. Clamp to the available
         // panel width so the button can't grow across the whole panel.
-        let maxWidth = this._getStartButtonMaxImageWidth();
+        let cap = this._getStartButtonMaxImageWidth();
         try {
             let pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, -1, height, true);
-            let ratio = pixbuf.get_width() / Math.max(1, pixbuf.get_height());
-            return Math.max(1, Math.min(maxWidth, Math.round(height * ratio)));
+            let size = imageWidthForHeight(
+                pixbuf.get_width(), pixbuf.get_height(), height, cap);
+            return size.width;
         } catch (e) {
             log(`Praya: Could not measure start button image "${path}": ${e.message}`);
-            return Math.min(maxWidth, height);
+            return Math.min(cap, height);
         }
     }
 
-    _escapeCssUrl(path) {
+    _fileUri(path) {
         // Prefer a file:// URI; St's CSS parser reliably resolves URIs and
-        // absolute paths alike. Escape characters that would break the
-        // url() token.
-        let ref = path;
+        // absolute paths alike.
         try {
-            ref = Gio.File.new_for_path(path).get_uri();
+            return Gio.File.new_for_path(path).get_uri();
         } catch (e) {
-            // fall back to the raw path
+            return path;
         }
-        return String(ref).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
 
     _getStartButtonMaxImageWidth() {
         // Leave room for the panel's other items; the panel width is fixed.
-        // Cap the image so the whole button still fits on the panel.
         try {
             let monitor = Main.layoutManager.primaryMonitor;
             if (monitor && monitor.width > 0)
-                return Math.max(32, Math.floor(monitor.width * 0.25));
+                return maxImageWidth(monitor.width);
         } catch (e) {
             // ignore
         }
-        return 256;
+        return maxImageWidth(null);
     }
 
     setStartButtonConfig(config) {
         this._servicesConfig = Object.assign({}, this._servicesConfig, {
-            startButton: Object.assign({}, this._defaultStartButtonConfig(), config || {}),
+            startButton: normalizeStartButtonConfig(config),
         });
         this._applyStartButtonConfig();
     }

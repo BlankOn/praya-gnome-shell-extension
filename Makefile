@@ -5,7 +5,7 @@ LINGUAS = $(shell cat po/LINGUAS)
 EXT_UUID = praya@blankonlinux.id
 EXT_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(EXT_UUID)
 EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
-	translations.js touch-helper.js metadata.json stylesheet.css \
+	translations.js touch-helper.js startButton.js metadata.json stylesheet.css \
 	lowspec-dialog.py praya-preferences.py assets locale
 
 # Install the working tree over the user's real installed extension, for
@@ -59,4 +59,10 @@ build-mo:
 
 i18n: pot update-po build-mo
 
-.PHONY: run install-user run-mutter-devkit pot update-po build-mo i18n
+# Run the unit tests: Node tests for the JS helpers and Python's unittest
+# for the preferences config helpers.
+test:
+	node --test
+	python3 -m unittest -v test_praya_preferences
+
+.PHONY: run install-user run-mutter-devkit pot update-po build-mo i18n test

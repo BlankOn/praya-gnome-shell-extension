@@ -60,6 +60,9 @@ START_BUTTON_ICONS = [
     'help-about-symbolic',
 ]
 
+# Keep in sync with START_BUTTON_MODES in startButton.js.
+START_BUTTON_MODES = ['default', 'image', 'icon', 'text', 'icon_text']
+
 # D-Bus constants for posture service
 POSTURE_BUS_NAME = 'com.github.blankon.praya'
 POSTURE_MAIN_INTERFACE = 'com.github.blankon.Praya'
@@ -270,7 +273,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # Mode
         self._sb_mode_row = Adw.ComboRow(title=_('Icon type'))
-        self._sb_modes = ['default', 'image', 'icon', 'text', 'icon_text']
+        self._sb_modes = list(START_BUTTON_MODES)
         mode_labels = [
             _('Default logo'),
             _('Custom image'),
