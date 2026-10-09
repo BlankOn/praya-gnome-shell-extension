@@ -248,12 +248,14 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _buildStartButtonImage(cfg) {
+        let height = cfg.imageHeight;
+
         // The panel button keeps the panel's logo height while the width
         // follows the image's natural aspect ratio, so a wide image is not
         // squished into a height×height square. This mirrors the default
         // logo, which is drawn as a CSS background-image with
         // `background-size: contain`.
-        let [width, height] = this._getStartButtonImageSize(cfg.imagePath, cfg.imageHeight);
+        let width = this._getStartButtonImageWidth(cfg.imagePath, height);
 
         let image = new St.Widget({
             style_class: 'praya-panel-start-image',
@@ -275,26 +277,18 @@ class PrayaIndicator extends PanelMenu.Button {
         return box;
     }
 
-    _getStartButtonImageSize(path, targetHeight) {
+    _getStartButtonImageWidth(path, height) {
         // Measure the aspect ratio from the decoded image (SVG/PNG/JPG) and
-        // derive the exact width at the requested height. When the width
-        // would exceed the available panel width, scale both dimensions down
-        // together so the widget stays exactly the image's aspect ratio and
-        // leaves no empty padding.
-        let height = this._clampStartButtonHeight(targetHeight);
+        // derive the width at the requested height. Clamp to the available
+        // panel width so the button can't grow across the whole panel.
         let maxWidth = this._getStartButtonMaxImageWidth();
         try {
             let pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, -1, height, true);
             let ratio = pixbuf.get_width() / Math.max(1, pixbuf.get_height());
-            let width = Math.round(height * ratio);
-            if (width > maxWidth) {
-                height = Math.max(1, Math.round(maxWidth / ratio));
-                width = maxWidth;
-            }
-            return [Math.max(1, width), Math.max(1, height)];
+            return Math.max(1, Math.min(maxWidth, Math.round(height * ratio)));
         } catch (e) {
             log(`Praya: Could not measure start button image "${path}": ${e.message}`);
-            return [Math.min(maxWidth, height), height];
+            return Math.min(maxWidth, height);
         }
     }
 
