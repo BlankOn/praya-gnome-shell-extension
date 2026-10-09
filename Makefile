@@ -23,8 +23,11 @@ install-user: build-mo
 run: build-mo
 	dbus-run-session -- ./tools/run-rdp.sh
 
-run-devkit-nested:
-	dbus-run-session -- gnome-shell --devkit --wayland
+# Runs a nested GNOME Shell via GNOME 50's `--devkit`, also straight from the
+# working tree (see tools/run-devkit.sh). Unlike `run` it needs no RDP client,
+# but it does need /usr/libexec/mutter-devkit, which Debian/BlankOn lacks.
+run-mutter-devkit: build-mo
+	dbus-run-session -- ./tools/run-devkit.sh
 
 pot:
 	xgettext --from-code=UTF-8 --language=JavaScript \
@@ -56,4 +59,4 @@ build-mo:
 
 i18n: pot update-po build-mo
 
-.PHONY: run install-user run-devkit-nested pot update-po build-mo i18n
+.PHONY: run install-user run-mutter-devkit pot update-po build-mo i18n
