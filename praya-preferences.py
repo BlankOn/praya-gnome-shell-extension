@@ -329,13 +329,6 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._sb_text_row.connect('changed', self._on_sb_text_changed)
         group.add(self._sb_text_row)
 
-        # Icon size
-        self._sb_size_row = Adw.SpinRow.new_with_range(8, 48, 1)
-        self._sb_size_row.set_title(_('Icon size'))
-        self._sb_size_row.set_value(self._start_button['imageHeight'])
-        self._sb_size_row.connect('notify::value', self._on_sb_size_changed)
-        group.add(self._sb_size_row)
-
         # Reflect the initial mode
         self._update_sb_row_visibility()
         self._update_sb_image_preview()
@@ -377,13 +370,11 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         show_image = mode == 'image'
         show_icon = mode in ('icon', 'icon_text')
         show_text = mode in ('text', 'icon_text')
-        show_size = mode in ('image', 'icon', 'icon_text')
 
         self._sb_image_row.set_visible(show_image)
         self._sb_icon_row.set_visible(show_icon)
         self._sb_icon_custom_row.set_visible(show_icon and self._sb_icon_row.get_selected() == len(START_BUTTON_ICONS))
         self._sb_text_row.set_visible(show_text)
-        self._sb_size_row.set_visible(show_size)
 
     def _update_sb_image_preview(self):
         path = self._start_button.get('imagePath', '')
@@ -439,10 +430,6 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
     def _on_sb_text_changed(self, row):
         self._start_button['text'] = row.get_text()
-        self._save_start_button()
-
-    def _on_sb_size_changed(self, row, _pspec):
-        self._start_button['imageHeight'] = int(row.get_value())
         self._save_start_button()
 
     def _save_start_button(self):
