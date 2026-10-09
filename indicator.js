@@ -11,6 +11,8 @@ import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
+import Cogl from 'gi://Cogl';
+import GdkPixbuf from 'gi://GdkPixbuf';
 import AccountsService from 'gi://AccountsService';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -248,26 +250,17 @@ class PrayaIndicator extends PanelMenu.Button {
 
     _buildStartButtonImage(cfg) {
         let height = cfg.imageHeight;
-        let file = Gio.File.new_for_path(cfg.imagePath);
 
-        // Use a fixed-size wrapper so an oversized image is scaled down
-        // rather than growing the panel. The icon is given the target
-        // height and the wrapper is sized accordingly.
-        let box = new St.BoxLayout({
-            style_class: 'praya-panel-start-box',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-
-        // St.Icon scales the decoded image to icon_size, so an oversized
-        // source image is shrunk to fit the panel instead of growing it.
-        let icon;
+        // Load the image at the target height while preserving aspect ratio.
+        // A wide image keeps its full width (limited only by the panel), so
+        // it is not squished into a height×height square like St.Icon does.
+        let pixbuf;
         try {
-            icon = new St.Icon({
-                gicon: new Gio.FileIcon({ file: file }),
-                icon_size: height,
-                style_class: 'praya-panel-start-image',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
+            // Rasterize at the target height with an intentionally huge width
+            // bound; `new_from_file_at_scale` with preserve_aspect_ratio keeps
+            // the real aspect ratio and only limits the size.
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                cfg.imagePath, -1, height, true);
         } catch (e) {
             log(`Praya: Error loading start button image "${cfg.imagePath}": ${e.message}`);
             // Fall back to the default logo on any loading error
@@ -277,8 +270,54 @@ class PrayaIndicator extends PanelMenu.Button {
             });
         }
 
-        box.add_child(icon);
+        // Scale down if the resulting width would exceed the panel width so
+        // the button never grows beyond the available space.
+        let maxWidth = this._getStartButtonMaxImageWidth();
+        if (maxWidth > 0 && pixbuf.get_width() > maxWidth) {
+            let scale = maxWidth / pixbuf.get_width();
+            pixbuf = pixbuf.scale_simple(
+                maxWidth, Math.max(1, Math.round(pixbuf.get_height() * scale)),
+                GdkPixbuf.InterpType.BILINEAR);
+        }
+
+        let content = new Clutter.Image();
+        content.set_data(
+            pixbuf.get_pixels(),
+            pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888,
+            pixbuf.get_width(),
+            pixbuf.get_height(),
+            pixbuf.get_rowstride(),
+        );
+
+        let image = new St.Widget({
+            style_class: 'praya-panel-start-image',
+            y_align: Clutter.ActorAlign.CENTER,
+            width: pixbuf.get_width(),
+            height: pixbuf.get_height(),
+        });
+        image.set_content(content);
+        image.set_content_gravity(Clutter.ContentGravity.RESIZE_ASPECT);
+
+        // Wrap in a box for consistent spacing with the other modes.
+        let box = new St.BoxLayout({
+            style_class: 'praya-panel-start-box',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(image);
         return box;
+    }
+
+    _getStartButtonMaxImageWidth() {
+        // Leave room for the panel's other items; the panel width is fixed.
+        // Cap the image so the whole button still fits on the panel.
+        try {
+            let monitor = Main.layoutManager.primaryMonitor;
+            if (monitor && monitor.width > 0)
+                return Math.max(32, Math.floor(monitor.width * 0.25));
+        } catch (e) {
+            // ignore
+        }
+        return 256;
     }
 
     setStartButtonConfig(config) {
