@@ -289,7 +289,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         # Custom image chooser
         self._sb_image_row = Adw.ActionRow(
             title=_('Custom image'),
-            subtitle=_('Suggested: 32×32 px. Larger images are scaled to fit the panel.'),
+            subtitle=_('Suggested 32×32 px, or any width up to 32 px high. Larger images are scaled to fit the panel.'),
         )
         self._sb_image_preview = Gtk.Picture()
         self._sb_image_preview.set_can_shrink(True)

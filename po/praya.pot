@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-09 09:06+0700\n"
+"POT-Creation-Date: 2026-10-09 09:09+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -362,7 +362,9 @@ msgid "Icon and text"
 msgstr ""
 
 #: praya-preferences.py:292
-msgid "Suggested: 32×32 px. Larger images are scaled to fit the panel."
+msgid ""
+"Suggested 32×32 px, or any width up to 32 px high. Larger images are scaled "
+"to fit the panel."
 msgstr ""
 
 #: praya-preferences.py:300
