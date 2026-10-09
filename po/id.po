@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-09 08:59+0700\n"
+"POT-Creation-Date: 2026-10-09 09:02+0700\n"
 "PO-Revision-Date: 2026-02-19 17:13+0700\n"
 "Last-Translator: \n"
 "Language-Team: Indonesian\n"
@@ -28,7 +28,7 @@ msgstr "Silakan perbaiki postur tubuh Anda"
 msgid "Click anywhere to dismiss (10s pause)"
 msgstr "Klik di mana saja untuk menutup (jeda 10 detik)"
 
-#: extension.js:1459 praya-preferences.py:459
+#: extension.js:1459 praya-preferences.py:498
 msgid "Recalibrate"
 msgstr "Kalibrasi Ulang"
 
@@ -209,7 +209,7 @@ msgstr "Ekstensi Praya Shell"
 msgid "Donate"
 msgstr "Donasi"
 
-#: chatbot.js:210 praya-preferences.py:488
+#: chatbot.js:210 praya-preferences.py:527
 msgid "Artificial Intelligence"
 msgstr "Kecerdasan Buatan"
 
@@ -353,7 +353,7 @@ msgstr "Gambar khusus"
 msgid "GNOME icon"
 msgstr "Ikon GNOME"
 
-#: praya-preferences.py:278 praya-preferences.py:326
+#: praya-preferences.py:278 praya-preferences.py:328
 msgid "Text"
 msgstr "Teks"
 
@@ -376,119 +376,123 @@ msgstr "Pilih…"
 msgid "Other…"
 msgstr "Lainnya"
 
-#: praya-preferences.py:318
+#: praya-preferences.py:320
 msgid "Custom icon name"
 msgstr "Nama ikon khusus"
 
-#: praya-preferences.py:333
+#: praya-preferences.py:335
 msgid "Icon size"
 msgstr "Ukuran ikon"
 
-#: praya-preferences.py:373
+#: praya-preferences.py:404
 msgid "Choose start button image"
 msgstr "Pilih gambar tombol mulai"
 
-#: praya-preferences.py:376
+#: praya-preferences.py:407
 msgid "Images"
 msgstr "Gambar"
 
-#: praya-preferences.py:426
+#: praya-preferences.py:440
+msgid "Custom"
+msgstr "Khusus"
+
+#: praya-preferences.py:465
 msgid "Services"
 msgstr "Layanan"
 
-#: praya-preferences.py:431
+#: praya-preferences.py:470
 msgid "Praya Service"
 msgstr "Layanan Praya"
 
-#: praya-preferences.py:433
+#: praya-preferences.py:472
 msgid "Status"
 msgstr "Status"
 
-#: praya-preferences.py:434 praya-preferences.py:711
+#: praya-preferences.py:473 praya-preferences.py:750
 msgid "Checking..."
 msgstr "Memeriksa..."
 
-#: praya-preferences.py:448
+#: praya-preferences.py:487
 msgid "Posture Monitoring"
 msgstr "Pemantauan Postur"
 
-#: praya-preferences.py:449 praya-preferences.py:489
+#: praya-preferences.py:488 praya-preferences.py:528
 msgid "(Experimental)"
 msgstr "(Eksperimental)"
 
-#: praya-preferences.py:452 praya-preferences.py:492
+#: praya-preferences.py:491 praya-preferences.py:531
 msgid "Enable"
 msgstr "Aktifkan"
 
-#: praya-preferences.py:458
+#: praya-preferences.py:497
 msgid "Calibration"
 msgstr "Kalibrasi"
 
-#: praya-preferences.py:466
+#: praya-preferences.py:505
 msgid "Current"
 msgstr "Saat ini"
 
-#: praya-preferences.py:467
+#: praya-preferences.py:506
 msgid "Waiting for data..."
 msgstr "Menunggu data..."
 
-#: praya-preferences.py:473
+#: praya-preferences.py:512
 msgid "Level"
 msgstr "Tingkat"
 
-#: praya-preferences.py:498
+#: praya-preferences.py:537
 msgid "Provider"
 msgstr "Penyedia"
 
-#: praya-preferences.py:511
+#: praya-preferences.py:550
 msgid "Model"
 msgstr "Model"
 
-#: praya-preferences.py:517
+#: praya-preferences.py:556
 msgid "API Key"
 msgstr "Kunci API"
 
-#: praya-preferences.py:531
+#: praya-preferences.py:570
 msgid "About Praya"
 msgstr "Tentang Praya"
 
-#: praya-preferences.py:538
+#: praya-preferences.py:577
 msgid "Version"
 msgstr "Versi"
 
-#: praya-preferences.py:546
+#: praya-preferences.py:585
 msgid "Author"
 msgstr "Pembuat"
 
-#: praya-preferences.py:553
+#: praya-preferences.py:592
 msgid "Source Code"
 msgstr "Sumber kode"
 
-#: praya-preferences.py:563
+#: praya-preferences.py:602
 msgid "License"
 msgstr "Lisensi"
 
-#: praya-preferences.py:719
+#: praya-preferences.py:758
 msgid "Running"
 msgstr "Berjalan"
 
-#: praya-preferences.py:722
+#: praya-preferences.py:761
 msgid "Stopped"
 msgstr "Berhenti"
 
-#: praya-preferences.py:725
+#: praya-preferences.py:764
 msgid "Unknown"
 msgstr "Tidak diketahui"
 
-#: praya-preferences.py:728
+#: praya-preferences.py:767
 msgid "Error checking status"
 msgstr "Gagal memeriksa status"
 
-#: praya-preferences.py:739
+#: praya-preferences.py:778
 msgid "D-Bus not available"
 msgstr "D-Bus tidak tersedia"
 
-#: praya-preferences.py:759
+#: praya-preferences.py:798
 msgid "Service unavailable"
 msgstr "Layanan tidak tersedia"
 
