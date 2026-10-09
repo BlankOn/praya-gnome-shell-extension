@@ -11,7 +11,6 @@ import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
-import Cogl from 'gi://Cogl';
 import GdkPixbuf from 'gi://GdkPixbuf';
 import AccountsService from 'gi://AccountsService';
 
@@ -251,52 +250,23 @@ class PrayaIndicator extends PanelMenu.Button {
     _buildStartButtonImage(cfg) {
         let height = cfg.imageHeight;
 
-        // Load the image at the target height while preserving aspect ratio.
-        // A wide image keeps its full width (limited only by the panel), so
-        // it is not squished into a height×height square like St.Icon does.
-        let pixbuf;
-        try {
-            // Rasterize at the target height with an intentionally huge width
-            // bound; `new_from_file_at_scale` with preserve_aspect_ratio keeps
-            // the real aspect ratio and only limits the size.
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
-                cfg.imagePath, -1, height, true);
-        } catch (e) {
-            log(`Praya: Error loading start button image "${cfg.imagePath}": ${e.message}`);
-            // Fall back to the default logo on any loading error
-            return new St.Widget({
-                style_class: 'praya-panel-logo',
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-        }
-
-        // Scale down if the resulting width would exceed the panel width so
-        // the button never grows beyond the available space.
-        let maxWidth = this._getStartButtonMaxImageWidth();
-        if (maxWidth > 0 && pixbuf.get_width() > maxWidth) {
-            let scale = maxWidth / pixbuf.get_width();
-            pixbuf = pixbuf.scale_simple(
-                maxWidth, Math.max(1, Math.round(pixbuf.get_height() * scale)),
-                GdkPixbuf.InterpType.BILINEAR);
-        }
-
-        let content = new Clutter.Image();
-        content.set_data(
-            pixbuf.get_pixels(),
-            pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888,
-            pixbuf.get_width(),
-            pixbuf.get_height(),
-            pixbuf.get_rowstride(),
-        );
+        // The panel button keeps the panel's logo height while the width
+        // follows the image's natural aspect ratio, so a wide image is not
+        // squished into a height×height square. This mirrors the default
+        // logo, which is drawn as a CSS background-image with
+        // `background-size: contain`.
+        let width = this._getStartButtonImageWidth(cfg.imagePath, height);
 
         let image = new St.Widget({
             style_class: 'praya-panel-start-image',
             y_align: Clutter.ActorAlign.CENTER,
-            width: pixbuf.get_width(),
-            height: pixbuf.get_height(),
+            style: `background-image: url("${this._escapeCssUrl(cfg.imagePath)}");` +
+                `background-size: contain;` +
+                `background-repeat: no-repeat;` +
+                `background-position: center;` +
+                `height: ${height}px;` +
+                `width: ${width}px;`,
         });
-        image.set_content(content);
-        image.set_content_gravity(Clutter.ContentGravity.RESIZE_ASPECT);
 
         // Wrap in a box for consistent spacing with the other modes.
         let box = new St.BoxLayout({
@@ -305,6 +275,34 @@ class PrayaIndicator extends PanelMenu.Button {
         });
         box.add_child(image);
         return box;
+    }
+
+    _getStartButtonImageWidth(path, height) {
+        // Measure the aspect ratio from the decoded image (SVG/PNG/JPG) and
+        // derive the width at the requested height. Clamp to the available
+        // panel width so the button can't grow across the whole panel.
+        let maxWidth = this._getStartButtonMaxImageWidth();
+        try {
+            let pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, -1, height, true);
+            let ratio = pixbuf.get_width() / Math.max(1, pixbuf.get_height());
+            return Math.max(1, Math.min(maxWidth, Math.round(height * ratio)));
+        } catch (e) {
+            log(`Praya: Could not measure start button image "${path}": ${e.message}`);
+            return Math.min(maxWidth, height);
+        }
+    }
+
+    _escapeCssUrl(path) {
+        // Prefer a file:// URI; St's CSS parser reliably resolves URIs and
+        // absolute paths alike. Escape characters that would break the
+        // url() token.
+        let ref = path;
+        try {
+            ref = Gio.File.new_for_path(path).get_uri();
+        } catch (e) {
+            // fall back to the raw path
+        }
+        return String(ref).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
 
     _getStartButtonMaxImageWidth() {
