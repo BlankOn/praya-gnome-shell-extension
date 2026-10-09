@@ -158,7 +158,6 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             self._dbus = None
 
         self._build_panel_page()
-        self._build_start_button_page()
         self._build_services_page()
         self._build_about_page()
 
@@ -178,6 +177,9 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             title=_('Panel'),
             icon_name='view-grid-symbolic',
         )
+
+        # -- Start Button group (top) --
+        page.add(self._build_start_button_group())
 
         # -- Panel Options group --
         panel_group = Adw.PreferencesGroup(title=_('Panel Options'))
@@ -248,14 +250,9 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self.add(page)
 
     # ==================================================================
-    # Page: Start Button
+    # Panel — Start Button group
     # ==================================================================
-    def _build_start_button_page(self):
-        page = Adw.PreferencesPage(
-            title=_('Start Button'),
-            icon_name='applications-graphics-symbolic',
-        )
-
+    def _build_start_button_group(self):
         sb = self._services.get('startButton') or {}
         self._start_button = {
             'mode': sb.get('mode', 'default'),
@@ -265,9 +262,9 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             'imageHeight': int(sb.get('imageHeight', 16) or 16),
         }
 
-        # -- Appearance group --
-        appearance_group = Adw.PreferencesGroup(
-            title=_('Appearance'),
+        # -- Start Button group --
+        group = Adw.PreferencesGroup(
+            title=_('Start Button'),
             description=_('Choose what the Praya start button shows.'),
         )
 
@@ -287,7 +284,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         except ValueError:
             self._sb_mode_row.set_selected(0)
         self._sb_mode_row.connect('notify::selected', self._on_sb_mode_changed)
-        appearance_group.add(self._sb_mode_row)
+        group.add(self._sb_mode_row)
 
         # Custom image chooser
         self._sb_image_row = Adw.ActionRow(
@@ -304,7 +301,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         choose_btn.set_valign(Gtk.Align.CENTER)
         choose_btn.connect('clicked', self._on_sb_choose_image)
         self._sb_image_row.add_suffix(choose_btn)
-        appearance_group.add(self._sb_image_row)
+        group.add(self._sb_image_row)
 
         # GNOME icon chooser
         self._sb_icon_row = Adw.ComboRow(title=_('GNOME icon'))
@@ -315,7 +312,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         except ValueError:
             self._sb_icon_row.set_selected(len(START_BUTTON_ICONS))
         self._sb_icon_row.connect('notify::selected', self._on_sb_icon_changed)
-        appearance_group.add(self._sb_icon_row)
+        group.add(self._sb_icon_row)
 
         # Custom icon name (used when "Other…" is selected)
         self._sb_icon_custom_row = Adw.EntryRow(title=_('Custom icon name'))
@@ -323,28 +320,26 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             self._start_button['iconName'] if self._start_button['iconName'] not in START_BUTTON_ICONS else ''
         )
         self._sb_icon_custom_row.connect('changed', self._on_sb_icon_custom_changed)
-        appearance_group.add(self._sb_icon_custom_row)
+        group.add(self._sb_icon_custom_row)
 
         # Text
         self._sb_text_row = Adw.EntryRow(title=_('Text'))
         self._sb_text_row.set_text(self._start_button['text'])
         self._sb_text_row.connect('changed', self._on_sb_text_changed)
-        appearance_group.add(self._sb_text_row)
+        group.add(self._sb_text_row)
 
         # Icon size
         self._sb_size_row = Adw.SpinRow.new_with_range(8, 48, 1)
         self._sb_size_row.set_title(_('Icon size'))
         self._sb_size_row.set_value(self._start_button['imageHeight'])
         self._sb_size_row.connect('notify::value', self._on_sb_size_changed)
-        appearance_group.add(self._sb_size_row)
-
-        page.add(appearance_group)
-
-        self.add(page)
+        group.add(self._sb_size_row)
 
         # Reflect the initial mode
         self._update_sb_row_visibility()
         self._update_sb_image_preview()
+
+        return group
 
     def _update_sb_row_visibility(self):
         mode = self._sb_modes[self._sb_mode_row.get_selected()]

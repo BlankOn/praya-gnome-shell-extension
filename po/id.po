@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: praya\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-09 08:57+0700\n"
+"POT-Creation-Date: 2026-10-09 08:59+0700\n"
 "PO-Revision-Date: 2026-02-19 17:13+0700\n"
 "Last-Translator: \n"
 "Language-Team: Indonesian\n"
@@ -28,7 +28,7 @@ msgstr "Silakan perbaiki postur tubuh Anda"
 msgid "Click anywhere to dismiss (10s pause)"
 msgstr "Klik di mana saja untuk menutup (jeda 10 detik)"
 
-#: extension.js:1459 praya-preferences.py:464
+#: extension.js:1459 praya-preferences.py:459
 msgid "Recalibrate"
 msgstr "Kalibrasi Ulang"
 
@@ -209,7 +209,7 @@ msgstr "Ekstensi Praya Shell"
 msgid "Donate"
 msgstr "Donasi"
 
-#: chatbot.js:210 praya-preferences.py:493
+#: chatbot.js:210 praya-preferences.py:488
 msgid "Artificial Intelligence"
 msgstr "Kecerdasan Buatan"
 
@@ -249,250 +249,251 @@ msgstr "Paksa Tutup"
 msgid "Move"
 msgstr "Pindahkan"
 
-#: praya-preferences.py:178
+#: praya-preferences.py:177
 msgid "Panel"
 msgstr "Panel"
 
-#: praya-preferences.py:183
+#: praya-preferences.py:185
 msgid "Panel Options"
 msgstr "Opsi Panel"
 
-#: praya-preferences.py:186
+#: praya-preferences.py:188
 msgid "App menu layout"
 msgstr "Tata letak menu aplikasi"
 
-#: praya-preferences.py:187
+#: praya-preferences.py:189
 msgid "Grid"
 msgstr "Kisi"
 
-#: praya-preferences.py:187
+#: praya-preferences.py:189
 msgid "List"
 msgstr "Daftar"
 
-#: praya-preferences.py:194
+#: praya-preferences.py:196
 msgid "Grid columns"
 msgstr "Kolom kisi"
 
-#: praya-preferences.py:195
+#: praya-preferences.py:197
 msgid "3 Columns"
 msgstr "3 Kolom"
 
-#: praya-preferences.py:195
+#: praya-preferences.py:197
 msgid "4 Columns"
 msgstr "4 Kolom"
 
-#: praya-preferences.py:203
+#: praya-preferences.py:205
 msgid "Position"
 msgstr "Posisi"
 
-#: praya-preferences.py:204
+#: praya-preferences.py:206
 msgid "Top"
 msgstr "Atas"
 
-#: praya-preferences.py:204
+#: praya-preferences.py:206
 msgid "Bottom"
 msgstr "Bawah"
 
-#: praya-preferences.py:211
+#: praya-preferences.py:213
 msgid "Floating panel"
 msgstr "Panel mengambang"
 
-#: praya-preferences.py:219
+#: praya-preferences.py:221
 msgid "Activate on Hover"
 msgstr "Aktifkan saat Kursor Mendekat"
 
-#: praya-preferences.py:222
+#: praya-preferences.py:224
 msgid "Main menu"
 msgstr "Menu utama"
 
-#: praya-preferences.py:223
+#: praya-preferences.py:225
 msgid "Taskbar"
 msgstr "Bilah tugas"
 
-#: praya-preferences.py:224
+#: praya-preferences.py:226
 msgid "Show Desktop"
 msgstr "Tampilkan Desktop"
 
-#: praya-preferences.py:225
+#: praya-preferences.py:227
 msgid "Calendar"
 msgstr "Kalender"
 
-#: praya-preferences.py:226
+#: praya-preferences.py:228
 msgid "Quick Access"
 msgstr "Akses Cepat"
 
-#: praya-preferences.py:239
+#: praya-preferences.py:241
 msgid "Performance"
 msgstr "Performa"
 
-#: praya-preferences.py:241
+#: praya-preferences.py:243
 msgid "Low-spec Mode"
 msgstr "Mode Spek Rendah"
 
-#: praya-preferences.py:255
+#: praya-preferences.py:267
 msgid "Start Button"
 msgstr "Tombol Mulai"
 
-#: praya-preferences.py:270
-msgid "Appearance"
-msgstr "Tampilan"
-
-#: praya-preferences.py:271
+#: praya-preferences.py:268
 msgid "Choose what the Praya start button shows."
 msgstr "Pilih apa yang ditampilkan tombol mulai Praya."
 
-#: praya-preferences.py:275
+#: praya-preferences.py:272
 msgid "Icon type"
 msgstr "Jenis ikon"
 
-#: praya-preferences.py:278
+#: praya-preferences.py:275
 msgid "Default logo"
 msgstr "Logo bawaan"
 
-#: praya-preferences.py:279 praya-preferences.py:294
+#: praya-preferences.py:276 praya-preferences.py:291
 msgid "Custom image"
 msgstr "Gambar khusus"
 
-#: praya-preferences.py:280 praya-preferences.py:310
+#: praya-preferences.py:277 praya-preferences.py:307
 msgid "GNOME icon"
 msgstr "Ikon GNOME"
 
-#: praya-preferences.py:281 praya-preferences.py:329
+#: praya-preferences.py:278 praya-preferences.py:326
 msgid "Text"
 msgstr "Teks"
 
-#: praya-preferences.py:282
+#: praya-preferences.py:279
 msgid "Icon and text"
 msgstr "Ikon dan teks"
 
-#: praya-preferences.py:295
+#: praya-preferences.py:292
 msgid "Suggested: 32×32 px. Larger images are scaled to fit the panel."
-msgstr "Disarankan: 32×32 px. Gambar yang lebih besar akan disesuaikan agar pas dengan panel."
+msgstr ""
+"Disarankan: 32×32 px. Gambar yang lebih besar akan disesuaikan agar pas "
+"dengan panel."
 
-#: praya-preferences.py:303
+#: praya-preferences.py:300
 msgid "Choose…"
 msgstr "Pilih…"
 
-#: praya-preferences.py:311
+#: praya-preferences.py:308
 #, fuzzy
 msgid "Other…"
 msgstr "Lainnya"
 
-#: praya-preferences.py:321
+#: praya-preferences.py:318
 msgid "Custom icon name"
 msgstr "Nama ikon khusus"
 
-#: praya-preferences.py:336
+#: praya-preferences.py:333
 msgid "Icon size"
 msgstr "Ukuran ikon"
 
-#: praya-preferences.py:378
+#: praya-preferences.py:373
 msgid "Choose start button image"
 msgstr "Pilih gambar tombol mulai"
 
-#: praya-preferences.py:381
+#: praya-preferences.py:376
 msgid "Images"
 msgstr "Gambar"
 
-#: praya-preferences.py:431
+#: praya-preferences.py:426
 msgid "Services"
 msgstr "Layanan"
 
-#: praya-preferences.py:436
+#: praya-preferences.py:431
 msgid "Praya Service"
 msgstr "Layanan Praya"
 
-#: praya-preferences.py:438
+#: praya-preferences.py:433
 msgid "Status"
 msgstr "Status"
 
-#: praya-preferences.py:439 praya-preferences.py:716
+#: praya-preferences.py:434 praya-preferences.py:711
 msgid "Checking..."
 msgstr "Memeriksa..."
 
-#: praya-preferences.py:453
+#: praya-preferences.py:448
 msgid "Posture Monitoring"
 msgstr "Pemantauan Postur"
 
-#: praya-preferences.py:454 praya-preferences.py:494
+#: praya-preferences.py:449 praya-preferences.py:489
 msgid "(Experimental)"
 msgstr "(Eksperimental)"
 
-#: praya-preferences.py:457 praya-preferences.py:497
+#: praya-preferences.py:452 praya-preferences.py:492
 msgid "Enable"
 msgstr "Aktifkan"
 
-#: praya-preferences.py:463
+#: praya-preferences.py:458
 msgid "Calibration"
 msgstr "Kalibrasi"
 
-#: praya-preferences.py:471
+#: praya-preferences.py:466
 msgid "Current"
 msgstr "Saat ini"
 
-#: praya-preferences.py:472
+#: praya-preferences.py:467
 msgid "Waiting for data..."
 msgstr "Menunggu data..."
 
-#: praya-preferences.py:478
+#: praya-preferences.py:473
 msgid "Level"
 msgstr "Tingkat"
 
-#: praya-preferences.py:503
+#: praya-preferences.py:498
 msgid "Provider"
 msgstr "Penyedia"
 
-#: praya-preferences.py:516
+#: praya-preferences.py:511
 msgid "Model"
 msgstr "Model"
 
-#: praya-preferences.py:522
+#: praya-preferences.py:517
 msgid "API Key"
 msgstr "Kunci API"
 
-#: praya-preferences.py:536
+#: praya-preferences.py:531
 msgid "About Praya"
 msgstr "Tentang Praya"
 
-#: praya-preferences.py:543
+#: praya-preferences.py:538
 msgid "Version"
 msgstr "Versi"
 
-#: praya-preferences.py:551
+#: praya-preferences.py:546
 msgid "Author"
 msgstr "Pembuat"
 
-#: praya-preferences.py:558
+#: praya-preferences.py:553
 msgid "Source Code"
 msgstr "Sumber kode"
 
-#: praya-preferences.py:568
+#: praya-preferences.py:563
 msgid "License"
 msgstr "Lisensi"
 
-#: praya-preferences.py:724
+#: praya-preferences.py:719
 msgid "Running"
 msgstr "Berjalan"
 
-#: praya-preferences.py:727
+#: praya-preferences.py:722
 msgid "Stopped"
 msgstr "Berhenti"
 
-#: praya-preferences.py:730
+#: praya-preferences.py:725
 msgid "Unknown"
 msgstr "Tidak diketahui"
 
-#: praya-preferences.py:733
+#: praya-preferences.py:728
 msgid "Error checking status"
 msgstr "Gagal memeriksa status"
 
-#: praya-preferences.py:744
+#: praya-preferences.py:739
 msgid "D-Bus not available"
 msgstr "D-Bus tidak tersedia"
 
-#: praya-preferences.py:764
+#: praya-preferences.py:759
 msgid "Service unavailable"
 msgstr "Layanan tidak tersedia"
+
+#~ msgid "Appearance"
+#~ msgstr "Tampilan"
 
 #~ msgid "Disabled"
 #~ msgstr "Nonaktif"
