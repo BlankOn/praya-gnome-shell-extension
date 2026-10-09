@@ -8,3 +8,7 @@ debian/*.substvars
 
 # IDE metadata
 .idea/
+
+# Python caches
+__pycache__/
+*.pyc

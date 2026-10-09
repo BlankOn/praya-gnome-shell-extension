@@ -21,7 +21,7 @@ gi.require_version('Adw', '1')
 from gi.repository import GLib, Gtk, Adw, Gio
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.42'
+VERSION = '0.1.43'
 
 PROVIDERS = {
     'anthropic': {
@@ -34,6 +34,31 @@ PROVIDERS = {
     },
 }
 # ------------------------------------------------------------------------------
+
+# Curated GNOME icon-set choices for the start button. These are common
+# symbolic icons guaranteed to be present in the Adwaita icon theme.
+START_BUTTON_ICONS = [
+    'start-here-symbolic',
+    'view-app-grid-symbolic',
+    'applications-utilities-symbolic',
+    'system-search-symbolic',
+    'go-home-symbolic',
+    'view-grid-symbolic',
+    'folder-symbolic',
+    'preferences-system-symbolic',
+    'emblem-system-symbolic',
+    'emblem-important-symbolic',
+    'starred-symbolic',
+    'application-x-executable-symbolic',
+    'utilities-terminal-symbolic',
+    'web-browser-symbolic',
+    'media-playback-start-symbolic',
+    'system-run-symbolic',
+    'computer-symbolic',
+    'network-workgroup-symbolic',
+    'input-gaming-symbolic',
+    'help-about-symbolic',
+]
 
 # D-Bus constants for posture service
 POSTURE_BUS_NAME = 'com.github.blankon.praya'
@@ -69,6 +94,13 @@ DEFAULT_SERVICES_CONFIG = {
     'quickAccessHoverActivate': False,
     'floatingPanel': True,
     'panelPosition': 'top',
+    'startButton': {
+        'mode': 'default',
+        'imagePath': '',
+        'iconName': 'start-here-symbolic',
+        'text': 'Start',
+        'imageHeight': 16,
+    },
 }
 
 DEFAULT_CHATBOT_CONFIG = {
@@ -126,6 +158,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             self._dbus = None
 
         self._build_panel_page()
+        self._build_start_button_page()
         self._build_services_page()
         self._build_about_page()
 
@@ -213,6 +246,182 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         page.add(perf_group)
 
         self.add(page)
+
+    # ==================================================================
+    # Page: Start Button
+    # ==================================================================
+    def _build_start_button_page(self):
+        page = Adw.PreferencesPage(
+            title=_('Start Button'),
+            icon_name='applications-graphics-symbolic',
+        )
+
+        sb = self._services.get('startButton') or {}
+        self._start_button = {
+            'mode': sb.get('mode', 'default'),
+            'imagePath': sb.get('imagePath', ''),
+            'iconName': sb.get('iconName', 'start-here-symbolic'),
+            'text': sb.get('text', 'Start'),
+            'imageHeight': int(sb.get('imageHeight', 16) or 16),
+        }
+
+        # -- Appearance group --
+        appearance_group = Adw.PreferencesGroup(
+            title=_('Appearance'),
+            description=_('Choose what the Praya start button shows.'),
+        )
+
+        # Mode
+        self._sb_mode_row = Adw.ComboRow(title=_('Icon type'))
+        self._sb_modes = ['default', 'image', 'icon', 'text', 'icon_text']
+        mode_labels = [
+            _('Default logo'),
+            _('Custom image'),
+            _('GNOME icon'),
+            _('Text'),
+            _('Icon and text'),
+        ]
+        self._sb_mode_row.set_model(Gtk.StringList.new(mode_labels))
+        try:
+            self._sb_mode_row.set_selected(self._sb_modes.index(self._start_button['mode']))
+        except ValueError:
+            self._sb_mode_row.set_selected(0)
+        self._sb_mode_row.connect('notify::selected', self._on_sb_mode_changed)
+        appearance_group.add(self._sb_mode_row)
+
+        # Custom image chooser
+        self._sb_image_row = Adw.ActionRow(
+            title=_('Custom image'),
+            subtitle=_('Suggested: 32×32 px. Larger images are scaled to fit the panel.'),
+        )
+        self._sb_image_preview = Gtk.Picture()
+        self._sb_image_preview.set_can_shrink(True)
+        self._sb_image_preview.set_size_request(32, 32)
+        self._sb_image_preview.set_valign(Gtk.Align.CENTER)
+        self._sb_image_row.add_prefix(self._sb_image_preview)
+
+        choose_btn = Gtk.Button(label=_('Choose…'))
+        choose_btn.set_valign(Gtk.Align.CENTER)
+        choose_btn.connect('clicked', self._on_sb_choose_image)
+        self._sb_image_row.add_suffix(choose_btn)
+        appearance_group.add(self._sb_image_row)
+
+        # GNOME icon chooser
+        self._sb_icon_row = Adw.ComboRow(title=_('GNOME icon'))
+        icon_model = Gtk.StringList.new(START_BUTTON_ICONS + [_('Other…')])
+        self._sb_icon_row.set_model(icon_model)
+        try:
+            self._sb_icon_row.set_selected(START_BUTTON_ICONS.index(self._start_button['iconName']))
+        except ValueError:
+            self._sb_icon_row.set_selected(len(START_BUTTON_ICONS))
+        self._sb_icon_row.connect('notify::selected', self._on_sb_icon_changed)
+        appearance_group.add(self._sb_icon_row)
+
+        # Custom icon name (used when "Other…" is selected)
+        self._sb_icon_custom_row = Adw.EntryRow(title=_('Custom icon name'))
+        self._sb_icon_custom_row.set_text(
+            self._start_button['iconName'] if self._start_button['iconName'] not in START_BUTTON_ICONS else ''
+        )
+        self._sb_icon_custom_row.connect('changed', self._on_sb_icon_custom_changed)
+        appearance_group.add(self._sb_icon_custom_row)
+
+        # Text
+        self._sb_text_row = Adw.EntryRow(title=_('Text'))
+        self._sb_text_row.set_text(self._start_button['text'])
+        self._sb_text_row.connect('changed', self._on_sb_text_changed)
+        appearance_group.add(self._sb_text_row)
+
+        # Icon size
+        self._sb_size_row = Adw.SpinRow.new_with_range(8, 48, 1)
+        self._sb_size_row.set_title(_('Icon size'))
+        self._sb_size_row.set_value(self._start_button['imageHeight'])
+        self._sb_size_row.connect('notify::value', self._on_sb_size_changed)
+        appearance_group.add(self._sb_size_row)
+
+        page.add(appearance_group)
+
+        self.add(page)
+
+        # Reflect the initial mode
+        self._update_sb_row_visibility()
+        self._update_sb_image_preview()
+
+    def _update_sb_row_visibility(self):
+        mode = self._sb_modes[self._sb_mode_row.get_selected()]
+        show_image = mode == 'image'
+        show_icon = mode in ('icon', 'icon_text')
+        show_text = mode in ('text', 'icon_text')
+        show_size = mode in ('image', 'icon', 'icon_text')
+
+        self._sb_image_row.set_visible(show_image)
+        self._sb_icon_row.set_visible(show_icon)
+        self._sb_icon_custom_row.set_visible(show_icon and self._sb_icon_row.get_selected() == len(START_BUTTON_ICONS))
+        self._sb_text_row.set_visible(show_text)
+        self._sb_size_row.set_visible(show_size)
+
+    def _update_sb_image_preview(self):
+        path = self._start_button.get('imagePath', '')
+        if path and os.path.isfile(path):
+            try:
+                self._sb_image_preview.set_filename(path)
+                return
+            except Exception:
+                pass
+        self._sb_image_preview.set_filename(None)
+
+    def _on_sb_mode_changed(self, row, _pspec):
+        self._start_button['mode'] = self._sb_modes[row.get_selected()]
+        self._update_sb_row_visibility()
+        self._save_start_button()
+
+    def _on_sb_choose_image(self, _btn):
+        dialog = Gtk.FileDialog(title=_('Choose start button image'))
+
+        image_filter = Gtk.FileFilter()
+        image_filter.set_name(_('Images'))
+        for pattern in ('*.svg', '*.png', '*.jpg', '*.jpeg', '*.webp'):
+            image_filter.add_pattern(pattern)
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(image_filter)
+        dialog.set_filters(filters)
+
+        def on_open(dlg, result):
+            try:
+                file = dlg.open_finish(result)
+            except GLib.Error:
+                return
+            if not file:
+                return
+            self._start_button['imagePath'] = file.get_path()
+            self._update_sb_image_preview()
+            self._save_start_button()
+
+        dialog.open(self, None, on_open)
+
+    def _on_sb_icon_changed(self, row, _pspec):
+        idx = row.get_selected()
+        if idx < len(START_BUTTON_ICONS):
+            self._start_button['iconName'] = START_BUTTON_ICONS[idx]
+        self._update_sb_row_visibility()
+        self._save_start_button()
+
+    def _on_sb_icon_custom_changed(self, row):
+        text = row.get_text().strip()
+        if text:
+            self._start_button['iconName'] = text
+            self._save_start_button()
+
+    def _on_sb_text_changed(self, row):
+        self._start_button['text'] = row.get_text()
+        self._save_start_button()
+
+    def _on_sb_size_changed(self, row, _pspec):
+        self._start_button['imageHeight'] = int(row.get_value())
+        self._save_start_button()
+
+    def _save_start_button(self):
+        self._services['startButton'] = dict(self._start_button)
+        self._save_services()
 
     # ==================================================================
     # Page 2: Services

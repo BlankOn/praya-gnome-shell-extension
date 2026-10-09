@@ -38,17 +38,12 @@ class PrayaIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'Praya Menu');
 
-        // Create a box to hold the logo
-        let box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
-
-        // Add logo using St.Widget with CSS background
-        let logo = new St.Widget({
-            style_class: 'praya-panel-logo',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        box.add_child(logo);
-
-        this.add_child(box);
+        // Track the start-button content so it can be rebuilt live from
+        // preferences without recreating the whole indicator.
+        this._servicesConfig = this._loadServicesConfig();
+        this._startButtonBox = new St.BoxLayout({style_class: 'panel-status-menu-box'});
+        this.add_child(this._startButtonBox);
+        this._applyStartButtonConfig();
 
         // Track panel visibility
         this._panelVisible = false;
@@ -157,6 +152,140 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Disable the default menu
         this.menu.actor.hide();
+    }
+
+    // -----------------------------------------------------------------
+    // Start button icon
+    //
+    // The panel start button can show the default Praya logo, a user
+    // supplied image (SVG/PNG/JPG), a GNOME icon-set icon, plain text, or
+    // an icon combined with text. The configuration lives in
+    // services.json under the "startButton" key and is applied live.
+    // -----------------------------------------------------------------
+    _defaultStartButtonConfig() {
+        return {
+            mode: 'default',
+            imagePath: '',
+            iconName: 'start-here-symbolic',
+            text: 'Start',
+            imageHeight: 16,
+        };
+    }
+
+    _applyStartButtonConfig() {
+        let cfg = Object.assign(
+            this._defaultStartButtonConfig(),
+            (this._servicesConfig && this._servicesConfig.startButton) || {}
+        );
+
+        // Rebuild the box contents
+        this._startButtonBox.destroy_all_children();
+        this._startButtonBox.add_child(this._buildStartButtonContent(cfg));
+    }
+
+    _buildStartButtonContent(cfg) {
+        let mode = cfg.mode || 'default';
+        let height = this._clampStartButtonHeight(cfg.imageHeight);
+
+        // Default: keep the existing CSS-background logo untouched
+        if (mode === 'default' || (mode === 'image' && !cfg.imagePath)) {
+            return new St.Widget({
+                style_class: 'praya-panel-logo',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        }
+
+        // Text only
+        if (mode === 'text') {
+            return new St.Label({
+                text: cfg.text || _('Start'),
+                style_class: 'praya-panel-start-text',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        }
+
+        // Icon only or icon + text
+        if (mode === 'icon' || mode === 'icon_text') {
+            let box = new St.BoxLayout({
+                style_class: 'praya-panel-start-box',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            box.add_child(new St.Icon({
+                icon_name: cfg.iconName || 'start-here-symbolic',
+                icon_size: height,
+                style_class: 'praya-panel-start-icon',
+                y_align: Clutter.ActorAlign.CENTER,
+            }));
+            if (mode === 'icon_text') {
+                box.add_child(new St.Label({
+                    text: cfg.text || _('Start'),
+                    style_class: 'praya-panel-start-text',
+                    y_align: Clutter.ActorAlign.CENTER,
+                }));
+            }
+            return box;
+        }
+
+        // Custom image (SVG/PNG/JPG), scaled to fit the container height
+        if (mode === 'image') {
+            let imageConfig = Object.assign({}, cfg, { imageHeight: height });
+            return this._buildStartButtonImage(imageConfig);
+        }
+
+        // Unknown mode: fall back to the default logo
+        return new St.Widget({
+            style_class: 'praya-panel-logo',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+    }
+
+    _clampStartButtonHeight(value) {
+        let height = parseInt(value, 10);
+        if (isNaN(height) || height <= 0)
+            height = 16;
+        return Math.max(8, Math.min(64, height));
+    }
+
+    _buildStartButtonImage(cfg) {
+        let height = cfg.imageHeight;
+        let file = Gio.File.new_for_path(cfg.imagePath);
+
+        // Use a fixed-size wrapper so an oversized image is scaled down
+        // rather than growing the panel. The icon is given the target
+        // height and the wrapper is sized accordingly.
+        let box = new St.BoxLayout({
+            style_class: 'praya-panel-start-box',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        // St.Icon scales the decoded image to icon_size, so an oversized
+        // source image is shrunk to fit the panel instead of growing it.
+        let icon;
+        try {
+            icon = new St.Icon({
+                gicon: new Gio.FileIcon({ file: file }),
+                icon_size: height,
+                style_class: 'praya-panel-start-image',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        } catch (e) {
+            log(`Praya: Error loading start button image "${cfg.imagePath}": ${e.message}`);
+            // Fall back to the default logo on any loading error
+            return new St.Widget({
+                style_class: 'praya-panel-logo',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        }
+
+        box.add_child(icon);
+        return box;
+    }
+
+    setStartButtonConfig(config) {
+        this._servicesConfig = Object.assign({}, this._servicesConfig, {
+            startButton: Object.assign({}, this._defaultStartButtonConfig(), config || {}),
+        });
+        this._applyStartButtonConfig();
     }
 
     _loadApplicationsData() {
@@ -3080,7 +3209,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);

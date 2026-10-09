@@ -1,3 +1,11 @@
+praya-gnome-shell-extension (0.1.43-1) sinambung; urgency=medium
+
+  * Add an editable Praya start button icon: choose a custom image
+    (SVG/PNG/JPG), a GNOME icon-set icon, text, or a combination of icon
+    and text.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Fri, 09 Oct 2026 09:00:00 +0700
+
 praya-gnome-shell-extension (0.1.42-1) sinambung; urgency=medium
 
   * Add 3/4 column option for the app grid.
