@@ -388,13 +388,42 @@ class PrayaIndicator extends PanelMenu.Button {
 
         this._contextMenu.add_child(menuItem);
 
-        // Position the context menu near the source actor
+        // Add to chrome first so the menu is allocated its natural size,
+        // which we need in order to fit it inside the monitor.
+        Main.layoutManager.addTopChrome(this._contextMenu);
+
+        // Position the context menu near the source actor, keeping it fully
+        // on screen. For items on the left edge of the grid, anchoring the
+        // menu to the item's left edge would push it off the screen, so we
+        // clamp it to the monitor's work area instead.
         let [x, y] = sourceActor.get_transformed_position();
         let [width, height] = sourceActor.get_size();
 
-        this._contextMenu.set_position(x + width - 150, y + height / 2);
+        let monitor = Main.layoutManager.findMonitorForActor(sourceActor)
+            || this._currentMonitor
+            || Main.layoutManager.primaryMonitor;
 
-        Main.layoutManager.addTopChrome(this._contextMenu);
+        // Prefer the actual allocated size, but fall back to the preferred
+        // size in case layout has not run yet when the menu was just added.
+        let menuWidth = this._contextMenu.width || this._contextMenu.get_preferred_width(-1)[1];
+        let menuHeight = this._contextMenu.height || this._contextMenu.get_preferred_height(-1)[1];
+
+        // Prefer aligning the menu's right edge with the item's right edge
+        // (the original behaviour), then clamp into the monitor.
+        let menuX = x + width - menuWidth;
+        let menuY = y + height / 2;
+
+        if (monitor) {
+            let minX = monitor.x + MARGIN_LEFT;
+            let maxX = monitor.x + monitor.width - menuWidth - MARGIN_LEFT;
+            let minY = monitor.y + MARGIN_TOP;
+            let maxY = monitor.y + monitor.height - menuHeight - MARGIN_TOP;
+
+            menuX = Math.max(minX, Math.min(menuX, maxX));
+            menuY = Math.max(minY, Math.min(menuY, maxY));
+        }
+
+        this._contextMenu.set_position(menuX, menuY);
 
         // Close context menu when clicking/touching elsewhere
         this._contextMenuCaptureId = global.stage.connect('captured-event', (actor, event) => {
