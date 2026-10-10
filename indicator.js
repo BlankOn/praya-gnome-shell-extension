@@ -29,6 +29,7 @@ import {
     escapeCssUrl,
     startButtonRenderKind,
 } from './startButton.js';
+import { UUID, HAS_BLANKON_ABOUT } from './distro.js';
 
 import {
     PANEL_WIDTH,
@@ -1646,7 +1647,7 @@ class PrayaIndicator extends PanelMenu.Button {
         prefsItem._activateCallback = () => {
             this._hidePanel();
 
-            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            let ext = Main.extensionManager.lookup(UUID);
             if (ext?.stateObj?.pausePosturePolling) {
                 ext.stateObj.pausePosturePolling();
             }
@@ -1683,17 +1684,19 @@ class PrayaIndicator extends PanelMenu.Button {
         menuBox.add_child(prefsItem);
         navItems.push(prefsItem);
 
-        // About BlankOn (has children)
-        let aboutItem = this._createMenuItem(_('About BlankOn'), 'help-about-symbolic', true);
-        aboutItem._hasChildren = true;
-        aboutItem._activateCallback = () => {
-            if (!this._isAnimating) this._showAboutBlankOn();
-        };
-        connectClickHandler(aboutItem, () => {
-            aboutItem._activateCallback();
-        });
-        menuBox.add_child(aboutItem);
-        navItems.push(aboutItem);
+        // About BlankOn (has children). Not shown in the generic build.
+        if (HAS_BLANKON_ABOUT) {
+            let aboutItem = this._createMenuItem(_('About BlankOn'), 'help-about-symbolic', true);
+            aboutItem._hasChildren = true;
+            aboutItem._activateCallback = () => {
+                if (!this._isAnimating) this._showAboutBlankOn();
+            };
+            connectClickHandler(aboutItem, () => {
+                aboutItem._activateCallback();
+            });
+            menuBox.add_child(aboutItem);
+            navItems.push(aboutItem);
+        }
 
         scrollView.add_child(menuBox);
         contentContainer.add_child(scrollView);

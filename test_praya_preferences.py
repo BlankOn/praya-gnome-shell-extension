@@ -35,22 +35,32 @@ class StartButtonDefaultsTest(unittest.TestCase):
 
     def test_start_button_defaults_are_well_formed(self):
         sb = prefs.DEFAULT_SERVICES_CONFIG['startButton']
-        self.assertEqual(sb['mode'], 'default')
+        self.assertIn(sb['mode'], prefs.START_BUTTON_MODES)
         self.assertEqual(sb['imagePath'], '')
-        self.assertEqual(sb['iconName'], 'start-here-symbolic')
-        self.assertEqual(sb['text'], 'Start')
+        self.assertIsInstance(sb['iconName'], str)
+        self.assertIsInstance(sb['text'], str)
         self.assertIsInstance(sb['imageHeight'], int)
         self.assertGreater(sb['imageHeight'], 0)
+
+    def test_start_button_defaults_match_distro_module(self):
+        sb = prefs.DEFAULT_SERVICES_CONFIG['startButton']
+        for key, value in prefs.DEFAULT_START_BUTTON.items():
+            self.assertEqual(sb[key], value)
 
     def test_start_button_modes_match_indicator(self):
         # The preferences and the shell-side module must agree on the modes.
         js_path = os.path.join(_HERE, 'startButton.js')
         with open(js_path) as f:
             js = f.read()
-        match = re.search(r'START_BUTTON_MODES\s*=\s*\[([^\]]*)\]', js)
-        self.assertIsNotNone(match, 'START_BUTTON_MODES not found in startButton.js')
-        js_modes = [s.strip().strip("'\"") for s in match.group(1).split(',') if s.strip()]
-        self.assertEqual(prefs.START_BUTTON_MODES, js_modes)
+        # startButton.js re-exports the modes from the generated distro.js.
+        self.assertIn("from './distro.js'", js)
+        distro_path = os.path.join(_HERE, 'distro.py')
+        with open(distro_path) as f:
+            distro_py = f.read()
+        match = re.search(r'START_BUTTON_MODES\s*=\s*\[([^\]]*)\]', distro_py)
+        self.assertIsNotNone(match, 'START_BUTTON_MODES not found in distro.py')
+        py_modes = [s.strip().strip("'\"") for s in match.group(1).split(',') if s.strip()]
+        self.assertEqual(prefs.START_BUTTON_MODES, py_modes)
 
     def test_start_button_icons_are_unique(self):
         icons = prefs.START_BUTTON_ICONS

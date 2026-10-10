@@ -16,8 +16,9 @@ RDP_SIZE="${RDP_SIZE:-1920x980}"
 # Set RDP_CLIENT=0 to only serve, and connect yourself (Remmina, another host).
 RDP_CLIENT="${RDP_CLIENT:-1}"
 CERT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/praya-test-rdp"
-UUID="praya@blankonlinux.id"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# The uuid depends on the variant (PRAYA_GENERIC). Allow an override.
+UUID="${UUID:-$("$REPO_DIR/tools/uuid.sh")}"
 
 # Run the extension straight from the working tree, without installing it
 # into ~/.local/share. See tools/dev-datahome.sh for the details.

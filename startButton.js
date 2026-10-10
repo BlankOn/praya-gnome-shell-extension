@@ -6,19 +6,28 @@
  * unit tested with plain Node. The GNOME Shell-side code in indicator.js
  * imports these helpers and adds the St/Clutter drawing on top.
  *
+ * The variant defaults come from the generated distro.js module.
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-// Keep in sync with the preferences window defaults (praya-preferences.py).
-export const DEFAULT_START_BUTTON_CONFIG = {
-    mode: 'default',
+import { DEFAULT_START_BUTTON, START_BUTTON_MODES, IS_GENERIC } from './distro.js';
+
+// Shared config fields, independent of the variant. `imagePath` is not part
+// of the variant default in distro.js, so it lives here.
+const BASE_START_BUTTON_CONFIG = {
     imagePath: '',
-    iconName: 'start-here-symbolic',
-    text: 'Start',
-    imageHeight: 16,
 };
 
-export const START_BUTTON_MODES = ['default', 'image', 'icon', 'text', 'icon_text'];
+// The full default config for the current build variant.
+export const DEFAULT_START_BUTTON_CONFIG = Object.assign(
+    { imageHeight: 16 },
+    BASE_START_BUTTON_CONFIG,
+    DEFAULT_START_BUTTON || {}
+);
+
+// Modes supported by this build. Re-exported for convenience.
+export { START_BUTTON_MODES, IS_GENERIC };
 
 export const MIN_START_BUTTON_HEIGHT = 8;
 export const MAX_START_BUTTON_HEIGHT = 64;
@@ -27,9 +36,10 @@ export const DEFAULT_START_BUTTON_HEIGHT = 16;
 // Fallback width cap (px) when the monitor size is unknown.
 export const DEFAULT_MAX_IMAGE_WIDTH = 256;
 
-// Merge a possibly partial config over the defaults.
-export function normalizeStartButtonConfig(config) {
-    return Object.assign({}, DEFAULT_START_BUTTON_CONFIG, config || {});
+// Merge a possibly partial config over the defaults. `defaults` can be
+// overridden in tests to exercise another variant.
+export function normalizeStartButtonConfig(config, defaults = DEFAULT_START_BUTTON_CONFIG) {
+    return Object.assign({}, defaults, config || {});
 }
 
 // Clamp the requested icon/image height into the supported range.
@@ -69,18 +79,28 @@ export function escapeCssUrl(path) {
 
 // Which part of the button a given mode should render. Keeps the branching
 // logic testable without instantiating any widgets.
-export function startButtonRenderKind(config) {
+//
+// `isGeneric` lets tests exercise either variant; it defaults to the build's
+// generated distro flag. In a generic build the BlankOn "default" logo mode
+// is not offered, so a stored `mode: 'default'` (or an image mode without a
+// file) falls back to the variant default (icon + text) instead of the logo.
+export function startButtonRenderKind(config, isGeneric = IS_GENERIC) {
     let cfg = normalizeStartButtonConfig(config);
+
+    // In the generic build there is no BlankOn logo, so anything that would
+    // otherwise render the logo becomes icon + text.
+    const fallback = () => (isGeneric ? 'icon_text' : 'logo');
+
     let mode = cfg.mode;
     if (mode === 'default')
-        return 'logo';
+        return fallback();
     if (mode === 'image')
-        return cfg.imagePath ? 'image' : 'logo';
+        return cfg.imagePath ? 'image' : fallback();
     if (mode === 'text')
         return 'text';
     if (mode === 'icon' || mode === 'icon_text')
         return mode; // 'icon' or 'icon_text'
-    return 'logo';
+    return fallback();
 }
 
 // True when the text label is part of the rendered button.

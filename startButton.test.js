@@ -96,22 +96,32 @@ test('escapeCssUrl escapes backslashes and quotes', () => {
     assert.equal(escapeCssUrl('C:\\\\path\\\\img.png'), 'C:\\\\\\\\path\\\\\\\\img.png');
 });
 
-test('startButtonRenderKind maps modes to render kinds', () => {
-    assert.equal(startButtonRenderKind({ mode: 'default' }), 'logo');
-    assert.equal(startButtonRenderKind({ mode: 'text' }), 'text');
-    assert.equal(startButtonRenderKind({ mode: 'icon' }), 'icon');
-    assert.equal(startButtonRenderKind({ mode: 'icon_text' }), 'icon_text');
-    assert.equal(startButtonRenderKind({ mode: 'image', imagePath: '/a.png' }), 'image');
+test('startButtonRenderKind maps modes to render kinds (BlankOn)', () => {
+    assert.equal(startButtonRenderKind({ mode: 'default' }, false), 'logo');
+    assert.equal(startButtonRenderKind({ mode: 'text' }, false), 'text');
+    assert.equal(startButtonRenderKind({ mode: 'icon' }, false), 'icon');
+    assert.equal(startButtonRenderKind({ mode: 'icon_text' }, false), 'icon_text');
+    assert.equal(startButtonRenderKind({ mode: 'image', imagePath: '/a.png' }, false), 'image');
     // Image mode without a file falls back to the logo.
-    assert.equal(startButtonRenderKind({ mode: 'image', imagePath: '' }), 'logo');
+    assert.equal(startButtonRenderKind({ mode: 'image', imagePath: '' }, false), 'logo');
     // Unknown mode falls back to the logo.
-    assert.equal(startButtonRenderKind({ mode: 'nonsense' }), 'logo');
+    assert.equal(startButtonRenderKind({ mode: 'nonsense' }, false), 'logo');
+});
+
+test('startButtonRenderKind falls back to icon_text in the generic build', () => {
+    // No BlankOn logo in the generic build: "default" and a file-less image
+    // mode render as icon + text.
+    assert.equal(startButtonRenderKind({ mode: 'default' }, true), 'icon_text');
+    assert.equal(startButtonRenderKind({ mode: 'image', imagePath: '' }, true), 'icon_text');
+    assert.equal(startButtonRenderKind({ mode: 'nonsense' }, true), 'icon_text');
+    // Explicit modes are unaffected.
+    assert.equal(startButtonRenderKind({ mode: 'text' }, true), 'text');
+    assert.equal(startButtonRenderKind({ mode: 'image', imagePath: '/a.png' }, true), 'image');
 });
 
 test('startButtonShowsText is true for text and icon_text only', () => {
     assert.equal(startButtonShowsText({ mode: 'text' }), true);
     assert.equal(startButtonShowsText({ mode: 'icon_text' }), true);
     assert.equal(startButtonShowsText({ mode: 'icon' }), false);
-    assert.equal(startButtonShowsText({ mode: 'default' }), false);
     assert.equal(startButtonShowsText({ mode: 'image', imagePath: '/a.png' }), false);
 });

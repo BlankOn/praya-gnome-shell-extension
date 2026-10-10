@@ -8,8 +8,9 @@
 # services on the one your real desktop is using.
 set -e
 
-UUID="praya@blankonlinux.id"
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# The uuid depends on the variant (PRAYA_GENERIC). Allow an override.
+UUID="${UUID:-$("$REPO_DIR/tools/uuid.sh")}"
 
 # Load the extension from the working tree via a throwaway data home.
 source "$REPO_DIR/tools/dev-datahome.sh"

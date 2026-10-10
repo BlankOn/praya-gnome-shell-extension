@@ -3,6 +3,11 @@ praya-gnome-shell-extension (0.1.43-1) sinambung; urgency=medium
   * Add an editable Praya start button icon: choose a custom image
     (SVG/PNG/JPG), a GNOME icon-set icon, text, or a combination of icon
     and text.
+  * Build two variants from one source tree: the BlankOn package and a
+    new generic package (praya-gnome-shell-extension-generic) for other
+    distributions. The generic build drops the BlankOn branding and the
+    "Default logo" start button option, defaulting to an "Applications"
+    icon and label. Select it at build time with PRAYA_GENERIC=1.
 
  -- BlankOn Linux <blankon-dev@googlegroups.com>  Fri, 09 Oct 2026 09:00:00 +0700
 

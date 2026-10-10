@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""distro.py
+
+Generated variant module. Do not edit — edit distro.py.in and run
+`make distro` (or `make distro-generic`) to regenerate.
+
+Keep these values in sync with distro.js.
+"""
+
+IS_GENERIC = @IS_GENERIC_PY@
+
+# The extension uuid.
+UUID = '@UUID@'
+
+# Whether the panel menu shows the "About Blankon" entry.
+HAS_BLANKON_ABOUT = @HAS_BLANKON_ABOUT_PY@
+
+# Start button modes offered in the preferences window.
+START_BUTTON_MODES = @START_BUTTON_MODES_PY@
+
+# Default start button configuration for this variant.
+DEFAULT_START_BUTTON = @DEFAULT_START_BUTTON_PY@

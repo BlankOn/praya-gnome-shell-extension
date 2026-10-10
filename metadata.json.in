@@ -1,0 +1,9 @@
+{
+  "name": "Praya",
+  "description": "Praya GNOME Shell Extension",
+  "uuid": "@UUID@",
+  "gettext-domain": "praya",
+  "shell-version": [
+    "50"
+  ]
+}
