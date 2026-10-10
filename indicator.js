@@ -81,7 +81,6 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Context menu for right-click
         this._contextMenu = null;
-        this._contextMenuTimeoutId = null;
         this._contextMenuCaptureId = null;
         this._contextMenuReopenId = null;
 
@@ -321,31 +320,15 @@ class PrayaIndicator extends PanelMenu.Button {
             track_hover: true,
         });
 
-        // Add hover handlers to keep panel open while interacting with context menu
+        // Add hover handler to keep the panel open while interacting with the
+        // context menu. The menu deliberately does NOT close when the pointer
+        // leaves it: it is dismissed by clicking elsewhere (see the stage
+        // capture handler below), by hiding the panel, or by running an action.
         this._contextMenu.connect('enter-event', () => {
             if (this._hoverTimeoutId) {
                 GLib.source_remove(this._hoverTimeoutId);
                 this._hoverTimeoutId = null;
             }
-            // Cancel context menu close timeout
-            if (this._contextMenuTimeoutId) {
-                GLib.source_remove(this._contextMenuTimeoutId);
-                this._contextMenuTimeoutId = null;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-
-        this._contextMenu.connect('leave-event', () => {
-            // Close context menu when mouse leaves it
-            // Use a small delay to allow clicking on items
-            if (this._contextMenuTimeoutId) {
-                GLib.source_remove(this._contextMenuTimeoutId);
-            }
-            this._contextMenuTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 150, () => {
-                this._contextMenuTimeoutId = null;
-                this._closeContextMenu();
-                return GLib.SOURCE_REMOVE;
-            });
             return Clutter.EVENT_PROPAGATE;
         });
 
@@ -534,10 +517,6 @@ class PrayaIndicator extends PanelMenu.Button {
         if (this._contextMenuReopenId) {
             GLib.source_remove(this._contextMenuReopenId);
             this._contextMenuReopenId = null;
-        }
-        if (this._contextMenuTimeoutId) {
-            GLib.source_remove(this._contextMenuTimeoutId);
-            this._contextMenuTimeoutId = null;
         }
         if (this._contextMenuCaptureId) {
             global.stage.disconnect(this._contextMenuCaptureId);
