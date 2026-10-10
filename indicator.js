@@ -29,6 +29,7 @@ import {
     MARGIN_TOP,
     MARGIN_BOTTOM,
     MARGIN_BOTTOM_BAR,
+    CONTEXT_MENU_BLINK_MS,
     CHATBOT_PANEL_WIDTH,
     FAVOURITES_FILE
 } from './constants.js';
@@ -80,6 +81,9 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Context menu for right-click
         this._contextMenu = null;
+        this._contextMenuTimeoutId = null;
+        this._contextMenuCaptureId = null;
+        this._contextMenuReopenId = null;
 
         // System actions for power menu
         this._systemActions = SystemActions.getDefault();
@@ -297,11 +301,9 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _showContextMenu(appData, sourceActor) {
-        // Destroy existing context menu
-        if (this._contextMenu) {
-            this._contextMenu.destroy();
-            this._contextMenu = null;
-        }
+        // Tear down any existing menu first (removes chrome, disconnects the
+        // capture handler and cancels pending timeouts).
+        this._closeContextMenu();
 
         // Cancel any pending hide timeout
         if (this._hoverTimeoutId) {
@@ -356,6 +358,9 @@ class PrayaIndicator extends PanelMenu.Button {
             reactive: true,
             track_hover: true,
         });
+        // Marks this actor as the menu's actionable row so the outside-press
+        // handler can tell an action click apart from one on the background.
+        menuItem._isContextMenuItem = true;
 
         let icon = new St.Icon({
             icon_name: menuItemIcon,
@@ -425,20 +430,111 @@ class PrayaIndicator extends PanelMenu.Button {
 
         this._contextMenu.set_position(menuX, menuY);
 
-        // Close context menu when clicking/touching elsewhere
+        // Handle presses while the menu is showing. The menu is drawn as top
+        // chrome and can overlap the grid items, so a right-click on an item
+        // in a covered column would otherwise be swallowed by the menu. We
+        // also let a right-click re-target the menu at whatever app sits
+        // under the cursor, closing and re-opening with a short blink so the
+        // menu visibly follows the new selection.
         this._contextMenuCaptureId = global.stage.connect('captured-event', (actor, event) => {
-            if (event.type() === Clutter.EventType.BUTTON_PRESS || event.type() === Clutter.EventType.TOUCH_BEGIN) {
-                let [eventX, eventY] = event.get_coords();
-                let dominated = this._contextMenu.contains(global.stage.get_actor_at_pos(Clutter.PickMode.ALL, eventX, eventY));
-                if (!dominated) {
+            let isPress = event.type() === Clutter.EventType.BUTTON_PRESS ||
+                event.type() === Clutter.EventType.TOUCH_BEGIN;
+            if (!isPress)
+                return Clutter.EVENT_PROPAGATE;
+
+            let [eventX, eventY] = event.get_coords();
+
+            // A left press on the menu's own action row runs the action.
+            let reactivePicked = global.stage.get_actor_at_pos(
+                Clutter.PickMode.REACTIVE, eventX, eventY);
+            let onMenuItem = this._isContextMenuItemActor(reactivePicked);
+            let isRightClick = event.type() === Clutter.EventType.BUTTON_PRESS &&
+                event.get_button() === 3;
+
+            if (onMenuItem && !isRightClick)
+                return Clutter.EVENT_PROPAGATE;
+
+            let allPicked = global.stage.get_actor_at_pos(
+                Clutter.PickMode.ALL, eventX, eventY);
+            let dominated = this._contextMenu.contains(allPicked);
+
+            // A right-click re-targets the menu at the app under the cursor,
+            // closing and re-opening with a short blink so the menu visibly
+            // follows the new selection.
+            if (isRightClick) {
+                let underneath = this._pickUnderMenu(eventX, eventY);
+                let appData = this._findAppDataForActor(underneath);
+                if (appData) {
                     this._closeContextMenu();
+                    this._contextMenuReopenId = GLib.timeout_add(
+                        GLib.PRIORITY_DEFAULT, CONTEXT_MENU_BLINK_MS, () => {
+                            this._contextMenuReopenId = null;
+                            this._showContextMenu(appData, underneath);
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    return Clutter.EVENT_STOP;
                 }
             }
+
+            if (dominated) {
+                // Press on the menu over something that is not one of our
+                // items: just close it and swallow the press.
+                this._closeContextMenu();
+                return Clutter.EVENT_STOP;
+            }
+
+            // Press elsewhere: close and let the press reach the item.
+            this._closeContextMenu();
             return Clutter.EVENT_PROPAGATE;
         });
     }
 
+    // Pick the actor under the given stage coordinates while temporarily
+    // hiding the context menu, so we can see what it covers.
+    _pickUnderMenu(x, y) {
+        let menu = this._contextMenu;
+        let wasReactive = false;
+        if (menu) {
+            wasReactive = menu.reactive;
+            menu.reactive = false;
+            menu.visible = false;
+        }
+        let actor = global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y);
+        if (menu) {
+            menu.visible = true;
+            menu.reactive = wasReactive;
+        }
+        return actor;
+    }
+
+    // Walk up the actor tree looking for an app item created by the grid /
+    // app list (they store their data on the actor). Returns null if the
+    // picked actor is not one of our app items.
+    _findAppDataForActor(actor) {
+        while (actor) {
+            if (actor._appData)
+                return actor._appData;
+            actor = actor.get_parent();
+        }
+        return null;
+    }
+
+    // True when the actor is the context menu's actionable row (or one of its
+    // children, e.g. the icon or label).
+    _isContextMenuItemActor(actor) {
+        while (actor && actor !== this._contextMenu) {
+            if (actor._isContextMenuItem)
+                return true;
+            actor = actor.get_parent();
+        }
+        return false;
+    }
+
     _closeContextMenu() {
+        if (this._contextMenuReopenId) {
+            GLib.source_remove(this._contextMenuReopenId);
+            this._contextMenuReopenId = null;
+        }
         if (this._contextMenuTimeoutId) {
             GLib.source_remove(this._contextMenuTimeoutId);
             this._contextMenuTimeoutId = null;
