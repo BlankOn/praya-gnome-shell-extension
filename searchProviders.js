@@ -8,20 +8,21 @@
  * turn search terms into result ids, turn ids into display metadata, and
  * activate a result.
  *
- * This module loads the same providers the Activities overview uses –
- * the enabled remote D-Bus providers (Settings, Files, Calculator, …) plus
- * the shell's own system actions – and adapts them into the plain sections
- * the panel renders. Applications keep using Praya's own app search, so
- * pinning and the context menu continue to work.
+ * This module loads the same providers the Activities overview uses – the
+ * enabled remote D-Bus providers (Settings, Files, Calculator, …) plus the
+ * shell's own system actions – and adapts them into the plain sections the
+ * panel renders. Applications keep using Praya's own app search, so pinning
+ * and the context menu continue to work.
+ *
+ * The shell modules are imported dynamically and guarded: if the search
+ * provider API is missing, `available` stays false and the panel can fall
+ * back to suggesting a web search instead of failing to load.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
-
-import * as RemoteSearch from 'resource:///org/gnome/shell/ui/remoteSearch.js';
-import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.js';
 
 import { _ } from './translations.js';
 
@@ -39,31 +40,53 @@ const PROVIDER_TIMEOUT_MS = 4000;
 /**
  * SearchProviders loads the shell's search providers and queries them.
  *
- * It is intentionally UI-agnostic: `query()` returns plain result objects
+ * It is intentionally UI-agnostic: `query()` streams plain result sections
  * (see searchResults.js) and `activate()` runs them, leaving the panel free
  * to render them however it wants.
  */
 export class SearchProviders {
     constructor() {
-        this._settings = new Gio.Settings({schema_id: SEARCH_PROVIDERS_SCHEMA});
-        this._systemActions = SystemActions.getDefault();
-        this._remoteProviders = [];
+        this.available = false;
+        this._remoteSearch = null;
+        this._systemActions = null;
+        this._settings = null;
         this._settingsIds = [];
+        this._remoteProviders = [];
+        this._loadPromise = this._load();
+    }
 
-        this._loadRemoteProviders();
+    async _load() {
+        try {
+            const [RemoteSearch, SystemActions] = await Promise.all([
+                import('resource:///org/gnome/shell/ui/remoteSearch.js'),
+                import('resource:///org/gnome/shell/misc/systemActions.js'),
+            ]);
 
-        // The user can change which providers are enabled (and their order)
-        // from GNOME Settings while the panel is open.
-        for (const key of PROVIDER_SETTINGS_KEYS) {
-            this._settingsIds.push(this._settings.connect(`changed::${key}`, () => {
-                this._loadRemoteProviders();
-            }));
+            this._remoteSearch = RemoteSearch;
+            this._systemActions = SystemActions.getDefault();
+            this._settings = new Gio.Settings({schema_id: SEARCH_PROVIDERS_SCHEMA});
+
+            // The user can change which providers are enabled (and their
+            // order) from GNOME Settings while the panel is open.
+            for (const key of PROVIDER_SETTINGS_KEYS) {
+                this._settingsIds.push(this._settings.connect(`changed::${key}`, () => {
+                    this._loadRemoteProviders();
+                }));
+            }
+
+            this._loadRemoteProviders();
+            this.available = true;
+        } catch (e) {
+            this.available = false;
+            log(`Praya: GNOME search provider API unavailable: ${e.message}`);
         }
     }
 
     _loadRemoteProviders() {
+        if (!this._remoteSearch || !this._settings)
+            return;
         try {
-            this._remoteProviders = RemoteSearch.loadRemoteSearchProviders(this._settings);
+            this._remoteProviders = this._remoteSearch.loadRemoteSearchProviders(this._settings);
         } catch (e) {
             log(`Praya: could not load search providers: ${e.message}`);
             this._remoteProviders = [];
@@ -84,7 +107,9 @@ export class SearchProviders {
      * @returns {Promise<void>}
      */
     async query(terms, cancellable = null, onSection = null) {
-        if (!terms || terms.length === 0)
+        await this._loadPromise;
+
+        if (!this.available || !terms || terms.length === 0)
             return;
 
         const emit = section => {
@@ -105,6 +130,9 @@ export class SearchProviders {
     }
 
     _systemActionSection(terms) {
+        if (!this._systemActions)
+            return null;
+
         const actionIds = this._systemActions.getMatchingActions(terms);
         if (actionIds.length === 0)
             return null;
@@ -197,6 +225,8 @@ export class SearchProviders {
             return;
 
         if (result.isSystemAction) {
+            if (!this._systemActions)
+                return;
             try {
                 this._systemActions.activateAction(result.id);
             } catch (e) {
@@ -248,11 +278,14 @@ export class SearchProviders {
     }
 
     destroy() {
-        for (const id of this._settingsIds)
-            this._settings.disconnect(id);
+        for (const id of this._settingsIds) {
+            if (this._settings)
+                this._settings.disconnect(id);
+        }
         this._settingsIds = [];
         this._remoteProviders = [];
         this._settings = null;
         this._systemActions = null;
+        this._remoteSearch = null;
     }
 }

@@ -46,6 +46,7 @@ import {
     CHATBOT_PANEL_WIDTH,
     FAVOURITES_FILE
 } from './constants.js';
+import { resolveSearchUrl } from './searchEngine.js';
 
 export const PrayaIndicator = GObject.registerClass(
 class PrayaIndicator extends PanelMenu.Button {
@@ -2272,8 +2273,14 @@ class PrayaIndicator extends PanelMenu.Button {
         // Nothing at all: offer the AI chatbot when it is enabled and set up.
         // Reload settings to pick up any recent changes.
         this._chatbotSettings.reload();
-        if (this._isAIEnabled() && this._chatbotSettings.isConfigured())
+        if (this._isAIEnabled() && this._chatbotSettings.isConfigured()) {
             this._enterChatbotMode(searchText);
+            return;
+        }
+
+        // Dead end (no apps, no provider results, no AI): search the web for
+        // the query, matching the suggestion shown in the results.
+        this._openWebSearch(searchText);
     }
 
     // Activate a result coming from one of the shell's search providers.
@@ -2504,8 +2511,70 @@ class PrayaIndicator extends PanelMenu.Button {
             });
         }
 
+        // Offer a web search when the shell's search providers are missing,
+        // or as a last resort when nothing matched, so the search box is
+        // never a dead end.
+        let searchApiAvailable = !!(this._searchProviders && this._searchProviders.available);
+        if (!searchApiAvailable || navItems.length === 0) {
+            let webItem = this._createWebSearchItem(query);
+            menuBox.add_child(webItem);
+            navItems.push(webItem);
+        }
+
         // Register menu items for keyboard navigation
         this._registerMenuItems(navItems, scrollView);
+    }
+
+    // A result row that hands the query to the user's browser / search engine.
+    _createWebSearchItem(query) {
+        let item = new St.BoxLayout({
+            style_class: 'praya-menu-item',
+            reactive: true,
+            track_hover: true,
+            height: 48,
+            x_expand: true,
+        });
+
+        item.add_child(new St.Icon({
+            icon_name: 'web-browser-symbolic',
+            style_class: 'praya-menu-item-icon',
+            icon_size: 24,
+        }));
+
+        let label = new St.Label({
+            text: _('Search the web for “%s”').replace('%s', query),
+            style_class: 'praya-menu-item-label',
+            y_align: Clutter.ActorAlign.CENTER,
+            x_expand: true,
+        });
+        label.clutter_text.set_ellipsize(3); // Pango.EllipsizeMode.END
+        item.add_child(label);
+
+        item._hasChildren = false;
+        item._activateCallback = () => {
+            this._openWebSearch(query);
+        };
+        connectClickHandler(item, () => {
+            item._activateCallback();
+        });
+
+        item.opacity = 0;
+        item.translation_x = -20;
+        this._scheduleSearchItemSlideIn(item, 0);
+
+        return item;
+    }
+
+    // Open the configured search engine for @query.
+    _openWebSearch(query) {
+        // Reload so a change in preferences takes effect immediately.
+        this._servicesConfig = this._loadServicesConfig();
+        let url = resolveSearchUrl(
+            this._servicesConfig.searchEngine,
+            this._servicesConfig.searchEngineCustomUrl,
+            query);
+        this._openUrl(url);
+        this._hidePanel();
     }
 
     // Fade and slide a freshly created result row into view after @delay ms.
@@ -3644,7 +3713,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', searchEngine: 'google', searchEngineCustomUrl: '', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -3658,6 +3727,10 @@ class PrayaIndicator extends PanelMenu.Button {
                     if (!config.appMenuLayout) config.appMenuLayout = 'grid';
                     // Ensure appGridColumns has a default
                     if (!config.appGridColumns) config.appGridColumns = 3;
+                    // Ensure the search engine has a default
+                    if (!config.searchEngine) config.searchEngine = 'google';
+                    if (typeof config.searchEngineCustomUrl !== 'string')
+                        config.searchEngineCustomUrl = '';
                     return config;
                 }
             }
