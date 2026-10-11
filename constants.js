@@ -18,6 +18,11 @@ export const MARGIN_TOP = 8;
 export const MARGIN_BOTTOM = 8;
 export const MARGIN_BOTTOM_BAR = 16;
 
+// Delay before the context menu re-opens for a new item after being closed
+// while it was covering the clicked item. Gives a visible "blink" so the
+// menu appears to move rather than silently stay in place.
+export const CONTEXT_MENU_BLINK_MS = 120;
+
 // Chatbot dimensions
 export const CHATBOT_PANEL_WIDTH = 400;
 export const CHATBOT_HEADER_HEIGHT = 60;
