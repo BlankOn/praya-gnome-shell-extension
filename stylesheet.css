@@ -408,6 +408,28 @@
     text-align: center;
 }
 
+/* Results coming from GNOME Shell's search providers (Settings, Files, …) */
+.praya-result-description {
+    color: #888888;
+    font-size: 0.85em;
+}
+
+/* Provider name tag shown at the end of a provider result row */
+.praya-result-provider {
+    color: #888888;
+    font-size: 0.75em;
+    padding-left: 8px;
+}
+
+/* Provider tag that also opens the provider's full search view */
+.praya-result-provider-link {
+    color: #78aeed;
+}
+
+.praya-result-provider-link:hover {
+    color: #99c1f1;
+}
+
 /* Grid Layout Styles */
 .praya-grid-container {
     padding: 4px;
