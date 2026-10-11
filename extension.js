@@ -1735,7 +1735,68 @@ export default class PrayaExtension extends Extension {
             this._removedCenterBox = centerBox;
         }
 
+        // Detaching the center box is not enough: the panel still halves the
+        // remaining width between the side boxes, which is what stops the
+        // taskbar at the center of the screen. Neutralise the (now empty)
+        // center box so the left box gets everything up to the right box.
+        this._overrideCenterBoxWidth(centerBox);
+
         this._calendarHoverActivate = this._servicesConfig.calendarHoverActivate || false;
+    }
+
+    // The panel splits the space on either side of the center box as
+    // `(allocWidth - centerWidth) / 2`. Reporting `-allocWidth` as the center
+    // box's preferred width cancels that split exactly, so the left box can
+    // grow up to the right box instead of stopping at the middle of the
+    // screen. The center box is already detached, so its allocation is
+    // irrelevant and is swallowed to avoid handing Clutter an inverted box.
+    _overrideCenterBoxWidth(centerBox) {
+        if (!centerBox || this._centerBoxWidthPatched)
+            return;
+
+        try {
+            // defineProperty (rather than assignment) so the extra own
+            // properties shadow the GObject methods without tripping over
+            // the prototype's property attributes.
+            Object.defineProperty(centerBox, 'get_preferred_width', {
+                configurable: true,
+                value: () => {
+                    // The panel calls set_allocation() before it asks the
+                    // center box for its width, so get_width() is already the
+                    // allocWidth the split is based on.
+                    let width = Main.panel.get_width();
+                    if (width <= 0) {
+                        let monitor = Main.layoutManager.primaryMonitor;
+                        width = monitor ? monitor.width : 0;
+                    }
+                    return [0, -width];
+                },
+            });
+            Object.defineProperty(centerBox, 'allocate', {
+                configurable: true,
+                value: () => {},
+            });
+        } catch (e) {
+            logError(e, 'Praya: could not widen the panel left box');
+            return;
+        }
+
+        this._centerBoxWidthPatched = true;
+
+        // The override bypasses the usual layout invalidation signal.
+        Main.panel.queue_relayout();
+    }
+
+    _restoreCenterBoxWidth(centerBox) {
+        if (!centerBox || !this._centerBoxWidthPatched)
+            return;
+
+        // Deleting the own properties uncovers the real GObject methods again.
+        delete centerBox.get_preferred_width;
+        delete centerBox.allocate;
+        this._centerBoxWidthPatched = false;
+
+        Main.panel.queue_relayout();
     }
 
     _setupQuickSettingsHover() {
@@ -1872,6 +1933,10 @@ export default class PrayaExtension extends Extension {
 
         let centerBox = Main.panel._centerBox;
         let rightBox = Main.panel._rightBox;
+
+        // Give the panel back its normal center-box measurements before the
+        // box is re-attached to the panel.
+        this._restoreCenterBoxWidth(centerBox);
 
         // Restore center box to panel
         if (this._removedCenterBox && this._centerBoxParent) {

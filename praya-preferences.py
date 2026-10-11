@@ -29,7 +29,7 @@ from distro import (
 )
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.43'
+VERSION = '0.1.44'
 
 PROVIDERS = {
     'anthropic': {
