@@ -1,7 +1,9 @@
 #!/bin/sh
-# Print the extension uuid for the current variant by reading the generated
-# distro.js. If distro.js is missing, generate it first (BlankOn variant
-# unless PRAYA_GENERIC=1).
+# Print the extension uuid for the current variant.
+#
+# The uuid is derived from the variant by tools/gen-distro.sh, which knows the
+# mapping. Query it with --print-uuid so no generated file (and no JavaScript
+# runtime) is needed.
 #
 # Usage:
 #   UUID="$(tools/uuid.sh)"
@@ -9,9 +11,4 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-if [ ! -f "$REPO_DIR/distro.js" ]; then
-    "$REPO_DIR/tools/gen-distro.sh" >/dev/null
-fi
-
-cd "$REPO_DIR"
-node -e "import('./distro.js').then(m => console.log(m.UUID))"
+exec "$REPO_DIR/tools/gen-distro.sh" --print-uuid

@@ -12,8 +12,8 @@ export PRAYA_GENERIC
 distro:
 	@tools/gen-distro.sh
 
-# The uuid depends on the variant; read it from the generated distro.js.
-UUID = $(shell node -e "import('./distro.js').then(m => console.log(m.UUID)).catch(() => {})" 2>/dev/null)
+# The uuid depends on the variant; ask the generator directly (no Node needed).
+UUID = $(shell tools/gen-distro.sh --print-uuid 2>/dev/null)
 EXT_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
 	translations.js touch-helper.js startButton.js distro.js metadata.json \
