@@ -9,6 +9,18 @@ PKG_GENERIC = praya-gnome-shell-extension-generic
 override_dh_auto_build:
 	make build-mo
 
+# The unit suite needs node (JS) and python3 (prefs/generator). Neither is part
+# of the standard IRGSH build chroot, and the package does not run them at
+# build time otherwise. Run them when both are present, skip otherwise, so the
+# package builds on a bare build-deps-only environment. Run `make test` from a
+# dev checkout for the full suite.
+override_dh_auto_test:
+	@if command -v node >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then \
+		make test; \
+	else \
+		echo "dh_auto_test: skipping tests (node and/or python3 not installed)"; \
+	fi
+
 override_dh_auto_install:
 	# ---- BlankOn variant (extension + distro integration) ----
 	debian/install-extension.sh $(CURDIR)/debian/$(PKG_BLANKON) 0

@@ -12,6 +12,11 @@
 #   tools/gen-distro.sh            # BlankOn variant
 #   PRAYA_GENERIC=1 tools/gen-distro.sh
 #   PRAYA_DISTRO_OUT=/tmp/x tools/gen-distro.sh
+#   tools/gen-distro.sh --print-uuid   # print the variant uuid and exit
+#
+# --print-uuid is a query: it prints the uuid for the selected variant and
+# exits without writing any files. Callers use it instead of parsing the
+# generated distro.js (which would need Node).
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -35,6 +40,12 @@ else
     PY_MODES="['default', 'image', 'icon', 'text', 'icon_text']"
     JS_DEFAULT="{ mode: 'default', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 }"
     PY_DEFAULT="{'mode': 'default', 'iconName': 'start-here-symbolic', 'text': 'Start', 'imageHeight': 16}"
+fi
+
+# Query mode: report the variant uuid and exit without generating anything.
+if [ "${1:-}" = "--print-uuid" ]; then
+    echo "$UUID"
+    exit 0
 fi
 
 # Python uses True/False, JavaScript uses true/false.

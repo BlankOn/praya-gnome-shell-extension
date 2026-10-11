@@ -20,7 +20,9 @@ SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT
 
 PRAYA_GENERIC="$GENERIC" PRAYA_DISTRO_OUT="$SCRATCH" tools/gen-distro.sh >/dev/null
-UUID="$(cd "$SCRATCH" && node -e "import('./distro.js').then(m => console.log(m.UUID))")"
+# Ask the generator for the uuid directly instead of importing distro.js with
+# Node: the packaging build must not depend on a JavaScript runtime.
+UUID="$(PRAYA_GENERIC="$GENERIC" tools/gen-distro.sh --print-uuid)"
 
 EXT="$DEST/usr/share/gnome-shell/extensions/$UUID"
 install -d "$EXT"
