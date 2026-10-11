@@ -1,3 +1,11 @@
+praya-gnome-shell-extension (0.1.44-1) sinambung; urgency=medium
+
+  * Let the taskbar use the full panel width instead of being capped at the
+    middle of the screen, so its buttons stay visible and clickable past the
+    center once enough windows are open.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sun, 11 Oct 2026 21:00:00 +0700
+
 praya-gnome-shell-extension (0.1.43-1) sinambung; urgency=medium
 
   * Add an editable Praya start button icon: choose a custom image
