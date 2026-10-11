@@ -224,6 +224,8 @@ export default class PrayaExtension extends Extension {
             quickAccessHoverActivate: false,
             floatingPanel: true,
             panelPosition: 'top',
+            searchEngine: 'google',
+            searchEngineCustomUrl: '',
             startButton: {
                 mode: 'default',
                 imagePath: '',
