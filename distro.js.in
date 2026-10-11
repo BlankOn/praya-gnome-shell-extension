@@ -1,0 +1,22 @@
+/* distro.js
+ *
+ * Generated variant module. Do not edit — edit distro.js.in and run
+ * `make distro` (or `make distro-generic`) to regenerate.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+export const IS_GENERIC = @IS_GENERIC@;
+
+// The extension uuid, also used to look the extension up at runtime.
+export const UUID = '@UUID@';
+
+// Whether the panel menu shows the "About BlankOn" entry.
+export const HAS_BLANKON_ABOUT = @HAS_BLANKON_ABOUT@;
+
+// Start button modes offered by the shell side. The shell can still render
+// every mode; this list drives the preferences window options.
+export const START_BUTTON_MODES = @START_BUTTON_MODES@;
+
+// Default start button configuration for this variant.
+export const DEFAULT_START_BUTTON = @DEFAULT_START_BUTTON@;

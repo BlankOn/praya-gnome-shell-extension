@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
 
+PKG_BLANKON = praya-gnome-shell-extension
+PKG_GENERIC = praya-gnome-shell-extension-generic
+
 %:
 	dh $@
 
@@ -7,31 +10,14 @@ override_dh_auto_build:
 	make build-mo
 
 override_dh_auto_install:
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id
-	install -m 644 extension.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 indicator.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 constants.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 chatbot.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 taskbar.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 translations.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 touch-helper.js $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 metadata.json $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 644 stylesheet.css $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 755 lowspec-dialog.py $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	install -m 755 praya-preferences.py $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/
-	# Install locale files for translations
-	for lang in $$(cat po/LINGUAS); do \
-		install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/locale/$$lang/LC_MESSAGES; \
-		install -m 644 locale/$$lang/LC_MESSAGES/praya.mo $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/locale/$$lang/LC_MESSAGES/; \
-	done
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets
-	install -m 644 assets/logo-white.png $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/gnome-shell/extensions/praya@blankonlinux.id/assets/
-	# Install GSettings override for global defaults
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/glib-2.0/schemas
-	install -m 644 debian/10_praya.gschema.override $(CURDIR)/debian/praya-gnome-shell-extension/usr/share/glib-2.0/schemas/
-	# Install per-user update script
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/usr/lib/praya-extension
-	install -m 755 debian/praya-update-user.sh $(CURDIR)/debian/praya-gnome-shell-extension/usr/lib/praya-extension/
-	# Install autostart desktop file into skel for new users
-	install -d $(CURDIR)/debian/praya-gnome-shell-extension/etc/skel/.config/autostart
-	install -m 644 debian/praya-extension-update.desktop $(CURDIR)/debian/praya-gnome-shell-extension/etc/skel/.config/autostart/
+	# ---- BlankOn variant (extension + distro integration) ----
+	debian/install-extension.sh $(CURDIR)/debian/$(PKG_BLANKON) 0
+	install -d $(CURDIR)/debian/$(PKG_BLANKON)/usr/share/glib-2.0/schemas
+	install -m 644 debian/10_praya.gschema.override $(CURDIR)/debian/$(PKG_BLANKON)/usr/share/glib-2.0/schemas/
+	install -d $(CURDIR)/debian/$(PKG_BLANKON)/usr/lib/praya-extension
+	install -m 755 debian/praya-update-user.sh $(CURDIR)/debian/$(PKG_BLANKON)/usr/lib/praya-extension/
+	install -d $(CURDIR)/debian/$(PKG_BLANKON)/etc/skel/.config/autostart
+	install -m 644 debian/praya-extension-update.desktop $(CURDIR)/debian/$(PKG_BLANKON)/etc/skel/.config/autostart/
+
+	# ---- Generic variant (extension only, no BlankOn integration) ----
+	debian/install-extension.sh $(CURDIR)/debian/$(PKG_GENERIC) 1

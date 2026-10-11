@@ -224,6 +224,13 @@ export default class PrayaExtension extends Extension {
             quickAccessHoverActivate: false,
             floatingPanel: true,
             panelPosition: 'top',
+            startButton: {
+                mode: 'default',
+                imagePath: '',
+                iconName: 'start-here-symbolic',
+                text: 'Start',
+                imageHeight: 16,
+            },
         };
 
         try {
@@ -340,6 +347,12 @@ export default class PrayaExtension extends Extension {
         // Apply hover activation settings to indicator
         if (this._indicator) {
             this._indicator.setMainMenuHoverActivate(newConfig.mainMenuHoverActivate || false);
+        }
+
+        // Apply start button icon settings
+        if (JSON.stringify(oldConfig.startButton) !== JSON.stringify(newConfig.startButton) &&
+            this._indicator && this._indicator.setStartButtonConfig) {
+            this._indicator.setStartButtonConfig(newConfig.startButton || {});
         }
 
         // Apply hover activation to taskbar

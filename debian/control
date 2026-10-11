@@ -13,3 +13,12 @@ Depends: gnome-shell (>= 50~), ${misc:Depends}
 Description: Praya GNOME Shell Extension
  A GNOME Shell extension for BlankOn Linux that provides
  the Praya desktop experience.
+
+Package: praya-gnome-shell-extension-generic
+Architecture: all
+Depends: gnome-shell (>= 50~), ${misc:Depends}
+Description: Praya GNOME Shell Extension (generic build)
+ A GNOME Shell extension that provides the Praya desktop experience
+ for distributions other than BlankOn Linux. It ships the generic
+ variant: no BlankOn branding, no BlankOn-specific defaults, and the
+ start button defaults to an "Applications" icon and label.

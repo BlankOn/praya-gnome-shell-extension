@@ -11,6 +11,7 @@ import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
+import GdkPixbuf from 'gi://GdkPixbuf';
 import AccountsService from 'gi://AccountsService';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -20,6 +21,15 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
 import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
+import {
+    normalizeStartButtonConfig,
+    clampStartButtonHeight,
+    maxImageWidth,
+    imageWidthForHeight,
+    escapeCssUrl,
+    startButtonRenderKind,
+} from './startButton.js';
+import { UUID, HAS_BLANKON_ABOUT } from './distro.js';
 
 import {
     PANEL_WIDTH,
@@ -39,17 +49,12 @@ class PrayaIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.0, 'Praya Menu');
 
-        // Create a box to hold the logo
-        let box = new St.BoxLayout({style_class: 'panel-status-menu-box'});
-
-        // Add logo using St.Widget with CSS background
-        let logo = new St.Widget({
-            style_class: 'praya-panel-logo',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        box.add_child(logo);
-
-        this.add_child(box);
+        // Track the start-button content so it can be rebuilt live from
+        // preferences without recreating the whole indicator.
+        this._servicesConfig = this._loadServicesConfig();
+        this._startButtonBox = new St.BoxLayout({style_class: 'panel-status-menu-box'});
+        this.add_child(this._startButtonBox);
+        this._applyStartButtonConfig();
 
         // Track panel visibility
         this._panelVisible = false;
@@ -160,6 +165,150 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Disable the default menu
         this.menu.actor.hide();
+    }
+
+    // -----------------------------------------------------------------
+    // Start button icon
+    //
+    // The panel start button can show the default Praya logo, a user
+    // supplied image (SVG/PNG/JPG), a GNOME icon-set icon, plain text, or
+    // an icon combined with text. The configuration lives in
+    // services.json under the "startButton" key and is applied live.
+    // -----------------------------------------------------------------
+    _defaultStartButtonConfig() {
+        return normalizeStartButtonConfig(null);
+    }
+
+    _applyStartButtonConfig() {
+        let cfg = normalizeStartButtonConfig(
+            (this._servicesConfig && this._servicesConfig.startButton) || {}
+        );
+
+        // Rebuild the box contents
+        this._startButtonBox.destroy_all_children();
+        this._startButtonBox.add_child(this._buildStartButtonContent(cfg));
+    }
+
+    _buildStartButtonContent(cfg) {
+        let height = clampStartButtonHeight(cfg.imageHeight);
+        let kind = startButtonRenderKind(cfg);
+
+        // Default logo or an image mode without a chosen file.
+        if (kind === 'logo') {
+            return new St.Widget({
+                style_class: 'praya-panel-logo',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        }
+
+        // Text only
+        if (kind === 'text') {
+            return new St.Label({
+                text: cfg.text || _('Start'),
+                style_class: 'praya-panel-start-text',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+        }
+
+        // Icon only or icon + text
+        if (kind === 'icon' || kind === 'icon_text') {
+            let box = new St.BoxLayout({
+                style_class: 'praya-panel-start-box',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            box.add_child(new St.Icon({
+                icon_name: cfg.iconName || 'start-here-symbolic',
+                icon_size: height,
+                style_class: 'praya-panel-start-icon',
+                y_align: Clutter.ActorAlign.CENTER,
+            }));
+            if (kind === 'icon_text') {
+                box.add_child(new St.Label({
+                    text: cfg.text || _('Start'),
+                    style_class: 'praya-panel-start-text',
+                    y_align: Clutter.ActorAlign.CENTER,
+                }));
+            }
+            return box;
+        }
+
+        // Custom image (SVG/PNG/JPG), scaled to fit the container height
+        return this._buildStartButtonImage(Object.assign({}, cfg, { imageHeight: height }));
+    }
+
+    _buildStartButtonImage(cfg) {
+        let height = cfg.imageHeight;
+
+        // The panel button keeps the panel's logo height while the width
+        // follows the image's natural aspect ratio, so a wide image is not
+        // squished into a height×height square. This mirrors the default
+        // logo, which is drawn as a CSS background-image with
+        // `background-size: contain`.
+        let width = this._getStartButtonImageWidth(cfg.imagePath, height);
+
+        let image = new St.Widget({
+            style_class: 'praya-panel-start-image',
+            y_align: Clutter.ActorAlign.CENTER,
+            style: `background-image: url("${escapeCssUrl(this._fileUri(cfg.imagePath))}");` +
+                `background-size: contain;` +
+                `background-repeat: no-repeat;` +
+                `background-position: center;` +
+                `height: ${height}px;` +
+                `width: ${width}px;`,
+        });
+
+        // Wrap in a box for consistent spacing with the other modes.
+        let box = new St.BoxLayout({
+            style_class: 'praya-panel-start-box',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(image);
+        return box;
+    }
+
+    _getStartButtonImageWidth(path, height) {
+        // Measure the aspect ratio from the decoded image (SVG/PNG/JPG) and
+        // derive the width at the requested height. Clamp to the available
+        // panel width so the button can't grow across the whole panel.
+        let cap = this._getStartButtonMaxImageWidth();
+        try {
+            let pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, -1, height, true);
+            let size = imageWidthForHeight(
+                pixbuf.get_width(), pixbuf.get_height(), height, cap);
+            return size.width;
+        } catch (e) {
+            log(`Praya: Could not measure start button image "${path}": ${e.message}`);
+            return Math.min(cap, height);
+        }
+    }
+
+    _fileUri(path) {
+        // Prefer a file:// URI; St's CSS parser reliably resolves URIs and
+        // absolute paths alike.
+        try {
+            return Gio.File.new_for_path(path).get_uri();
+        } catch (e) {
+            return path;
+        }
+    }
+
+    _getStartButtonMaxImageWidth() {
+        // Leave room for the panel's other items; the panel width is fixed.
+        try {
+            let monitor = Main.layoutManager.primaryMonitor;
+            if (monitor && monitor.width > 0)
+                return maxImageWidth(monitor.width);
+        } catch (e) {
+            // ignore
+        }
+        return maxImageWidth(null);
+    }
+
+    setStartButtonConfig(config) {
+        this._servicesConfig = Object.assign({}, this._servicesConfig, {
+            startButton: normalizeStartButtonConfig(config),
+        });
+        this._applyStartButtonConfig();
     }
 
     _loadApplicationsData() {
@@ -1602,7 +1751,7 @@ class PrayaIndicator extends PanelMenu.Button {
         prefsItem._activateCallback = () => {
             this._hidePanel();
 
-            let ext = Main.extensionManager.lookup('praya@blankonlinux.id');
+            let ext = Main.extensionManager.lookup(UUID);
             if (ext?.stateObj?.pausePosturePolling) {
                 ext.stateObj.pausePosturePolling();
             }
@@ -1639,17 +1788,19 @@ class PrayaIndicator extends PanelMenu.Button {
         menuBox.add_child(prefsItem);
         navItems.push(prefsItem);
 
-        // About BlankOn (has children)
-        let aboutItem = this._createMenuItem(_('About BlankOn'), 'help-about-symbolic', true);
-        aboutItem._hasChildren = true;
-        aboutItem._activateCallback = () => {
-            if (!this._isAnimating) this._showAboutBlankOn();
-        };
-        connectClickHandler(aboutItem, () => {
-            aboutItem._activateCallback();
-        });
-        menuBox.add_child(aboutItem);
-        navItems.push(aboutItem);
+        // About BlankOn (has children). Not shown in the generic build.
+        if (HAS_BLANKON_ABOUT) {
+            let aboutItem = this._createMenuItem(_('About BlankOn'), 'help-about-symbolic', true);
+            aboutItem._hasChildren = true;
+            aboutItem._activateCallback = () => {
+                if (!this._isAnimating) this._showAboutBlankOn();
+            };
+            connectClickHandler(aboutItem, () => {
+                aboutItem._activateCallback();
+            });
+            menuBox.add_child(aboutItem);
+            navItems.push(aboutItem);
+        }
 
         scrollView.add_child(menuBox);
         contentContainer.add_child(scrollView);
@@ -3184,7 +3335,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top' };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);

@@ -132,6 +132,24 @@
     margin: 0 5px;
 }
 
+.praya-panel-start-box {
+    spacing: 6px;
+    margin: 0;
+}
+
+.praya-panel-start-icon {
+    margin: 0;
+}
+
+.praya-panel-start-image {
+    margin: 0;
+}
+
+.praya-panel-start-text {
+    color: #fff;
+    font-weight: bold;
+}
+
 .praya-content-container {
     background-color: transparent;
 }

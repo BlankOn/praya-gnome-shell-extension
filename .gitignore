@@ -8,3 +8,17 @@ debian/*.substvars
 
 # IDE metadata
 .idea/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Generated variant files (from the .in templates via tools/gen-distro.sh)
+/distro.js
+/distro.py
+/metadata.json
+
+# Debian build artifacts
+debian/praya-gnome-shell-extension/
+debian/praya-gnome-shell-extension-generic/
+debian/.debhelper/
