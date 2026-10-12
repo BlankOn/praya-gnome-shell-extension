@@ -1,3 +1,14 @@
+praya-gnome-shell-extension (0.1.44-3) sinambung; urgency=medium
+
+  * Add DeepSeek as an AI provider alongside Anthropic and ChatGPT.
+  * Store API keys per provider, so switching providers no longer carries
+    one provider's key over to another; configs that only stored the old
+    single shared key are migrated automatically.
+  * Fix sending a chat with DeepSeek by using the /chat/completions
+    endpoint and the correct "messages" request field.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Mon, 12 Oct 2026 10:00:00 +0700
+
 praya-gnome-shell-extension (0.1.44-1) sinambung; urgency=medium
 
   * Let the taskbar use the full panel width instead of being capped at the
