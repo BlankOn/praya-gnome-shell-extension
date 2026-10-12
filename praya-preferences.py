@@ -3,7 +3,7 @@
 
 Reads and writes:
   ~/.config/praya/services.json   (panel / hover / posture / AI toggles)
-  ~/.config/praya/chatbot.json    (provider, model, API key)
+  ~/.config/praya/chatbot.json    (provider, model, per-provider API keys)
 
 The GNOME Shell extension watches these files via Gio.FileMonitor and
 applies changes live.
@@ -40,6 +40,10 @@ PROVIDERS = {
         'name': 'ChatGPT',
         'models': ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
     },
+    'deepseek': {
+        'name': "DeepSeek",
+        'models': ['deepseek-flash', 'deepseek-v4-pro']
+    }
 }
 # ------------------------------------------------------------------------------
 
@@ -111,8 +115,37 @@ DEFAULT_SERVICES_CONFIG = {
 DEFAULT_CHATBOT_CONFIG = {
     'provider': 'anthropic',
     'model': 'claude-sonnet-4-20250514',
-    'apiKey': '',
+    # API keys are stored per provider so switching providers does not leak
+    # one provider's key into another. Legacy configs that only stored a
+    # single top-level 'apiKey' are migrated by _migrate_chatbot_config().
+    'apiKeys': {},
 }
+
+
+def _migrate_chatbot_config(config):
+    """Return a chatbot config that stores API keys per provider.
+
+    Older versions kept a single top-level ``apiKey``. Move it under the
+    provider that was active and drop the legacy field so the two can't
+    drift apart.
+    """
+    migrated = dict(config)
+    api_keys = migrated.get('apiKeys')
+    api_keys = dict(api_keys) if isinstance(api_keys, dict) else {}
+
+    legacy_key = migrated.pop('apiKey', '')
+    provider = migrated.get('provider') or 'anthropic'
+    if legacy_key and not api_keys.get(provider):
+        api_keys[provider] = legacy_key
+
+    migrated['apiKeys'] = api_keys
+    return migrated
+
+
+def _provider_api_key(config, provider):
+    """Return the stored API key for ``provider`` ('' if none)."""
+    api_keys = config.get('apiKeys') or {}
+    return api_keys.get(provider, '')
 
 
 def _ensure_config_dir():
@@ -152,7 +185,9 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self.set_search_enabled(False)
 
         self._services = _load_json(SERVICES_CONFIG_PATH, DEFAULT_SERVICES_CONFIG)
-        self._chatbot = _load_json(CHATBOT_CONFIG_PATH, DEFAULT_CHATBOT_CONFIG)
+        self._chatbot = _migrate_chatbot_config(
+            _load_json(CHATBOT_CONFIG_PATH, DEFAULT_CHATBOT_CONFIG))
+        self._apikey_loading = False
         self._dbus = None
         self._posture_poll_id = None
         self._service_running = False
@@ -542,7 +577,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # API key
         self._apikey_row = Adw.PasswordEntryRow(title=_('API Key'))
-        self._apikey_row.set_text(self._chatbot.get('apiKey', ''))
+        self._apikey_row.set_text(_provider_api_key(self._chatbot, self._current_provider_key()))
         self._apikey_row.connect('changed', self._on_apikey_changed)
         ai_group.add(self._apikey_row)
 
@@ -717,6 +752,9 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     def _on_provider_changed(self, row, _pspec):
         self._update_model_list()
         self._chatbot['provider'] = self._current_provider_key()
+        # Show the key belonging to the newly selected provider instead of
+        # leaving the previous provider's key in the entry.
+        self._load_api_key_for_provider()
         self._save_chatbot()
 
     def _on_model_changed(self, row, _pspec):
@@ -728,8 +766,21 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             self._save_chatbot()
 
     def _on_apikey_changed(self, row):
-        self._chatbot['apiKey'] = row.get_text()
+        # Ignore the programmatic text change made when the provider switches.
+        if self._apikey_loading:
+            return
+        api_keys = self._chatbot.setdefault('apiKeys', {})
+        api_keys[self._current_provider_key()] = row.get_text()
         self._save_chatbot()
+
+    def _load_api_key_for_provider(self):
+        """Populate the API key entry with the active provider's key."""
+        self._apikey_loading = True
+        try:
+            self._apikey_row.set_text(
+                _provider_api_key(self._chatbot, self._current_provider_key()))
+        finally:
+            self._apikey_loading = False
 
     # ==================================================================
     # Service status

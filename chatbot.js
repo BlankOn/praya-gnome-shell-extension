@@ -27,7 +27,7 @@ export class ChatbotSettings {
         this._settings = {
             provider: 'anthropic',
             model: 'claude-sonnet-4-20250514',
-            apiKey: ''
+            apiKeys: {}
         };
         this._load();
     }
@@ -71,11 +71,26 @@ export class ChatbotSettings {
     get model() { return this._settings.model; }
     set model(value) { this._settings.model = value; }
 
-    get apiKey() { return this._settings.apiKey; }
-    set apiKey(value) { this._settings.apiKey = value; }
+    // API keys are stored per provider. Fall back to the legacy single
+    // top-level `apiKey` so configs written by older versions keep working.
+    get apiKey() {
+        let apiKeys = this._settings.apiKeys;
+        if (apiKeys && typeof apiKeys === 'object' &&
+            Object.prototype.hasOwnProperty.call(apiKeys, this._settings.provider)) {
+            return apiKeys[this._settings.provider];
+        }
+        return this._settings.apiKey || '';
+    }
+
+    set apiKey(value) {
+        if (!this._settings.apiKeys || typeof this._settings.apiKeys !== 'object')
+            this._settings.apiKeys = {};
+        this._settings.apiKeys[this._settings.provider] = value;
+    }
 
     isConfigured() {
-        return this._settings.apiKey && this._settings.apiKey.length > 0;
+        let apiKey = this.apiKey;
+        return !!(apiKey && apiKey.length > 0);
     }
 
     reload() {
@@ -117,6 +132,17 @@ export class ChatbotAPI {
             message.request_headers.append('x-api-key', this._settings.apiKey);
             message.request_headers.append('anthropic-version', '2023-06-01');
             message.request_headers.append('content-type', 'application/json');
+        } else if (provider === 'deepseek') {
+            requestBody = JSON.stringify({
+                model: this._settings.model,
+                stream: false,
+                messages: messages.map(m => ({
+                    role: m.role,
+                    content: m.content
+                }))
+            });
+            message.request_headers.append('content-type', 'application/json');
+            message.request_headers.append('authorization', `Bearer ${this._settings.apiKey}`);
         } else {
             requestBody = JSON.stringify({
                 model: this._settings.model,
