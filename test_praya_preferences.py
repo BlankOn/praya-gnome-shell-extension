@@ -73,6 +73,19 @@ class StartButtonDefaultsTest(unittest.TestCase):
             self.assertTrue(name.endswith('-symbolic'), name)
 
 
+class ContributorsTest(unittest.TestCase):
+    def test_contributors_are_well_formed(self):
+        self.assertGreater(len(prefs.CONTRIBUTORS), 0)
+        for person in prefs.CONTRIBUTORS:
+            self.assertTrue(person['name'])
+            self.assertTrue(person['email'])
+            self.assertGreater(person['commits'], 0)
+
+    def test_contributors_are_sorted_by_commits_descending(self):
+        counts = [person['commits'] for person in prefs.CONTRIBUTORS]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+
+
 class LoadJsonTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

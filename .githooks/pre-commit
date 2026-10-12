@@ -1,0 +1,23 @@
+#!/bin/sh
+# Praya pre-commit hook.
+#
+# Regenerates contributors.py from git history and stages it, so the committed
+# contributor list never goes stale as new people commit.
+#
+# Enable once per clone:
+#   make hooks          # or: git config core.hooksPath .githooks
+#
+# Bypass with `git commit --no-verify` (the list will just be regenerated next
+# time, or by `make contributors`).
+set -e
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+# The generator reads git history directly and rewrites contributors.py.
+tools/gen-contributors.py >/dev/null
+
+# Stage only when the regenerated file differs from what is already staged.
+if ! git diff --quiet -- contributors.py; then
+    git add contributors.py
+fi

@@ -28,6 +28,9 @@ from distro import (
     DEFAULT_START_BUTTON,
 )
 
+# Contributor list (generated from git history by tools/gen-contributors.py).
+from contributors import CONTRIBUTORS
+
 # -- Keep in sync with constants.js -------------------------------------------
 VERSION = '0.1.44'
 
@@ -593,6 +596,18 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         about_group.add(license_row)
 
         page.add(about_group)
+
+        # Contributors (generated from git history; see tools/gen-contributors.py)
+        if CONTRIBUTORS:
+            contributors_group = Adw.PreferencesGroup(title=_('Contributors'))
+            for person in CONTRIBUTORS:
+                row = Adw.ActionRow(
+                    title=person['name'],
+                    subtitle=person['email'],
+                )
+                contributors_group.add(row)
+            page.add(contributors_group)
+
         self.add(page)
 
     # ==================================================================
