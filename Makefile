@@ -18,7 +18,7 @@ EXT_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
 	translations.js touch-helper.js startButton.js searchProviders.js \
 	searchResults.js searchEngine.js distro.js metadata.json \
-	stylesheet.css lowspec-dialog.py praya-preferences.py distro.py assets locale
+	contributors.py stylesheet.css lowspec-dialog.py praya-preferences.py distro.py assets locale
 
 # Install the working tree over the user's real installed extension, for
 # trying it in an actual desktop session. `make run` does not need this.
@@ -57,6 +57,17 @@ run-mutter-devkit-generic:
 distro-generic:
 	@$(MAKE) distro PRAYA_GENERIC=1
 
+# Regenerate contributors.py from git history. The result is committed, so a
+# package built from a tarball (no .git) still ships the same list.
+contributors:
+	tools/gen-contributors.py
+
+# Enable the repository's committed git hooks (see .githooks/). The pre-commit
+# hook regenerates and stages contributors.py automatically.
+hooks:
+	git config core.hooksPath .githooks
+	@echo "Git hooks enabled (core.hooksPath=.githooks)"
+
 pot:
 	xgettext --from-code=UTF-8 --language=JavaScript \
 		--keyword=_ --keyword=N_ \
@@ -91,13 +102,13 @@ i18n: pot update-po build-mo
 # for the preferences/generator helpers. Requires a generated distro.js/py.
 test: distro
 	node --test
-	python3 -m unittest -v test_praya_preferences test_gen_distro
+	python3 -m unittest -v test_praya_preferences test_gen_distro test_gen_contributors
 
 # Run the test suite against the generic variant.
 test-generic:
 	@$(MAKE) test PRAYA_GENERIC=1
 	@$(MAKE) distro >/dev/null
 
-.PHONY: distro distro-generic run run-generic run-mutter-devkit \
+.PHONY: distro distro-generic contributors hooks run run-generic run-mutter-devkit \
 	run-mutter-devkit-generic install-user install-user-generic \
 	pot update-po build-mo i18n test test-generic

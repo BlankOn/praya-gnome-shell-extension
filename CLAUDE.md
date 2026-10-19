@@ -27,6 +27,24 @@ This runs the Node tests for the JS helpers (`*.test.js` via `node --test`)
 and the Python `unittest` suite (`test_*.py`). The pure start-button logic
 lives in **`startButton.js`** so it can be tested without GNOME Shell.
 
+## Contributors
+
+The "About Praya" preferences page lists the project's contributors. The list
+is generated from git history by **`tools/gen-contributors.py`** into the
+committed module **`contributors.py`** (`make contributors`). Names and
+e-mails are taken from the git author fields and ordered by commit count.
+Regenerate and commit it whenever a new person contributes; packaging copies
+the file as-is, so builds from a tarball (no `.git`) still work.
+
+This is automated by the committed git hook **`.githooks/pre-commit`**, which
+regenerates `contributors.py` and stages it on every commit. Enable it once
+per clone with **`make hooks`**. Bypass a single commit with
+`git commit --no-verify`.
+
+Author names are normalized by **`.mailmap`** (for example the old `sendz`
+now shows as `Sendy Aditya Suryana`). Update `.mailmap` when someone changes
+their display name, then run `make contributors`.
+
 ## Build variants
 
 The extension ships in two variants built from one source tree:

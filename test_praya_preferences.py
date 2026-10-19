@@ -73,6 +73,19 @@ class StartButtonDefaultsTest(unittest.TestCase):
             self.assertTrue(name.endswith('-symbolic'), name)
 
 
+class ContributorsTest(unittest.TestCase):
+    def test_contributors_are_well_formed(self):
+        self.assertGreater(len(prefs.CONTRIBUTORS), 0)
+        for person in prefs.CONTRIBUTORS:
+            self.assertTrue(person['name'])
+            self.assertTrue(person['email'])
+            self.assertGreater(person['commits'], 0)
+
+    def test_contributors_are_sorted_by_commits_descending(self):
+        counts = [person['commits'] for person in prefs.CONTRIBUTORS]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+
+
 class LoadJsonTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -168,6 +181,51 @@ class StartButtonMergeTest(unittest.TestCase):
         # window builds its own full start-button dict from .get() defaults.
         self.assertEqual(sb['mode'], 'text')
         self.assertNotIn('iconName', sb)
+
+
+class ChatbotApiKeyTest(unittest.TestCase):
+    def test_default_chatbot_stores_keys_per_provider(self):
+        self.assertEqual(prefs.DEFAULT_CHATBOT_CONFIG['apiKeys'], {})
+        self.assertNotIn('apiKey', prefs.DEFAULT_CHATBOT_CONFIG)
+
+    def test_migrate_moves_legacy_key_to_active_provider(self):
+        migrated = prefs._migrate_chatbot_config({
+            'provider': 'openai',
+            'model': 'gpt-4o',
+            'apiKey': 'sk-legacy',
+        })
+        self.assertEqual(migrated['apiKeys'], {'openai': 'sk-legacy'})
+        self.assertNotIn('apiKey', migrated)
+
+    def test_migrate_does_not_overwrite_existing_provider_key(self):
+        migrated = prefs._migrate_chatbot_config({
+            'provider': 'openai',
+            'apiKeys': {'openai': 'sk-new', 'anthropic': 'sk-ant'},
+            'apiKey': 'sk-legacy',
+        })
+        self.assertEqual(migrated['apiKeys']['openai'], 'sk-new')
+        self.assertEqual(migrated['apiKeys']['anthropic'], 'sk-ant')
+
+    def test_migrate_without_legacy_key_is_a_noop(self):
+        migrated = prefs._migrate_chatbot_config({
+            'provider': 'anthropic',
+            'apiKeys': {'anthropic': 'sk-ant'},
+        })
+        self.assertEqual(migrated['apiKeys'], {'anthropic': 'sk-ant'})
+
+    def test_migrate_handles_missing_or_corrupt_api_keys(self):
+        migrated = prefs._migrate_chatbot_config({'provider': 'anthropic', 'apiKeys': 'nope'})
+        self.assertEqual(migrated['apiKeys'], {})
+        self.assertNotIn('apiKey', migrated)
+
+    def test_provider_api_key_is_scoped_to_provider(self):
+        config = {'apiKeys': {'anthropic': 'sk-ant', 'openai': 'sk-oai'}}
+        self.assertEqual(prefs._provider_api_key(config, 'anthropic'), 'sk-ant')
+        self.assertEqual(prefs._provider_api_key(config, 'openai'), 'sk-oai')
+        self.assertEqual(prefs._provider_api_key(config, 'deepseek'), '')
+
+    def test_provider_api_key_tolerates_missing_map(self):
+        self.assertEqual(prefs._provider_api_key({'provider': 'anthropic'}, 'anthropic'), '')
 
 
 if __name__ == '__main__':

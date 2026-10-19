@@ -1,0 +1,5 @@
+# Mailmap: normalize author names for `git shortlog` and the generator
+# tools/gen-contributors.py (which reads %aN/%aE, both mailmap-aware).
+#
+# Maps the old display name "sendz" to the current one, keeping the e-mail.
+Sendy Aditya Suryana <sendzation@gmail.com> <sendzation@gmail.com>

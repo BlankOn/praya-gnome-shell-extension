@@ -1,4 +1,4 @@
-praya-gnome-shell-extension (0.1.44-2) sinambung; urgency=medium
+praya-gnome-shell-extension (0.1.44-4) sinambung; urgency=medium
 
   * Search the GNOME Shell search providers from the Praya search box, so
     results from Settings, Files, Calculator and the other enabled
@@ -9,6 +9,17 @@ praya-gnome-shell-extension (0.1.44-2) sinambung; urgency=medium
     that fallback sends the query.
 
  -- BlankOn Linux <blankon-dev@googlegroups.com>  Sun, 11 Oct 2026 00:00:00 +0700
+
+praya-gnome-shell-extension (0.1.44-3) sinambung; urgency=medium
+
+  * Add DeepSeek as an AI provider alongside Anthropic and ChatGPT.
+  * Store API keys per provider, so switching providers no longer carries
+    one provider's key over to another; configs that only stored the old
+    single shared key are migrated automatically.
+  * Fix sending a chat with DeepSeek by using the /chat/completions
+    endpoint and the correct "messages" request field.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Mon, 12 Oct 2026 10:00:00 +0700
 
 praya-gnome-shell-extension (0.1.44-1) sinambung; urgency=medium
 

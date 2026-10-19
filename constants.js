@@ -49,5 +49,10 @@ export const PROVIDERS = {
         name: 'ChatGPT',
         models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
         endpoint: 'https://api.openai.com/v1/chat/completions'
+    },
+    deepseek: {
+        name: 'DeepSeek',
+        models: ['deepseek-flash', 'deepseek-v4-pro'],
+        endpoint: 'https://api.deepseek.com/chat/completions'
     }
 };
