@@ -627,7 +627,9 @@ class PrayaTaskbar extends St.BoxLayout {
         button.connect('notify::hover', (actor) => {
             if (actor.hover) {
                 let text = app
-                    ? `${app.get_name()} - ${fullTitle}`
+                    ? app.get_name() === fullTitle 
+                        ? app.get_name() 
+                        : `${app.get_name()} - ${fullTitle}`
                     : fullTitle;
 
                 this._tooltipButton = button;
