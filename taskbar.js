@@ -22,6 +22,10 @@ import { _ } from './translations.js';
 // grouped taskbar button
 const GROUP_THRESHOLD = 2;
 
+// Tooltip
+const TOOLTIP_DELAY = 400;
+const TOOLTIP_GAP = 4;
+
 // Pixels scrolled per mouse wheel click
 const SCROLL_STEP = 60;
 
@@ -102,6 +106,11 @@ class PrayaTaskbar extends St.BoxLayout {
         this._titleSignals = [];
         this._clickCooldowns = new Map();
 
+        // Taskbar Tooltip
+        this._tooltip = null;
+        this._tooltipTimeoutId = 0;
+        this._tooltipButton = null;
+
         // Right-click context menu
         this._menuManager = new PopupMenu.PopupMenuManager(this);
         this._contextMenu = null;
@@ -158,6 +167,12 @@ class PrayaTaskbar extends St.BoxLayout {
 
         // Mouse wheel scrolls the taskbar horizontally
         this._scrollView.connect('scroll-event', (actor, event) => this._onScroll(event));
+
+        // Safety net: never leave a tooltip behind when the pointer leaves
+        this.connect('leave-event', () => {
+            this._hideTooltip();
+            return Clutter.EVENT_PROPAGATE;
+        });
 
         // Initial update with delay to ensure windows are loaded
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
@@ -249,6 +264,7 @@ class PrayaTaskbar extends St.BoxLayout {
 
         let max = Math.max(0, adjustment.upper - adjustment.page_size);
         adjustment.value = Math.min(max, Math.max(0, adjustment.value + delta));
+        this._hideTooltip();
         return Clutter.EVENT_STOP;
     }
 
@@ -324,6 +340,88 @@ class PrayaTaskbar extends St.BoxLayout {
         this._scrollLaterId = 0;
     }
 
+    _scheduleTooltip(button, text) {
+        this._removeTooltipTimeout();
+
+        this._tooltipTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, TOOLTIP_DELAY, () => {
+                this._tooltipTimeoutId = 0;
+                this._showTooltip(button, text);
+                return GLib.SOURCE_REMOVE;
+            });
+    }
+
+    _removeTooltipTimeout() {
+        if (!this._tooltipTimeoutId) return;
+
+        GLib.source_remove(this._tooltipTimeoutId);
+        this._tooltipTimeoutId = 0;
+    }
+
+    _hideTooltip() {
+        this._removeTooltipTimeout();
+        this._tooltipButton = null;
+        if (this._tooltip) this._tooltip.hide();
+    }
+
+    // The taskbar is rebuilt when a hover-activated window gains focus, which
+    // destroys the button the tooltip was scheduled for. In that case fall
+    // back to whichever taskbar button is under the pointer now.
+    _findButtonUnderPointer() {
+        let [x, y] = global.get_pointer();
+        let actor = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+
+        while (actor && actor !== this) {
+            if (actor.style_class === 'praya-taskbar-button')
+                return actor;
+            actor = actor.get_parent();
+        }
+        return null;
+    }
+
+    _showTooltip(button, text) {
+        if (!button.get_stage())
+            button = this._findButtonUnderPointer();
+        if (!button)
+            return;
+
+        this._tooltipButton = button;
+
+        if (!this._tooltip) {
+            this._tooltip = new St.Label({
+                style_class: 'praya-taskbar-tooltip',
+                reactive: false,
+                track_hover: false,
+            });
+
+            Main.uiGroup.add_child(this._tooltip);
+        }
+
+        this._tooltip.text = text;
+        this._tooltip.show();
+
+        let [x, y] = button.get_transformed_position();
+        let [, buttonWidth] = button.get_transformed_size();
+        let [, buttonHeight] = button.get_transformed_size();
+        let [, tooltipWidth] = this._tooltip.get_preferred_width(-1);
+        let [, tooltipHeight] = this._tooltip.get_preferred_height(tooltipWidth);
+
+        let monitor = Main.layoutManager.primaryMonitor;
+
+        let tooltipX = Math.round(x + (buttonWidth - tooltipWidth) / 2);
+        tooltipX = Math.max(monitor.x + 4,
+            Math.min(tooltipX, monitor.x + monitor.width - tooltipWidth - 4)
+        );
+
+        // Panel orientation vs tooltip position
+        let isPanelOnTop = y < monitor.y + monitor.height / 2;
+
+        let tooltipY = isPanelOnTop ? Math.round(y + buttonHeight + TOOLTIP_GAP)
+                              : Math.round(y - tooltipHeight - TOOLTIP_GAP);
+
+        this._tooltip.set_position(tooltipX, tooltipY);
+    }
+
     _updateTaskbar() {
         // Rebuilding would destroy the context menu's source button,
         // so defer until the menu closes
@@ -337,6 +435,12 @@ class PrayaTaskbar extends St.BoxLayout {
             sig.window.disconnect(sig.id);
         }
         this._titleSignals = [];
+
+        // A hover-activated window rebuilds the taskbar right after the
+        // tooltip is scheduled. Keep it alive in that case; the tooltip
+        // re-attaches to the new button under the pointer.
+        if (!this._hoverActivate)
+            this._hideTooltip();
 
         // Remove all existing children
         this._box.destroy_all_children();
@@ -476,9 +580,10 @@ class PrayaTaskbar extends St.BoxLayout {
         innerBox.add_child(icon);
 
         // Window title - show for all windows
-        let title = window.get_title() || (app ? app.get_name() : 'Window');
+        let fullTitle = window.get_title() || (app ? app.get_name() : _('Window'));
+
         // Truncate long titles
-        let displayTitle = title;
+        let displayTitle = fullTitle;
         if (displayTitle.length > 20) {
             displayTitle = displayTitle.substring(0, 18) + '...';
         }
@@ -511,13 +616,31 @@ class PrayaTaskbar extends St.BoxLayout {
                 }
                 this._activateWithFade(window);
             }
+
             if (!actor.hover) {
                 this._hoverSuppressed = false;
             }
         });
 
+        // Hover tooltip - shows the full window title, which the button label
+        // truncates to fit in the panel
+        button.connect('notify::hover', (actor) => {
+            if (actor.hover) {
+                let text = app
+                    ? `${app.get_name()} - ${fullTitle}`
+                    : fullTitle;
+
+                this._tooltipButton = button;
+                this._scheduleTooltip(button, text);
+            } else if (this._tooltipButton === button) {
+                this._hideTooltip();
+            }
+        });
+
         // Click/touch handler
         connectClickHandler(button, () => {
+            this._hideTooltip();
+
             // Ignore clicks during cooldown after hover-unminimize
             if (this._clickCooldowns.has(window)) {
                 return;
@@ -587,12 +710,13 @@ class PrayaTaskbar extends St.BoxLayout {
         icon.style_class = 'praya-taskbar-icon';
         innerBox.add_child(icon);
 
-        let name = app ? app.get_name() : 'Window';
-        if (name.length > 20) {
-            name = name.substring(0, 18) + '...';
+        let appName = app ? app.get_name() : _('Window');
+        let displayName = appName;
+        if (displayName.length > 20) {
+            displayName = displayName.substring(0, 18) + '...';
         }
         innerBox.add_child(new St.Label({
-            text: name,
+            text: displayName,
             style_class: 'praya-taskbar-label',
             y_align: Clutter.ActorAlign.CENTER,
         }));
@@ -607,11 +731,23 @@ class PrayaTaskbar extends St.BoxLayout {
 
         // Both left and right click open the window list
         connectClickHandler(button, () => {
+            this._hideTooltip();
             this._showGroupMenu(button, app, windows);
         }, {
             onRightClick: () => {
+                this._hideTooltip();
                 this._showGroupMenu(button, app, windows);
             },
+        });
+
+        button.connect('notify::hover', (actor) => {
+            if (actor.hover) {
+                this._tooltipButton = button;
+                this._scheduleTooltip(button,
+                    `${appName} (${windows.length})`);
+            } else if (this._tooltipButton === button) {
+                this._hideTooltip();
+            }
         });
 
         return button;
@@ -666,6 +802,7 @@ class PrayaTaskbar extends St.BoxLayout {
     // Create a popup menu anchored on a taskbar button, replacing any menu
     // that is currently open
     _createMenu(button) {
+        this._hideTooltip();
         this._destroyContextMenu();
 
         let menu = new PopupMenu.PopupMenu(button, 0.5, St.Side.TOP);
@@ -801,6 +938,12 @@ class PrayaTaskbar extends St.BoxLayout {
     destroy() {
         this._updatePending = false;
         this._destroyContextMenu();
+
+        this._removeTooltipTimeout();
+        if (this._tooltip) {
+            this._tooltip.destroy();
+            this._tooltip = null;
+        }
 
         this._removeScrollLater();
 
