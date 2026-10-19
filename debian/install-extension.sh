@@ -47,4 +47,20 @@ for lang in $(cat po/LINGUAS); do
 	install -m 644 "locale/$lang/LC_MESSAGES/praya.mo" "$EXT/locale/$lang/LC_MESSAGES/"
 done
 
+# Consistency guard (see issue #15): every ES module imported by the
+# extension's own sources must be present in the staging tree. Without
+# this check, adding a new module to the code but forgetting to register
+# it above ships a .deb that installs a broken extension -- fail loudly
+# at build time instead.
+missing="$(for js in "$EXT"/*.js; do
+	grep -hoE "from '\./[^']+'" "$js" || true
+done | sed -e "s|^from '\./||" -e "s|'\$||" | sort -u | while read -r mod; do
+	[ -f "$EXT/$mod" ] || echo "$mod"
+done)"
+if [ -n "$missing" ]; then
+	echo "ERROR: imported module(s) missing from the staged package: $missing" >&2
+	echo "Register them in debian/install-extension.sh (cf. issue #15)." >&2
+	exit 1
+fi
+
 echo "Staged $UUID into $DEST"
