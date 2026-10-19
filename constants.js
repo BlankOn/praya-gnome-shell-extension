@@ -23,6 +23,12 @@ export const MARGIN_BOTTOM_BAR = 16;
 // menu appears to move rather than silently stay in place.
 export const CONTEXT_MENU_BLINK_MS = 120;
 
+// How long to wait after the last keystroke before querying GNOME Shell's
+// search providers. Coalesces typing into a single provider fan-out so every
+// keypress does not spawn a fresh set of D-Bus calls (and autostart attempts).
+// Mirrors the overview's own debounce.
+export const SEARCH_DEBOUNCE_MS = 150;
+
 // Chatbot dimensions
 export const CHATBOT_PANEL_WIDTH = 400;
 export const CHATBOT_HEADER_HEIGHT = 60;

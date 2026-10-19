@@ -1,5 +1,6 @@
 extension.js
 indicator.js
+searchProviders.js
 praya-preferences.py
 chatbot.js
 taskbar.js

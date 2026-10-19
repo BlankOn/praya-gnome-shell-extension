@@ -97,6 +97,32 @@ CONFIG_DIR = os.path.join(GLib.get_user_config_dir(), 'praya')
 SERVICES_CONFIG_PATH = os.path.join(CONFIG_DIR, 'services.json')
 CHATBOT_CONFIG_PATH = os.path.join(CONFIG_DIR, 'chatbot.json')
 
+# Web search engines offered by the "search the web" fallback in the menu.
+# The keys and URLs must stay in sync with SEARCH_ENGINES in searchEngine.js
+# (see test_praya_preferences.py for the consistency check).
+SEARCH_ENGINES = {
+    'google': 'https://www.google.com/search?q=%s',
+    'duckduckgo': 'https://duckduckgo.com/?q=%s',
+    'bing': 'https://www.bing.com/search?q=%s',
+    'yahoo': 'https://search.yahoo.com/search?p=%s',
+}
+DEFAULT_SEARCH_ENGINE = 'google'
+CUSTOM_SEARCH_ENGINE = 'custom'
+SEARCH_ENGINE_ORDER = [
+    'google',
+    'duckduckgo',
+    'bing',
+    'yahoo',
+    CUSTOM_SEARCH_ENGINE,
+]
+SEARCH_ENGINE_LABELS = {
+    'google': 'Google',
+    'duckduckgo': 'DuckDuckGo',
+    'bing': 'Bing',
+    'yahoo': 'Yahoo',
+    'custom': _('Custom'),
+}
+
 DEFAULT_SERVICES_CONFIG = {
     'ai': False,
     'posture': False,
@@ -109,6 +135,8 @@ DEFAULT_SERVICES_CONFIG = {
     'quickAccessHoverActivate': False,
     'floatingPanel': True,
     'panelPosition': 'top',
+    'searchEngine': DEFAULT_SEARCH_ENGINE,
+    'searchEngineCustomUrl': '',
     'startButton': {
         'imagePath': '',
         **DEFAULT_START_BUTTON,
@@ -259,6 +287,35 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         panel_group.add(self._floating_row)
 
         page.add(panel_group)
+
+        # -- Search group --
+        search_group = Adw.PreferencesGroup(
+            title=_('Search'),
+            description=_('Where the “Search the web” result in the menu sends your query.'),
+        )
+
+        self._search_engine_row = Adw.ComboRow(title=_('Search engine'))
+        engine_labels = [SEARCH_ENGINE_LABELS[key] for key in SEARCH_ENGINE_ORDER]
+        self._search_engine_row.set_model(Gtk.StringList.new(engine_labels))
+        try:
+            engine_index = SEARCH_ENGINE_ORDER.index(
+                self._services.get('searchEngine', DEFAULT_SEARCH_ENGINE))
+        except ValueError:
+            engine_index = SEARCH_ENGINE_ORDER.index(DEFAULT_SEARCH_ENGINE)
+        self._search_engine_row.set_selected(engine_index)
+        self._search_engine_row.connect('notify::selected', self._on_search_engine_changed)
+        search_group.add(self._search_engine_row)
+
+        self._search_custom_row = Adw.EntryRow(title=_('Custom search URL'))
+        self._search_custom_row.set_text(
+            self._services.get('searchEngineCustomUrl', '') or '')
+        self._search_custom_row.set_tooltip_text(
+            _('Use %s where the search terms should go.'))
+        self._search_custom_row.connect('changed', self._on_search_custom_changed)
+        search_group.add(self._search_custom_row)
+
+        self._update_search_custom_row_visibility()
+        page.add(search_group)
 
         # -- Activate on Hover group --
         hover_group = Adw.PreferencesGroup(title=_('Activate on Hover'))
@@ -689,6 +746,20 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     def _on_floating_changed(self, row, _pspec):
         self._services['floatingPanel'] = row.get_active()
         self._save_services()
+
+    def _on_search_engine_changed(self, row, _pspec):
+        self._services['searchEngine'] = SEARCH_ENGINE_ORDER[row.get_selected()]
+        self._update_search_custom_row_visibility()
+        self._save_services()
+
+    def _on_search_custom_changed(self, row):
+        self._services['searchEngineCustomUrl'] = row.get_text()
+        self._save_services()
+
+    def _update_search_custom_row_visibility(self):
+        is_custom = (self._services.get('searchEngine', DEFAULT_SEARCH_ENGINE)
+                     == CUSTOM_SEARCH_ENGINE)
+        self._search_custom_row.set_visible(is_custom)
 
     def _on_hover_changed(self, row, key):
         self._services[key] = row.get_active()
