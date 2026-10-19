@@ -21,6 +21,8 @@ import * as SystemActions from 'resource:///org/gnome/shell/misc/systemActions.j
 import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
 import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
+import { SearchProviders } from './searchProviders.js';
+import { queryTerms, flattenSections } from './searchResults.js';
 import {
     normalizeStartButtonConfig,
     clampStartButtonHeight,
@@ -40,9 +42,11 @@ import {
     MARGIN_BOTTOM,
     MARGIN_BOTTOM_BAR,
     CONTEXT_MENU_BLINK_MS,
+    SEARCH_DEBOUNCE_MS,
     CHATBOT_PANEL_WIDTH,
     FAVOURITES_FILE
 } from './constants.js';
+import { resolveSearchUrl } from './searchEngine.js';
 
 export const PrayaIndicator = GObject.registerClass(
 class PrayaIndicator extends PanelMenu.Button {
@@ -67,6 +71,17 @@ class PrayaIndicator extends PanelMenu.Button {
         this._isSearchActive = false;
         this._searchEntry = null;
         this._keyPressId = null;
+
+        // GNOME Shell search providers (Settings, Files, Calculator, …).
+        // Created lazily on the first search so the extension's startup cost
+        // stays low.
+        this._searchProviders = null;
+        this._searchSeq = 0;
+        this._searchCancellable = null;
+        this._searchDebounceId = null;
+        this._searchDebounceResolve = null;
+        this._searchClearId = null;
+        this._currentSearchResults = [];
 
         // Keyboard navigation
         this._focusedIndex = -1;
@@ -1191,6 +1206,11 @@ class PrayaIndicator extends PanelMenu.Button {
         this._isSearchActive = false;
         this._isAnimating = false;
         this._searchEntry = null;
+
+        // Abandon any in-flight provider search: the entry it belonged to is
+        // about to be destroyed.
+        this._cancelSearch();
+
         this._focusedIndex = -1;
         this._menuItems = [];
         this._screenNavItems = [];
@@ -2107,27 +2127,83 @@ class PrayaIndicator extends PanelMenu.Button {
     }
 
     _onSearchTextChanged() {
+        // Replacing a selection emits two 'text-changed' signals in one
+        // keypress: one when the selection is deleted (empty text) and one
+        // when the new character is inserted. Tearing the header down on the
+        // first one destroys the ClutterText mid-edit and swallows the typed
+        // character, so defer the "cleared" handling; it is cancelled if text
+        // comes back immediately.
+        if (this._searchClearId) {
+            GLib.source_remove(this._searchClearId);
+            this._searchClearId = null;
+        }
+
         let searchText = this._searchEntry.get_text().trim();
 
         if (searchText === '') {
-            // Show main menu when search is cleared
-            if (this._navigationStack.length > 0 || this._isSearchActive) {
-                this._isSearchActive = false;
-                this._navigationStack = [];
-                this._showMainMenu(true);
-                // Maintain focus on search entry after reset
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    if (this._searchEntry) {
-                        this._searchEntry.grab_key_focus();
-                    }
+            // Drop any in-flight provider query; its results belong to the
+            // text that was just cleared.
+            this._cancelSearch();
+
+            this._searchClearId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 0, () => {
+                this._searchClearId = null;
+
+                // Text came back (selection replaced) or the panel is gone.
+                if (!this._panelVisible || !this._searchEntry ||
+                    this._searchEntry.get_text().trim() !== '')
                     return GLib.SOURCE_REMOVE;
-                });
-            }
+
+                // Show main menu when search is cleared
+                if (this._navigationStack.length > 0 || this._isSearchActive) {
+                    this._isSearchActive = false;
+                    this._navigationStack = [];
+                    this._showMainMenu(true);
+                    // Maintain focus on search entry after reset
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                        if (this._searchEntry) {
+                            this._searchEntry.grab_key_focus();
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
+                return GLib.SOURCE_REMOVE;
+            });
             return;
         }
 
         this._isSearchActive = true;
         this._showSearchResults(searchText);
+    }
+
+    // Invalidate any in-flight provider search: bump the sequence number so
+    // late results are ignored, cancel the pending D-Bus queries, and release
+    // a queued debounce so its awaiting search can bail out.
+    _cancelSearch() {
+        this._searchSeq++;
+        if (this._searchClearId) {
+            GLib.source_remove(this._searchClearId);
+            this._searchClearId = null;
+        }
+        if (this._searchDebounceId) {
+            GLib.source_remove(this._searchDebounceId);
+            this._searchDebounceId = null;
+        }
+        if (this._searchDebounceResolve) {
+            const resolve = this._searchDebounceResolve;
+            this._searchDebounceResolve = null;
+            resolve();
+        }
+        if (this._searchCancellable) {
+            this._searchCancellable.cancel();
+            this._searchCancellable = null;
+        }
+        this._currentSearchResults = [];
+    }
+
+    _getSearchProviders() {
+        if (!this._searchProviders)
+            this._searchProviders = new SearchProviders();
+        return this._searchProviders;
     }
 
     // Collect the apps matching @query, in the order they are displayed.
@@ -2177,24 +2253,51 @@ class PrayaIndicator extends PanelMenu.Button {
         if (searchText === '')
             return;
 
-        // Launch the same entry the results list shows first, so that pressing
-        // Enter and clicking the top result always do the same thing.
+        // Applications are shown first, so Enter launches the same entry the
+        // results list shows first.
         let matchedApps = this._getMatchedApps(searchText);
-        if (matchedApps.length === 0) {
-            // No results found - enter chatbot mode if AI is enabled and configured
-            // Reload settings to pick up any recent changes
-            this._chatbotSettings.reload();
-            if (this._isAIEnabled() && this._chatbotSettings.isConfigured()) {
-                this._enterChatbotMode(searchText);
-            }
+        if (matchedApps.length > 0) {
+            this._launchAppFromData(matchedApps[0]);
+            this._hidePanel();
             return;
         }
 
-        this._launchAppFromData(matchedApps[0]);
+        // No application matched: fall back to the first result from the
+        // shell's providers (Settings, Files, Calculator, a system action…).
+        if (this._currentSearchResults.length > 0) {
+            this._activateProviderResult(
+                this._currentSearchResults[0], queryTerms(searchText));
+            return;
+        }
+
+        // Nothing at all: offer the AI chatbot when it is enabled and set up.
+        // Reload settings to pick up any recent changes.
+        this._chatbotSettings.reload();
+        if (this._isAIEnabled() && this._chatbotSettings.isConfigured()) {
+            this._enterChatbotMode(searchText);
+            return;
+        }
+
+        // Dead end (no apps, no provider results, no AI): search the web for
+        // the query, matching the suggestion shown in the results.
+        this._openWebSearch(searchText);
+    }
+
+    // Activate a result coming from one of the shell's search providers.
+    _activateProviderResult(result, terms) {
+        this._getSearchProviders().activate(result, terms);
         this._hidePanel();
     }
 
-    _showSearchResults(query) {
+    async _showSearchResults(query) {
+        // Each keystroke supersedes the previous search. Bump the sequence
+        // and cancel any pending provider queries so late results are dropped.
+        this._cancelSearch();
+        const seq = this._searchSeq;
+        this._searchCancellable = new Gio.Cancellable();
+        const cancellable = this._searchCancellable;
+
+        const terms = queryTerms(query);
         let matchedApps = this._getMatchedApps(query);
 
         // Create results view
@@ -2219,13 +2322,179 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let navItems = [];
 
-        if (matchedApps.length === 0) {
+        // Applications come from Praya itself, so pinning, the context menu
+        // and the grid/list layout all keep working.
+        let useGrid = this._servicesConfig.appMenuLayout === 'grid';
+        let gridContainer = useGrid ? this._createAppGridContainer() : null;
+
+        for (let i = 0; i < matchedApps.length; i++) {
+            let appData = matchedApps[i];
+            let appItem;
+
+            if (useGrid) {
+                appItem = this._createAppGridItem(appData);
+            } else {
+                appItem = this._createAppMenuItemFromData(appData);
+            }
+            appItem._hasChildren = false;
+            appItem._activateCallback = ((data) => () => {
+                this._launchAppFromData(data);
+                this._hidePanel();
+            })(appData);
+            connectClickHandler(appItem, () => {
+                appItem._activateCallback();
+            }, {
+                onRightClick: (actor) => {
+                    this._showContextMenu(appData, actor);
+                },
+            });
+
+            // Start with opacity 0 and slide in from left
+            appItem.opacity = 0;
+            appItem.translation_x = -20;
+
+            if (useGrid) {
+                gridContainer._addGridItem(appItem);
+            } else {
+                menuBox.add_child(appItem);
+            }
+            navItems.push(appItem);
+
+            // Staggered fade-in and slide animation
+            this._scheduleSearchItemSlideIn(appItem, i * 30);
+        }
+
+        if (useGrid && gridContainer && matchedApps.length > 0)
+            menuBox.add_child(gridContainer);
+
+        // When no application matches, show a placeholder while the shell's
+        // providers (which may need to autostart) answer.
+        let loadingLabel = null;
+        if (navItems.length === 0) {
+            loadingLabel = new St.Label({
+                text: _('Searching…'),
+                style_class: 'praya-no-results',
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            loadingLabel.clutter_text.set_line_alignment(1);
+            menuBox.add_child(loadingLabel);
+        }
+
+        scrollView.add_child(menuBox);
+
+        // Replace content without animation for smooth search experience
+        this._slidingContainer.destroy_all_children();
+        scrollView.set_position(0, 0);
+        this._slidingContainer.add_child(scrollView);
+
+        // Register the application results now so keyboard navigation works
+        // while the providers are still answering.
+        this._registerMenuItems(navItems, scrollView);
+
+        // Wait for a short pause in typing before fanning out to the
+        // providers. GNOME Shell's overview debounces the same way; without
+        // it every keystroke re-queries every provider, repeatedly
+        // D-Bus-activating services like Photos or Firefox.
+        await new Promise(resolve => {
+            const debounceId = GLib.timeout_add(
+                GLib.PRIORITY_DEFAULT, SEARCH_DEBOUNCE_MS, () => {
+                    this._searchDebounceId = null;
+                    this._searchDebounceResolve = null;
+                    resolve();
+                    return GLib.SOURCE_REMOVE;
+                });
+            if (debounceId) {
+                this._searchDebounceId = debounceId;
+                this._searchDebounceResolve = resolve;
+            } else {
+                // Could not schedule (should not happen): search immediately.
+                this._searchDebounceResolve = null;
+                resolve();
+            }
+        });
+
+        // The debounce may have been released because a newer search started.
+        if (seq !== this._searchSeq || cancellable.is_cancelled())
+            return;
+
+        // Query GNOME Shell's search providers. Results are streamed: each
+        // provider's section is rendered as soon as it answers, so one slow
+        // provider (e.g. GNOME Software) cannot hold up the others.
+        this._currentSearchResults = [];
+        let renderIndex = 0;
+
+        const appendSection = (section) => {
+            // The search may have been superseded or cancelled while we
+            // waited, or the panel/entry may be gone.
+            if (seq !== this._searchSeq || cancellable.is_cancelled() ||
+                !this._panelVisible || !this._isSearchActive ||
+                !this._searchEntry ||
+                this._searchEntry.get_text().trim() !== query)
+                return;
+
+            const results = flattenSections([section]);
+            if (results.length === 0)
+                return;
+
+            // First real result: drop the "Searching…" placeholder.
+            if (loadingLabel) {
+                loadingLabel.destroy();
+                loadingLabel = null;
+            }
+
+            for (const result of results) {
+                let item = this._createProviderResultItem(result, terms);
+                item._hasChildren = false;
+                item._activateCallback = () => {
+                    this._activateProviderResult(result, terms);
+                };
+                connectClickHandler(item, () => {
+                    item._activateCallback();
+                });
+
+                item.opacity = 0;
+                item.translation_x = -20;
+                menuBox.add_child(item);
+                navItems.push(item);
+                this._currentSearchResults.push(result);
+
+                // Staggered fade-in and slide animation, continuing the app
+                // items.
+                this._scheduleSearchItemSlideIn(item, renderIndex * 30);
+                renderIndex++;
+            }
+
+            // Make the freshly added rows available to keyboard navigation.
+            this._registerMenuItems(navItems, scrollView);
+        };
+
+        try {
+            await this._getSearchProviders().query(terms, cancellable, appendSection);
+        } catch (e) {
+            log(`Praya: search provider query failed: ${e.message}`);
+        }
+
+        // A newer search superseded this one, the query was cancelled, the
+        // entry changed, or the panel closed: drop these results.
+        if (seq !== this._searchSeq || cancellable.is_cancelled() ||
+            !this._panelVisible || !this._isSearchActive ||
+            !this._searchEntry || this._searchEntry.get_text().trim() !== query)
+            return;
+
+        if (loadingLabel) {
+            loadingLabel.destroy();
+            loadingLabel = null;
+        }
+
+        // Neither an application nor a provider matched.
+        if (navItems.length === 0) {
             // Reload settings to pick up any recent changes
             this._chatbotSettings.reload();
             let isChatbotAvailable = this._isAIEnabled() && this._chatbotSettings.isConfigured();
             let noResultsText = isChatbotAvailable
-                ? _('No applications found.') + '\n' + _('Press Enter to chat with AI...')
-                : _('No applications found.');
+                ? _('No results found.') + '\n' + _('Press Enter to chat with AI...')
+                : _('No results found.');
             let noResultsLabel = new St.Label({
                 text: noResultsText,
                 style_class: 'praya-no-results',
@@ -2240,70 +2509,179 @@ class PrayaIndicator extends PanelMenu.Button {
                 duration: 150,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
-        } else {
-            let useGrid = this._servicesConfig.appMenuLayout === 'grid';
-            let gridContainer = useGrid ? this._createAppGridContainer() : null;
-
-            for (let i = 0; i < matchedApps.length; i++) {
-                let appData = matchedApps[i];
-                let appItem;
-
-                if (useGrid) {
-                    appItem = this._createAppGridItem(appData);
-                } else {
-                    appItem = this._createAppMenuItemFromData(appData);
-                }
-                appItem._hasChildren = false;
-                appItem._activateCallback = ((data) => () => {
-                    this._launchAppFromData(data);
-                    this._hidePanel();
-                })(appData);
-                connectClickHandler(appItem, () => {
-                    appItem._activateCallback();
-                }, {
-                    onRightClick: (actor) => {
-                        this._showContextMenu(appData, actor);
-                    },
-                });
-
-                // Start with opacity 0 and slide in from left
-                appItem.opacity = 0;
-                appItem.translation_x = -20;
-
-                if (useGrid) {
-                    gridContainer._addGridItem(appItem);
-                } else {
-                    menuBox.add_child(appItem);
-                }
-                navItems.push(appItem);
-
-                // Staggered fade-in and slide animation
-                let delay = i * 30; // 30ms delay between each item
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-                    appItem.ease({
-                        opacity: 255,
-                        translation_x: 0,
-                        duration: 150,
-                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                    });
-                    return GLib.SOURCE_REMOVE;
-                });
-            }
-
-            if (useGrid && gridContainer) {
-                menuBox.add_child(gridContainer);
-            }
         }
 
-        scrollView.add_child(menuBox);
-
-        // Replace content without animation for smooth search experience
-        this._slidingContainer.destroy_all_children();
-        scrollView.set_position(0, 0);
-        this._slidingContainer.add_child(scrollView);
+        // Offer a web search when the shell's search providers are missing,
+        // or as a last resort when nothing matched, so the search box is
+        // never a dead end.
+        let searchApiAvailable = !!(this._searchProviders && this._searchProviders.available);
+        if (!searchApiAvailable || navItems.length === 0) {
+            let webItem = this._createWebSearchItem(query);
+            menuBox.add_child(webItem);
+            navItems.push(webItem);
+        }
 
         // Register menu items for keyboard navigation
         this._registerMenuItems(navItems, scrollView);
+    }
+
+    // A result row that hands the query to the user's browser / search engine.
+    _createWebSearchItem(query) {
+        let item = new St.BoxLayout({
+            style_class: 'praya-menu-item',
+            reactive: true,
+            track_hover: true,
+            height: 48,
+            x_expand: true,
+        });
+
+        item.add_child(new St.Icon({
+            icon_name: 'web-browser-symbolic',
+            style_class: 'praya-menu-item-icon',
+            icon_size: 24,
+        }));
+
+        let label = new St.Label({
+            text: _('Search the web for “%s”').replace('%s', query),
+            style_class: 'praya-menu-item-label',
+            y_align: Clutter.ActorAlign.CENTER,
+            x_expand: true,
+        });
+        label.clutter_text.set_ellipsize(3); // Pango.EllipsizeMode.END
+        item.add_child(label);
+
+        item._hasChildren = false;
+        item._activateCallback = () => {
+            this._openWebSearch(query);
+        };
+        connectClickHandler(item, () => {
+            item._activateCallback();
+        });
+
+        item.opacity = 0;
+        item.translation_x = -20;
+        this._scheduleSearchItemSlideIn(item, 0);
+
+        return item;
+    }
+
+    // Open the configured search engine for @query.
+    _openWebSearch(query) {
+        // Reload so a change in preferences takes effect immediately.
+        this._servicesConfig = this._loadServicesConfig();
+        let url = resolveSearchUrl(
+            this._servicesConfig.searchEngine,
+            this._servicesConfig.searchEngineCustomUrl,
+            query);
+        this._openUrl(url);
+        this._hidePanel();
+    }
+
+    // Fade and slide a freshly created result row into view after @delay ms.
+    //
+    // A new search can replace the whole result list before the delay
+    // elapses, destroying @item. Animating a disposed actor logs a critical
+    // (and cannot be probed safely from JS), so cancel the pending timeout
+    // as soon as the row is destroyed.
+    _scheduleSearchItemSlideIn(item, delay) {
+        let sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            sourceId = 0;
+            item.ease({
+                opacity: 255,
+                translation_x: 0,
+                duration: 150,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+            return GLib.SOURCE_REMOVE;
+        });
+
+        if (sourceId) {
+            item.connect('destroy', () => {
+                if (sourceId) {
+                    GLib.source_remove(sourceId);
+                    sourceId = 0;
+                }
+            });
+        }
+    }
+
+    // Build a row for a result coming from a GNOME Shell search provider.
+    // Applications are rendered by the app-item helpers instead.
+    _createProviderResultItem(result, terms) {
+        let item = new St.BoxLayout({
+            style_class: 'praya-menu-item',
+            reactive: true,
+            track_hover: true,
+            height: 48,
+            x_expand: true,
+        });
+
+        let icon = null;
+        try {
+            if (result.createIcon)
+                icon = result.createIcon(24);
+        } catch (e) {
+            icon = null;
+        }
+        if (!icon) {
+            icon = new St.Icon({
+                icon_name: 'system-search-symbolic',
+                icon_size: 24,
+            });
+        }
+        icon.style_class = 'praya-menu-item-icon';
+        item.add_child(icon);
+
+        let textBox = new St.BoxLayout({
+            vertical: true,
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        let label = new St.Label({
+            text: result.name || result.id,
+            style_class: 'praya-menu-item-label',
+            x_expand: true,
+        });
+        label.clutter_text.set_ellipsize(3); // Pango.EllipsizeMode.END
+        textBox.add_child(label);
+
+        if (result.description) {
+            let description = new St.Label({
+                text: result.description,
+                style_class: 'praya-result-description',
+                x_expand: true,
+            });
+            description.clutter_text.set_ellipsize(3);
+            textBox.add_child(description);
+        }
+
+        item.add_child(textBox);
+
+        // Show which provider a result came from. When the provider supports
+        // it, the tag doubles as a way to open its full search UI.
+        if (result.providerName) {
+            let providerLabel = new St.Label({
+                text: result.providerName,
+                style_class: 'praya-result-provider',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+
+            if (result.provider && result.provider.canLaunchSearch) {
+                providerLabel.reactive = true;
+                providerLabel.track_hover = true;
+                providerLabel.add_style_class_name('praya-result-provider-link');
+                connectClickHandler(providerLabel, () => {
+                    if (this._getSearchProviders().launchSearch(result, terms))
+                        this._hidePanel();
+                    return Clutter.EVENT_STOP;
+                });
+            }
+
+            item.add_child(providerLabel);
+        }
+
+        return item;
     }
 
     _createMenuItem(text, iconName, hasChildren) {
@@ -3335,7 +3713,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', searchEngine: 'google', searchEngineCustomUrl: '', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -3349,6 +3727,10 @@ class PrayaIndicator extends PanelMenu.Button {
                     if (!config.appMenuLayout) config.appMenuLayout = 'grid';
                     // Ensure appGridColumns has a default
                     if (!config.appGridColumns) config.appGridColumns = 3;
+                    // Ensure the search engine has a default
+                    if (!config.searchEngine) config.searchEngine = 'google';
+                    if (typeof config.searchEngineCustomUrl !== 'string')
+                        config.searchEngineCustomUrl = '';
                     return config;
                 }
             }
@@ -3387,6 +3769,10 @@ class PrayaIndicator extends PanelMenu.Button {
         this._isPanelTransitioning = false;
         this._hidePanel();
         this._releaseKeyboard();
+        if (this._searchProviders) {
+            this._searchProviders.destroy();
+            this._searchProviders = null;
+        }
         super.destroy();
     }
 });

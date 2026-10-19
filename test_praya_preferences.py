@@ -129,6 +129,46 @@ class LoadJsonTest(unittest.TestCase):
                          prefs.DEFAULT_SERVICES_CONFIG['startButton']['iconName'])
 
 
+class SearchEngineDefaultsTest(unittest.TestCase):
+    def test_default_services_has_search_engine(self):
+        self.assertEqual(prefs.DEFAULT_SERVICES_CONFIG['searchEngine'],
+                         prefs.DEFAULT_SEARCH_ENGINE)
+        self.assertEqual(prefs.DEFAULT_SERVICES_CONFIG['searchEngineCustomUrl'], '')
+
+    def test_default_engine_is_offered(self):
+        self.assertIn(prefs.DEFAULT_SEARCH_ENGINE, prefs.SEARCH_ENGINE_ORDER)
+        self.assertIn(prefs.DEFAULT_SEARCH_ENGINE, prefs.SEARCH_ENGINES)
+
+    def test_custom_engine_is_offered(self):
+        self.assertIn(prefs.CUSTOM_SEARCH_ENGINE, prefs.SEARCH_ENGINE_ORDER)
+        self.assertNotIn(prefs.CUSTOM_SEARCH_ENGINE, prefs.SEARCH_ENGINES)
+
+    def test_engine_order_has_no_duplicates(self):
+        self.assertEqual(len(prefs.SEARCH_ENGINE_ORDER),
+                         len(set(prefs.SEARCH_ENGINE_ORDER)))
+
+    def test_engines_match_search_engine_js(self):
+        # The preferences and the shell-side module must agree on the engines
+        # and their URL templates.
+        js_path = os.path.join(_HERE, 'searchEngine.js')
+        with open(js_path) as f:
+            js = f.read()
+
+        block = re.search(r'SEARCH_ENGINES\s*=\s*\{(.*?)\}', js, re.S)
+        self.assertIsNotNone(block, 'SEARCH_ENGINES not found in searchEngine.js')
+        js_engines = dict(re.findall(
+            r"^\s*([A-Za-z0-9_]+)\s*:\s*'([^']*)'", block.group(1), re.M))
+        self.assertEqual(js_engines, prefs.SEARCH_ENGINES)
+
+        default = re.search(r"DEFAULT_SEARCH_ENGINE\s*=\s*'([^']*)'", js)
+        self.assertIsNotNone(default, 'DEFAULT_SEARCH_ENGINE not found in searchEngine.js')
+        self.assertEqual(default.group(1), prefs.DEFAULT_SEARCH_ENGINE)
+
+        custom = re.search(r"CUSTOM_SEARCH_ENGINE\s*=\s*'([^']*)'", js)
+        self.assertIsNotNone(custom, 'CUSTOM_SEARCH_ENGINE not found in searchEngine.js')
+        self.assertEqual(custom.group(1), prefs.CUSTOM_SEARCH_ENGINE)
+
+
 class StartButtonMergeTest(unittest.TestCase):
     def test_partial_stored_start_button_merges_with_defaults(self):
         # Simulate an older config that only stored the mode.
