@@ -25,18 +25,6 @@ fi
 
 # Install into a fresh directory and swap it into place instead of copying
 # over the live extension.
-#
-# GNOME Shell mmaps the gettext catalog (locale/.../praya.mo) of a running
-# extension. Overwriting that file in place with `cp` changes the bytes
-# underneath the mapping, so a later gettext lookup reads the new catalog
-# through the old offsets and returns shifted strings (the first letter of
-# every translated string goes missing). The same applies to a partially
-# copied file if the shell reads it during the update.
-#
-# Staging next to $DEST keeps the swap on the same filesystem, and moving the
-# old directory away leaves the running shell's mappings valid. The new files
-# are picked up on the next shell start; we never write through the live
-# directory.
 INSTALL_DIR=$(dirname "$DEST")
 STAGE="$INSTALL_DIR/.$EXT_NAME.new.$$"
 OLD="$INSTALL_DIR/.$EXT_NAME.old.$$"
