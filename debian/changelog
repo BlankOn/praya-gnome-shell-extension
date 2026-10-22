@@ -1,3 +1,15 @@
+praya-gnome-shell-extension (0.1.45-2) sinambung; urgency=medium
+
+  * Replace the per-user extension directory atomically instead of copying
+    over the live one. GNOME Shell memory-maps the gettext catalog, so
+    overwriting locale/id/LC_MESSAGES/praya.mo in place made it read the new
+    catalog through the old mapping and display strings with their leading
+    characters missing until the shell was restarted.
+  * Do not record the update as installed if the copy fails, so the next
+    login retries it.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Wed, 21 Oct 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.45-1) sinambung; urgency=medium
 
   * Show a tooltip with the window title when hovering a taskbar item,
