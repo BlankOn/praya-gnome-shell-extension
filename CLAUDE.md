@@ -10,10 +10,16 @@ When bumping the version, update **all three** places:
 
 ## Translations
 
-When adding or modifying UI strings, always maintain both **English** and **Bahasa Indonesia** translations:
+Translations use short snake_case message IDs instead of English text as
+gettext `msgid`s:
 
-- Wrap strings with `_('...')` for translation support
-- Update **`po/id.po`** with the corresponding Bahasa Indonesia translation
+- Wrap strings with `_('some_key')` for translation support
+- Put the English text in **`po/en.po`** as the `msgstr`
+- Put the Bahasa Indonesia text in **`po/id.po`** as the `msgstr`
+- Run `make i18n` after adding or removing strings; it regenerates
+  `po/praya.pot`, merges both catalogs, and rebuilds the `.mo` files
+- At runtime the system language is used first and English is the fallback
+  when a catalog or an individual message is missing
 
 ## Tests
 

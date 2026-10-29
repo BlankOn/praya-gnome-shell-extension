@@ -90,7 +90,19 @@ try:
     t = gettext.translation('praya', localedir=localedir)
 except FileNotFoundError:
     t = gettext.NullTranslations()
-_ = t.gettext
+try:
+    t_en = gettext.translation('praya', localedir=localedir, languages=['en'])
+except FileNotFoundError:
+    t_en = gettext.NullTranslations()
+
+
+def _gettext(message):
+    """Follow the system language, falling back to English."""
+    translated = t.gettext(message)
+    return t_en.gettext(message) if translated == message else translated
+
+
+_ = _gettext
 
 # Config paths
 CONFIG_DIR = os.path.join(GLib.get_user_config_dir(), 'praya')
@@ -120,7 +132,7 @@ SEARCH_ENGINE_LABELS = {
     'duckduckgo': 'DuckDuckGo',
     'bing': 'Bing',
     'yahoo': 'Yahoo',
-    'custom': _('Custom'),
+    'custom': _('custom'),
 }
 
 DEFAULT_SERVICES_CONFIG = {
@@ -209,7 +221,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     def __init__(self, app, **kwargs):
         super().__init__(
             application=app,
-            title=_('Praya Preferences'),
+            title=_('praya_preferences'),
             **kwargs,
         )
         self.set_default_size(520, 680)
@@ -245,7 +257,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     # ==================================================================
     def _build_panel_page(self):
         page = Adw.PreferencesPage(
-            title=_('Panel'),
+            title=_('panel'),
             icon_name='view-grid-symbolic',
         )
 
@@ -253,19 +265,19 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         page.add(self._build_start_button_group())
 
         # -- Panel Options group --
-        panel_group = Adw.PreferencesGroup(title=_('Panel Options'))
+        panel_group = Adw.PreferencesGroup(title=_('panel_options'))
 
         # App menu layout
-        self._layout_row = Adw.ComboRow(title=_('App menu layout'))
-        layout_model = Gtk.StringList.new([_('Grid'), _('List')])
+        self._layout_row = Adw.ComboRow(title=_('app_menu_layout'))
+        layout_model = Gtk.StringList.new([_('grid'), _('list')])
         self._layout_row.set_model(layout_model)
         self._layout_row.set_selected(0 if self._services.get('appMenuLayout', 'grid') == 'grid' else 1)
         self._layout_row.connect('notify::selected', self._on_layout_changed)
         panel_group.add(self._layout_row)
 
         # Grid columns
-        self._columns_row = Adw.ComboRow(title=_('Grid columns'))
-        columns_model = Gtk.StringList.new([_('3 Columns'), _('4 Columns')])
+        self._columns_row = Adw.ComboRow(title=_('grid_columns'))
+        columns_model = Gtk.StringList.new([_('3_columns'), _('4_columns')])
         self._columns_row.set_model(columns_model)
         self._columns_row.set_selected(1 if int(self._services.get('appGridColumns', 3)) == 4 else 0)
         self._columns_row.connect('notify::selected', self._on_columns_changed)
@@ -273,15 +285,15 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         panel_group.add(self._columns_row)
 
         # Position
-        self._position_row = Adw.ComboRow(title=_('Position'))
-        pos_model = Gtk.StringList.new([_('Top'), _('Bottom')])
+        self._position_row = Adw.ComboRow(title=_('position'))
+        pos_model = Gtk.StringList.new([_('top'), _('bottom')])
         self._position_row.set_model(pos_model)
         self._position_row.set_selected(0 if self._services.get('panelPosition', 'top') == 'top' else 1)
         self._position_row.connect('notify::selected', self._on_position_changed)
         panel_group.add(self._position_row)
 
         # Floating panel
-        self._floating_row = Adw.SwitchRow(title=_('Floating panel'))
+        self._floating_row = Adw.SwitchRow(title=_('floating_panel'))
         self._floating_row.set_active(self._services.get('floatingPanel', True))
         self._floating_row.connect('notify::active', self._on_floating_changed)
         panel_group.add(self._floating_row)
@@ -290,11 +302,11 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # -- Search group --
         search_group = Adw.PreferencesGroup(
-            title=_('Search'),
-            description=_('Where the “Search the web” result in the menu sends your query.'),
+            title=_('search'),
+            description=_('search_engine_help'),
         )
 
-        self._search_engine_row = Adw.ComboRow(title=_('Search engine'))
+        self._search_engine_row = Adw.ComboRow(title=_('search_engine'))
         engine_labels = [SEARCH_ENGINE_LABELS[key] for key in SEARCH_ENGINE_ORDER]
         self._search_engine_row.set_model(Gtk.StringList.new(engine_labels))
         try:
@@ -306,11 +318,11 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._search_engine_row.connect('notify::selected', self._on_search_engine_changed)
         search_group.add(self._search_engine_row)
 
-        self._search_custom_row = Adw.EntryRow(title=_('Custom search URL'))
+        self._search_custom_row = Adw.EntryRow(title=_('custom_search_url'))
         self._search_custom_row.set_text(
             self._services.get('searchEngineCustomUrl', '') or '')
         self._search_custom_row.set_tooltip_text(
-            _('Use %s where the search terms should go.'))
+            _('custom_search_url_help'))
         self._search_custom_row.connect('changed', self._on_search_custom_changed)
         search_group.add(self._search_custom_row)
 
@@ -318,14 +330,14 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         page.add(search_group)
 
         # -- Activate on Hover group --
-        hover_group = Adw.PreferencesGroup(title=_('Activate on Hover'))
+        hover_group = Adw.PreferencesGroup(title=_('activate_on_hover'))
 
         hover_keys = [
-            ('mainMenuHoverActivate',      _('Main menu')),
-            ('taskbarHoverActivate',        _('Taskbar')),
-            ('showDesktopHoverActivate',    _('Show Desktop')),
-            ('calendarHoverActivate',       _('Calendar')),
-            ('quickAccessHoverActivate',    _('Quick Access')),
+            ('mainMenuHoverActivate',      _('main_menu')),
+            ('taskbarHoverActivate',        _('taskbar')),
+            ('showDesktopHoverActivate',    _('show_desktop')),
+            ('calendarHoverActivate',       _('calendar')),
+            ('quickAccessHoverActivate',    _('quick_access')),
         ]
         self._hover_rows = {}
         for key, label in hover_keys:
@@ -338,9 +350,9 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         page.add(hover_group)
 
         # -- Performance group --
-        perf_group = Adw.PreferencesGroup(title=_('Performance'))
+        perf_group = Adw.PreferencesGroup(title=_('performance'))
 
-        self._lowspec_row = Adw.SwitchRow(title=_('Low-spec Mode'))
+        self._lowspec_row = Adw.SwitchRow(title=_('low_spec_mode'))
         self._lowspec_row.set_active(self._services.get('lowspecEnabled', False))
         self._lowspec_row.connect('notify::active', self._on_lowspec_changed)
         perf_group.add(self._lowspec_row)
@@ -366,20 +378,20 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # -- Start Button group --
         group = Adw.PreferencesGroup(
-            title=_('Start Button'),
-            description=_('Choose what the Praya start button shows.'),
+            title=_('start_button'),
+            description=_('start_button_description'),
         )
 
         # Mode. The available modes depend on the build variant: the generic
         # build has no BlankOn "Default logo" option.
-        self._sb_mode_row = Adw.ComboRow(title=_('Icon type'))
+        self._sb_mode_row = Adw.ComboRow(title=_('icon_type'))
         self._sb_modes = list(START_BUTTON_MODES)
         mode_label_map = {
-            'default': _('Default logo'),
-            'image': _('Custom image'),
-            'icon': _('GNOME icon'),
-            'text': _('Text'),
-            'icon_text': _('Icon and text'),
+            'default': _('default_logo'),
+            'image': _('custom_image'),
+            'icon': _('gnome_icon'),
+            'text': _('text'),
+            'icon_text': _('icon_and_text'),
         }
         mode_labels = [mode_label_map[m] for m in self._sb_modes]
         self._sb_mode_row.set_model(Gtk.StringList.new(mode_labels))
@@ -392,8 +404,8 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # Custom image chooser
         self._sb_image_row = Adw.ActionRow(
-            title=_('Custom image'),
-            subtitle=_('Suggested 32×32 px, or any width up to 32 px high. Larger images are scaled to fit the panel.'),
+            title=_('custom_image'),
+            subtitle=_('custom_image_size_help'),
         )
         self._sb_image_preview = Gtk.Picture()
         self._sb_image_preview.set_can_shrink(True)
@@ -401,15 +413,15 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._sb_image_preview.set_valign(Gtk.Align.CENTER)
         self._sb_image_row.add_prefix(self._sb_image_preview)
 
-        choose_btn = Gtk.Button(label=_('Choose…'))
+        choose_btn = Gtk.Button(label=_('choose'))
         choose_btn.set_valign(Gtk.Align.CENTER)
         choose_btn.connect('clicked', self._on_sb_choose_image)
         self._sb_image_row.add_suffix(choose_btn)
         group.add(self._sb_image_row)
 
         # GNOME icon chooser
-        self._sb_icon_row = Adw.ComboRow(title=_('GNOME icon'))
-        icon_model = Gtk.StringList.new(START_BUTTON_ICONS + [_('Other…')])
+        self._sb_icon_row = Adw.ComboRow(title=_('gnome_icon'))
+        icon_model = Gtk.StringList.new(START_BUTTON_ICONS + [_('other_ellipsis')])
         self._sb_icon_row.set_model(icon_model)
         self._sb_icon_row.set_factory(self._build_icon_factory())
         try:
@@ -420,7 +432,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         group.add(self._sb_icon_row)
 
         # Custom icon name (used when "Other…" is selected)
-        self._sb_icon_custom_row = Adw.EntryRow(title=_('Custom icon name'))
+        self._sb_icon_custom_row = Adw.EntryRow(title=_('custom_icon_name'))
         self._sb_icon_custom_row.set_text(
             self._start_button['iconName'] if self._start_button['iconName'] not in START_BUTTON_ICONS else ''
         )
@@ -428,7 +440,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         group.add(self._sb_icon_custom_row)
 
         # Text
-        self._sb_text_row = Adw.EntryRow(title=_('Text'))
+        self._sb_text_row = Adw.EntryRow(title=_('text'))
         self._sb_text_row.set_text(self._start_button['text'])
         self._sb_text_row.connect('changed', self._on_sb_text_changed)
         group.add(self._sb_text_row)
@@ -496,10 +508,10 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._save_start_button()
 
     def _on_sb_choose_image(self, _btn):
-        dialog = Gtk.FileDialog(title=_('Choose start button image'))
+        dialog = Gtk.FileDialog(title=_('choose_start_button_image'))
 
         image_filter = Gtk.FileFilter()
-        image_filter.set_name(_('Images'))
+        image_filter.set_name(_('images'))
         for pattern in ('*.svg', '*.png', '*.jpg', '*.jpeg', '*.webp'):
             image_filter.add_pattern(pattern)
         filters = Gio.ListStore.new(Gtk.FileFilter)
@@ -545,15 +557,15 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     # ==================================================================
     def _build_services_page(self):
         page = Adw.PreferencesPage(
-            title=_('Services'),
+            title=_('services'),
             icon_name='preferences-system-symbolic',
         )
 
         # -- Praya Service group --
-        svc_group = Adw.PreferencesGroup(title=_('Praya Service'))
+        svc_group = Adw.PreferencesGroup(title=_('praya_service'))
 
-        self._service_row = Adw.ActionRow(title=_('Status'))
-        self._service_label = Gtk.Label(label=_('Checking...'))
+        self._service_row = Adw.ActionRow(title=_('status'))
+        self._service_label = Gtk.Label(label=_('checking'))
         self._service_label.set_valign(Gtk.Align.CENTER)
         self._service_row.add_suffix(self._service_label)
 
@@ -567,32 +579,32 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # -- Posture Monitoring group --
         posture_group = Adw.PreferencesGroup(
-            title=_('Posture Monitoring'),
-            description=_('(Experimental)'),
+            title=_('posture_monitoring'),
+            description=_('experimental'),
         )
 
-        self._posture_enable_row = Adw.SwitchRow(title=_('Enable'))
+        self._posture_enable_row = Adw.SwitchRow(title=_('enable'))
         self._posture_enable_row.set_active(self._services.get('posture', False))
         self._posture_enable_row.connect('notify::active', self._on_posture_enable_changed)
         posture_group.add(self._posture_enable_row)
 
         # Recalibrate button
-        recalib_row = Adw.ActionRow(title=_('Calibration'))
-        recalib_btn = Gtk.Button(label=_('Recalibrate'))
+        recalib_row = Adw.ActionRow(title=_('calibration'))
+        recalib_btn = Gtk.Button(label=_('recalibrate'))
         recalib_btn.set_valign(Gtk.Align.CENTER)
         recalib_btn.connect('clicked', lambda _b: self._recalibrate())
         recalib_row.add_suffix(recalib_btn)
         posture_group.add(recalib_row)
 
         # Live posture display
-        self._posture_status_row = Adw.ActionRow(title=_('Current'))
-        self._posture_status_label = Gtk.Label(label=_('Waiting for data...'))
+        self._posture_status_row = Adw.ActionRow(title=_('current'))
+        self._posture_status_label = Gtk.Label(label=_('waiting_for_data'))
         self._posture_status_label.set_valign(Gtk.Align.CENTER)
         self._posture_status_row.add_suffix(self._posture_status_label)
         posture_group.add(self._posture_status_row)
 
         # Level bar
-        self._posture_level_row = Adw.ActionRow(title=_('Level'))
+        self._posture_level_row = Adw.ActionRow(title=_('level'))
         self._posture_level_bar = Gtk.LevelBar()
         self._posture_level_bar.set_min_value(0.0)
         self._posture_level_bar.set_max_value(1.0)
@@ -607,17 +619,17 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # -- Artificial Intelligence group --
         ai_group = Adw.PreferencesGroup(
-            title=_('Artificial Intelligence'),
-            description=_('(Experimental)'),
+            title=_('artificial_intelligence'),
+            description=_('experimental'),
         )
 
-        self._ai_enable_row = Adw.SwitchRow(title=_('Enable'))
+        self._ai_enable_row = Adw.SwitchRow(title=_('enable'))
         self._ai_enable_row.set_active(self._services.get('ai', False))
         self._ai_enable_row.connect('notify::active', self._on_ai_enable_changed)
         ai_group.add(self._ai_enable_row)
 
         # Provider combo
-        self._provider_row = Adw.ComboRow(title=_('Provider'))
+        self._provider_row = Adw.ComboRow(title=_('provider'))
         provider_names = [PROVIDERS[k]['name'] for k in PROVIDERS]
         provider_model = Gtk.StringList.new(provider_names)
         self._provider_row.set_model(provider_model)
@@ -630,13 +642,13 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         ai_group.add(self._provider_row)
 
         # Model combo
-        self._model_row = Adw.ComboRow(title=_('Model'))
+        self._model_row = Adw.ComboRow(title=_('model'))
         self._update_model_list()
         self._model_row.connect('notify::selected', self._on_model_changed)
         ai_group.add(self._model_row)
 
         # API key
-        self._apikey_row = Adw.PasswordEntryRow(title=_('API Key'))
+        self._apikey_row = Adw.PasswordEntryRow(title=_('api_key'))
         self._apikey_row.set_text(_provider_api_key(self._chatbot, self._current_provider_key()))
         self._apikey_row.connect('changed', self._on_apikey_changed)
         ai_group.add(self._apikey_row)
@@ -650,14 +662,14 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     # ==================================================================
     def _build_about_page(self):
         page = Adw.PreferencesPage(
-            title=_('About Praya'),
+            title=_('about_praya'),
             icon_name='help-about-symbolic',
         )
 
         about_group = Adw.PreferencesGroup()
 
         # Version
-        version_row = Adw.ActionRow(title=_('Version'))
+        version_row = Adw.ActionRow(title=_('version'))
         version_label = Gtk.Label(label=VERSION)
         version_label.set_valign(Gtk.Align.CENTER)
         version_row.add_suffix(version_label)
@@ -665,14 +677,14 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # Author
         author_row = Adw.ActionRow(
-            title=_('Author'),
+            title=_('author'),
             subtitle='Herpiko Dwi Aguno &lt;herpiko@gmail.com&gt;',
         )
         about_group.add(author_row)
 
         # Source code
         source_row = Adw.ActionRow(
-            title=_('Source Code'),
+            title=_('source_code'),
             subtitle='https://github.com/BlankOn/praya-gnome-shell-extension',
             activatable=True,
         )
@@ -682,7 +694,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # License
         license_row = Adw.ActionRow(
-            title=_('License'),
+            title=_('license'),
             subtitle='MIT',
         )
         about_group.add(license_row)
@@ -691,7 +703,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
         # Contributors (generated from git history; see tools/gen-contributors.py)
         if CONTRIBUTORS:
-            contributors_group = Adw.PreferencesGroup(title=_('Contributors'))
+            contributors_group = Adw.PreferencesGroup(title=_('contributors'))
             for person in CONTRIBUTORS:
                 row = Adw.ActionRow(
                     title=person['name'],
@@ -872,7 +884,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     # Service status
     # ==================================================================
     def _check_service_status(self):
-        self._service_label.set_label(_('Checking...'))
+        self._service_label.set_label(_('checking'))
         try:
             result = subprocess.run(
                 ['systemctl', '--user', 'is-active', 'praya'],
@@ -880,16 +892,16 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             )
             status = result.stdout.strip()
             if status == 'active':
-                self._service_label.set_label(_('Running'))
+                self._service_label.set_label(_('running'))
                 self._service_running = True
             elif status == 'inactive':
-                self._service_label.set_label(_('Stopped'))
+                self._service_label.set_label(_('stopped'))
                 self._service_running = False
             else:
-                self._service_label.set_label(status or _('Unknown'))
+                self._service_label.set_label(status or _('unknown'))
                 self._service_running = False
         except Exception:
-            self._service_label.set_label(_('Error checking status'))
+            self._service_label.set_label(_('error_checking_status'))
             self._service_running = False
 
     # ==================================================================
@@ -900,7 +912,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
 
     def _poll_posture(self):
         if not self._dbus:
-            self._posture_status_label.set_label(_('D-Bus not available'))
+            self._posture_status_label.set_label(_('d_bus_not_available'))
             return GLib.SOURCE_CONTINUE
 
         try:
@@ -920,7 +932,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             self._posture_status_label.set_label(f'{status} ({score:.2f})')
             self._posture_level_bar.set_value(max(0.0, min(1.0, score)))
         except Exception:
-            self._posture_status_label.set_label(_('Service unavailable'))
+            self._posture_status_label.set_label(_('service_unavailable'))
             self._posture_level_bar.set_value(0.0)
 
         return GLib.SOURCE_CONTINUE

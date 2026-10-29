@@ -16,7 +16,7 @@ distro:
 UUID = $(shell tools/gen-distro.sh --print-uuid 2>/dev/null)
 EXT_DIR = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
-	translations.js touch-helper.js startButton.js searchProviders.js \
+	translations.js translations-en.js touch-helper.js startButton.js searchProviders.js \
 	searchResults.js searchEngine.js distro.js metadata.json \
 	contributors.py stylesheet.css lowspec-dialog.py praya-preferences.py distro.py assets locale
 
@@ -90,7 +90,11 @@ update-po:
 		fi; \
 	done
 
-build-mo:
+# Generate the English fallback map used by translations.js.
+translations-en: po/en.po tools/gen-en-translations.py
+	python3 tools/gen-en-translations.py
+
+build-mo: translations-en
 	@for lang in $(LINGUAS); do \
 		mkdir -p locale/$$lang/LC_MESSAGES; \
 		msgfmt po/$$lang.po -o locale/$$lang/LC_MESSAGES/$(DOMAIN).mo; \
@@ -111,4 +115,4 @@ test-generic:
 
 .PHONY: distro distro-generic contributors hooks run run-generic run-mutter-devkit \
 	run-mutter-devkit-generic install-user install-user-generic \
-	pot update-po build-mo i18n test test-generic
+	pot update-po translations-en build-mo i18n test test-generic

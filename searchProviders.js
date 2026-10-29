@@ -139,7 +139,7 @@ export class SearchProviders {
 
         return {
             providerId: 'system-actions',
-            providerName: _('System'),
+            providerName: _('system'),
             isApp: false,
             isSystemAction: true,
             results: actionIds.map(id => ({

@@ -1390,13 +1390,13 @@ export default class PrayaExtension extends Extension {
             });
 
             let label = new St.Label({
-                text: _('Bad Posture Detected'),
+                text: _('bad_posture_detected'),
                 style: 'font-size: 24px; font-weight: bold; color: white;',
                 x_align: Clutter.ActorAlign.CENTER,
             });
 
             let sublabel = new St.Label({
-                text: _('Please correct your posture'),
+                text: _('please_correct_your_posture'),
                 style: 'font-size: 16px; color: #cccccc; margin-top: 10px;',
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -1432,7 +1432,7 @@ export default class PrayaExtension extends Extension {
             this._overlayBarFills.push(barFill);
 
             let dismissLabel = new St.Label({
-                text: _('Click anywhere to dismiss (10s pause)'),
+                text: _('posture_dismiss_hint'),
                 style: 'font-size: 12px; color: #888888; margin-top: 30px;',
                 x_align: Clutter.ActorAlign.CENTER,
             });
@@ -1458,7 +1458,7 @@ export default class PrayaExtension extends Extension {
             // Recalibrate button
             let recalibrateButton = new St.Button({
                 style_class: 'praya-overlay-recalibrate-btn',
-                label: _('Recalibrate'),
+                label: _('recalibrate'),
                 style: 'background-color: rgba(255, 255, 255, 0.15); color: #cccccc; border-radius: 6px; padding: 8px 16px; font-size: 12px;',
             });
             recalibrateButton.connect('clicked', () => {
@@ -1470,7 +1470,7 @@ export default class PrayaExtension extends Extension {
             // Disable Posture Monitoring button
             let disableButton = new St.Button({
                 style_class: 'praya-overlay-disable-btn',
-                label: _('Disable Posture Monitoring Service'),
+                label: _('disable_posture_monitoring_service'),
                 style: 'background-color: rgba(255, 255, 255, 0.15); color: #cccccc; border-radius: 6px; padding: 8px 16px; font-size: 12px;',
             });
             disableButton.connect('clicked', () => {

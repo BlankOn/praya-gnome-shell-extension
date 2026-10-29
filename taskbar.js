@@ -580,7 +580,7 @@ class PrayaTaskbar extends St.BoxLayout {
         innerBox.add_child(icon);
 
         // Window title - show for all windows
-        let fullTitle = window.get_title() || (app ? app.get_name() : _('Window'));
+        let fullTitle = window.get_title() || (app ? app.get_name() : _('window'));
 
         // Truncate long titles
         let displayTitle = fullTitle;
@@ -712,7 +712,7 @@ class PrayaTaskbar extends St.BoxLayout {
         icon.style_class = 'praya-taskbar-icon';
         innerBox.add_child(icon);
 
-        let appName = app ? app.get_name() : _('Window');
+        let appName = app ? app.get_name() : _('window');
         let displayName = appName;
         if (displayName.length > 20) {
             displayName = displayName.substring(0, 18) + '...';
@@ -783,7 +783,7 @@ class PrayaTaskbar extends St.BoxLayout {
 
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        menu.addAction(_('Minimize All'), () => {
+        menu.addAction(_('minimize_all'), () => {
             for (let window of windows) {
                 if (!window.minimized && window.can_minimize()) {
                     window.minimize();
@@ -791,7 +791,7 @@ class PrayaTaskbar extends St.BoxLayout {
             }
         });
 
-        menu.addAction(_('Close All'), (event) => {
+        menu.addAction(_('close_all'), (event) => {
             let time = event ? event.get_time() : global.get_current_time();
             for (let window of windows) {
                 window.delete(time);
@@ -834,7 +834,7 @@ class PrayaTaskbar extends St.BoxLayout {
         let item;
 
         if (!window.minimized) {
-            item = menu.addAction(_('Minimize'), () => {
+            item = menu.addAction(_('minimize'), () => {
                 window.minimize();
             });
             if (!window.can_minimize()) {
@@ -843,7 +843,7 @@ class PrayaTaskbar extends St.BoxLayout {
         }
 
         if (!window.is_maximized()) {
-            item = menu.addAction(_('Maximize'), (event) => {
+            item = menu.addAction(_('maximize'), (event) => {
                 if (window.minimized) {
                     window.unminimize();
                 }
@@ -855,18 +855,18 @@ class PrayaTaskbar extends St.BoxLayout {
             }
         }
 
-        item = menu.addAction(_('Close'), (event) => {
+        item = menu.addAction(_('close'), (event) => {
             window.delete(event.get_time());
         });
         if (!window.can_close()) {
             item.setSensitive(false);
         }
 
-        menu.addAction(_('Force Close'), () => {
+        menu.addAction(_('force_close'), () => {
             window.kill();
         });
 
-        item = menu.addAction(_('Move'), (event) => {
+        item = menu.addAction(_('move'), (event) => {
             if (window.minimized) {
                 window.unminimize();
             }

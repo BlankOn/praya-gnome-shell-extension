@@ -24,7 +24,19 @@ try:
     t = gettext.translation('praya', localedir=localedir)
 except FileNotFoundError:
     t = gettext.NullTranslations()
-_ = t.gettext
+try:
+    t_en = gettext.translation('praya', localedir=localedir, languages=['en'])
+except FileNotFoundError:
+    t_en = gettext.NullTranslations()
+
+
+def _gettext(message):
+    """Follow the system language, falling back to English."""
+    translated = t.gettext(message)
+    return t_en.gettext(message) if translated == message else translated
+
+
+_ = _gettext
 
 
 class LowspecApp(Adw.Application):
@@ -47,17 +59,14 @@ class LowspecApp(Adw.Application):
             modal=True,
             heading='\U0001F422',
             heading_use_markup=True,
-            body=_("Not all hardware is the same, and that's okay. "
-                   "If your device needs a little help, just switch off some "
-                   "features to get better performance. You can tweak this "
-                   "later in Praya Preferences."),
+            body=_('low_spec_warning'),
         )
         # Use Pango markup for large emoji (61440 = 60pt * 1024 Pango units)
         dialog.set_heading('<span size="61440">\U0001F422</span>')
         dialog.set_heading_use_markup(True)
 
-        dialog.add_response('ignore', _('Ignore'))
-        dialog.add_response('apply', _('Disable a few features'))
+        dialog.add_response('ignore', _('ignore'))
+        dialog.add_response('apply', _('disable_a_few_features'))
         dialog.set_response_appearance('apply', Adw.ResponseAppearance.SUGGESTED)
         dialog.set_close_response('ignore')
 
