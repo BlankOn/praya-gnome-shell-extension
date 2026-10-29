@@ -1,3 +1,11 @@
+praya-gnome-shell-extension (0.1.46-1) sinambung; urgency=medium
+
+  * New upstream release, shipping the atomic per-user extension update
+    from 0.1.45-2 that fixes translated strings losing their leading
+    characters after an update.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Thu, 29 Oct 2026 13:14:38 +0700
+
 praya-gnome-shell-extension (0.1.45-2) sinambung; urgency=medium
 
   * Replace the per-user extension directory atomically instead of copying
