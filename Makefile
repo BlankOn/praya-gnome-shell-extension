@@ -23,11 +23,17 @@ EXT_FILES = extension.js indicator.js constants.js chatbot.js taskbar.js \
 # Install the working tree over the user's real installed extension, for
 # trying it in an actual desktop session. `make run` does not need this.
 # Deliberately a copy and not a symlink: the packaged autostart updater
-# (praya-update-user.sh) does `cp -r` into this directory, which through a
-# symlink would overwrite the git working tree.
+# (praya-update-user.sh) replaces this directory, which through a symlink
+# would overwrite the git working tree.
+#
+# Remove the old directory first instead of copying over it. GNOME Shell
+# mmaps the extension's gettext catalog, and overwriting it in place makes
+# the running shell read the new catalog through the old mapping, which
+# corrupts translated strings until the next shell start.
 install-user: distro build-mo
-	@mkdir -p $(EXT_DIR)
-	@cp -r $(EXT_FILES) $(EXT_DIR)/
+	@rm -rf "$(EXT_DIR)"
+	@mkdir -p "$(EXT_DIR)"
+	@cp -r $(EXT_FILES) "$(EXT_DIR)"/
 	@echo "Installed working tree to $(EXT_DIR)"
 
 # Generic variant of install-user.
@@ -102,7 +108,7 @@ i18n: pot update-po build-mo
 # for the preferences/generator helpers. Requires a generated distro.js/py.
 test: distro
 	node --test
-	python3 -m unittest -v test_praya_preferences test_gen_distro test_gen_contributors
+	python3 -m unittest -v test_praya_preferences test_gen_distro test_gen_contributors test_praya_update_user
 
 # Run the test suite against the generic variant.
 test-generic:
