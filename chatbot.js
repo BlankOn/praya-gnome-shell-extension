@@ -191,7 +191,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
     _init(settings, onClose, panelHeight) {
         super._init({
             style_class: 'praya-chatbot-panel',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_expand: false,
         });
@@ -228,7 +228,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
         titleBox.add_child(aiIcon);
 
         let titleContainer = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             y_align: Clutter.ActorAlign.CENTER,
         });
 
@@ -281,7 +281,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
         // Create messages container - y_expand: false ensures it doesn't fill the viewport
         this._messagesBox = new St.BoxLayout({
             style_class: 'praya-chatbot-messages',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: false,
             y_expand: false,
         });
@@ -393,7 +393,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
 
         let messageBox = new St.BoxLayout({
             style_class: role === 'user' ? 'praya-chatbot-message-user' : 'praya-chatbot-message-assistant',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             y_expand: false,
         });
         messageBox.set_width(maxWidth);

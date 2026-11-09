@@ -479,7 +479,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Create context menu container
         this._contextMenu = new St.BoxLayout({
             style_class: 'praya-context-menu',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             track_hover: true,
         });
@@ -833,7 +833,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let panelY = isBottomBar ? monitor.y + MARGIN_TOP : monitor.y + panelHeight + MARGIN_TOP;
         this._panel = new St.BoxLayout({
             style_class: 'praya-panel',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             track_hover: true,
             x: monitor.x + MARGIN_LEFT,
@@ -1643,7 +1643,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Create a container for the whole view
         let contentContainer = new St.BoxLayout({
             style_class: 'praya-content-container',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_expand: true,
         });
@@ -1660,7 +1660,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -1876,7 +1876,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2002,7 +2002,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2040,7 +2040,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2316,7 +2316,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2633,7 +2633,7 @@ class PrayaIndicator extends PanelMenu.Button {
         item.add_child(icon);
 
         let textBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -2805,7 +2805,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let item = new St.BoxLayout({
             style_class: 'praya-grid-item',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             track_hover: true,
             x_align: Clutter.ActorAlign.CENTER,
@@ -2885,7 +2885,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Vertical box that holds horizontal rows
         let container = new St.BoxLayout({
             style_class: 'praya-grid-container',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
         container._gridRow = null;
@@ -3055,7 +3055,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Name container (full name + username)
         let nameBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -3099,7 +3099,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Bottom section - sticks to bottom (User + Lock + Log Out + Power)
         let bottomSection = new St.BoxLayout({
             style_class: 'praya-bottom-section',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -3141,7 +3141,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Power options container (initially hidden with 0 height for animation)
         let powerOptionsBox = new St.BoxLayout({
             style_class: 'praya-power-options',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             clip_to_allocation: true,
         });
@@ -3360,7 +3360,7 @@ class PrayaIndicator extends PanelMenu.Button {
             let scrollView = this._createScrollView();
             let menuBox = new St.BoxLayout({
                 style_class: 'praya-menu-box',
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
             });
 
@@ -3431,7 +3431,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -3470,7 +3470,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 

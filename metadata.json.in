@@ -4,6 +4,7 @@
   "uuid": "@UUID@",
   "gettext-domain": "praya",
   "shell-version": [
-    "50"
+    "50",
+    "51"
   ]
 }

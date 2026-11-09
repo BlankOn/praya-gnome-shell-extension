@@ -1375,7 +1375,7 @@ export default class PrayaExtension extends Extension {
 
             // Add warning icon and text - centered via BinLayout
             let contentBox = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
                 x_expand: true,
@@ -1447,7 +1447,7 @@ export default class PrayaExtension extends Extension {
 
             // Button container at bottom
             let buttonContainer = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.END,
                 x_expand: true,

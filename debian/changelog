@@ -1,3 +1,12 @@
+praya-gnome-shell-extension (0.1.46-1) sinambung; urgency=medium
+
+  * Add support for GNOME Shell 51 while keeping GNOME Shell 50
+    compatibility for now.
+  * Replace the St widget "vertical" property, removed in GNOME Shell 51,
+    with Clutter.Orientation, so the panel and menu layouts keep working.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Mon, 09 Nov 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.45-1) sinambung; urgency=medium
 
   * Show a tooltip with the window title when hovering a taskbar item,
