@@ -206,6 +206,9 @@ msgstr "Ketik untuk mencari..."
 msgid "Search or ask..."
 msgstr "Cari atau tanya..."
 
+msgid "Search..."
+msgstr "Cari..."
+
 #: indicator.js:3480
 msgid "BlankOn Linux"
 msgstr "BlankOn Linux"

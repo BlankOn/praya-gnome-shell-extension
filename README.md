@@ -39,6 +39,7 @@ it for you:
 make run-generic
 make run-mutter-devkit-generic
 make install-user-generic
+make install-system-generic
 make test-generic
 ```
 

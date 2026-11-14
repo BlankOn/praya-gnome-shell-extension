@@ -34,11 +34,27 @@ install-user: distro build-mo
 	@rm -rf "$(EXT_DIR)"
 	@mkdir -p "$(EXT_DIR)"
 	@cp -r $(EXT_FILES) "$(EXT_DIR)"/
+	@# Stamp the installed package version, or the packaged autostart updater
+	@# sees no .installed-version at the next login and swaps this copy back
+	@# for the packaged one in /usr/share. A later package upgrade still wins.
+	@v=$$(dpkg-query -W -f='$${Version}' praya-gnome-shell-extension 2>/dev/null); \
+		if [ -n "$$v" ]; then echo "$$v" > "$(EXT_DIR)/.installed-version"; fi
 	@echo "Installed working tree to $(EXT_DIR)"
 
 # Generic variant of install-user.
 install-user-generic:
 	@$(MAKE) install-user PRAYA_GENERIC=1
+
+# Install the working tree over the Debian package's files in /usr/share
+# (and, for BlankOn, the updater and gschema override), then refresh the
+# per-user copy the updater keeps. Run as your normal user: the script calls
+# sudo itself. The next package upgrade replaces these files.
+install-system: build-mo
+	@tools/install-system.sh
+
+# Generic variant of install-system.
+install-system-generic:
+	@$(MAKE) install-system PRAYA_GENERIC=1
 
 # Runs the extension straight from the working tree (see tools/run-rdp.sh);
 # nothing is copied into ~/.local/share. Use install-user for that.
@@ -117,4 +133,5 @@ test-generic:
 
 .PHONY: distro distro-generic contributors hooks run run-generic run-mutter-devkit \
 	run-mutter-devkit-generic install-user install-user-generic \
+	install-system install-system-generic \
 	pot update-po build-mo i18n test test-generic
