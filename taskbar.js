@@ -312,12 +312,17 @@ class PrayaTaskbar extends St.BoxLayout {
     _scrollToButton(button) {
         this._removeScrollLater();
 
+        // Taskbar rebuilds destroy buttons while this later may still be
+        // pending; touching a disposed St.Widget throws Gjs-CRITICAL.
+        let buttonDisposed = false;
+        button.connect('destroy', () => { buttonDisposed = true; });
+
         let laters = global.compositor.get_laters();
         this._scrollLaterId = laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
             this._scrollLaterId = 0;
 
             let adjustment = this._getHAdjustment();
-            if (!adjustment || !button.get_parent() || adjustment.page_size <= 0) {
+            if (buttonDisposed || !adjustment || !button.get_parent() || adjustment.page_size <= 0) {
                 return GLib.SOURCE_REMOVE;
             }
 
