@@ -71,3 +71,65 @@ export function flattenSections(sections, {
 
     return flat;
 }
+
+// Fold a string for loose matching: lower case, accents removed.
+function foldForMatch(text) {
+    return String(text || '')
+        .normalize('NFKD')
+        .replace(/\p{M}/gu, '')
+        .toLowerCase();
+}
+
+// True when every term of @query starts one of the words of @name, the way
+// people type the beginning of an app's name ("fil" → "Files",
+// "text ed" → "Text Editor"). Case and accents are ignored.
+export function nameMatchesQuery(name, query) {
+    const terms = queryTerms(foldForMatch(query));
+    if (terms.length === 0)
+        return false;
+
+    const words = foldForMatch(name).split(/[^\p{L}\p{N}]+/u).filter(w => w);
+    return terms.every(term => words.some(word => word.startsWith(term)));
+}
+
+// Merge the system's app search results (which only know the names in the
+// current language) with apps whose untranslated English name matches, so
+// "Fil" still finds "Files" when it is shown as "Berkas".
+//
+// @nativeMatches: app entries ({id, name}) in the order the system ranked
+//   them; it also matches on keywords and executable names.
+// @candidates: every visible app as {id, englishName, ...}.
+//
+// Order: native results whose shown or English name matches, then other
+// English-name matches, then the remaining (keyword/executable) native
+// results.
+export function rankAppMatches(nativeMatches, candidates, query) {
+    const native = nativeMatches || [];
+    const seen = new Set(native.map(app => app.id));
+
+    const englishNames = new Map();
+    for (const app of candidates || []) {
+        if (app && app.englishName)
+            englishNames.set(app.id, app.englishName);
+    }
+
+    const strong = [];
+    const weak = [];
+    for (const app of native) {
+        const matches = nameMatchesQuery(app.name, query) ||
+            nameMatchesQuery(englishNames.get(app.id), query);
+        (matches ? strong : weak).push(app);
+    }
+
+    const english = [];
+    for (const app of candidates || []) {
+        if (!app || seen.has(app.id) || !app.englishName)
+            continue;
+        if (!nameMatchesQuery(app.englishName, query))
+            continue;
+        seen.add(app.id);
+        english.push(app);
+    }
+
+    return [...strong, ...english, ...weak];
+}

@@ -22,7 +22,7 @@ import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
 import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
 import { SearchProviders } from './searchProviders.js';
-import { queryTerms, flattenSections } from './searchResults.js';
+import { queryTerms, flattenSections, rankAppMatches } from './searchResults.js';
 import {
     normalizeStartButtonConfig,
     clampStartButtonHeight,
@@ -2275,7 +2275,36 @@ class PrayaIndicator extends PanelMenu.Button {
             }
         }
 
-        return matchedApps;
+        return rankAppMatches(matchedApps, this._getEnglishNameCandidates(), query);
+    }
+
+    // Every visible app with its untranslated English name (the plain
+    // `Name=` key of its .desktop file), so search can also match by the
+    // English name when the session runs in another language.
+    _getEnglishNameCandidates() {
+        let candidates = [];
+        for (let appInfo of Gio.AppInfo.get_all()) {
+            if (!appInfo || typeof appInfo.get_string !== 'function')
+                continue;
+            if (typeof appInfo.should_show === 'function' && !appInfo.should_show())
+                continue;
+
+            let appId = appInfo.get_id();
+            let englishName = appInfo.get_string('Name');
+            let name = appInfo.get_name() || appId;
+            // Nothing to add when the shown name already is the English one.
+            if (!appId || !englishName || englishName === name)
+                continue;
+
+            candidates.push({
+                app: this._appSystem.lookup_app(appId),
+                appInfo: appInfo,
+                name: name,
+                id: appId,
+                englishName: englishName,
+            });
+        }
+        return candidates;
     }
 
     _launchFirstSearchResult() {
