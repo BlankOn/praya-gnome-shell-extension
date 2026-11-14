@@ -806,9 +806,14 @@ class PrayaIndicator extends PanelMenu.Button {
         // Clean up existing menu button hover area
         this._removeMenuButtonHoverArea();
 
-        // Use the monitor where the pointer currently is (where user clicked the indicator)
-        this._currentMonitor = Main.layoutManager.currentMonitor;
+        // Always open on the primary monitor (as configured in GNOME Settings),
+        // regardless of which monitor the pointer is on.
+        this._currentMonitor = Main.layoutManager.primaryMonitor;
         let monitor = this._currentMonitor;
+        if (!monitor) {
+            this._isPanelTransitioning = false;
+            return;
+        }
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -883,6 +888,13 @@ class PrayaIndicator extends PanelMenu.Button {
         // Start with opacity 0 and off-screen to the left for slide-in animation
         this._panel.opacity = 0;
         this._panel.x = monitor.x + MARGIN_LEFT - effectiveWidth;
+
+        // The slide starts left of the monitor's edge; clip whatever lies
+        // past that edge so it never bleeds onto a monitor placed to the left.
+        this._panel.connect('notify::x', () => this._clipPanelToMonitor());
+        this._panel.connect('notify::width', () => this._clipPanelToMonitor());
+        this._panel.connect('notify::height', () => this._clipPanelToMonitor());
+        this._clipPanelToMonitor();
 
         this._takeKeyboard();
 
@@ -1022,6 +1034,24 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Create the menu button hover area
         this._setupMenuButtonHoverArea();
+    }
+
+    // Clip the panel at the left edge of its monitor (in panel-local
+    // coordinates). Extra room is left on the other sides so the box-shadow
+    // is kept everywhere except across the monitor edge.
+    _clipPanelToMonitor() {
+        let panel = this._panel;
+        let monitor = this._currentMonitor;
+        if (!panel || !monitor)
+            return;
+
+        const SHADOW_PAD = 64;
+        let left = Math.max(monitor.x - panel.x, -SHADOW_PAD);
+        panel.set_clip(
+            left,
+            -SHADOW_PAD,
+            panel.width + SHADOW_PAD - left,
+            panel.height + SHADOW_PAD * 2);
     }
 
     _setupMenuButtonHoverArea() {
@@ -1638,7 +1668,7 @@ class PrayaIndicator extends PanelMenu.Button {
         this._updateHeader(_('Menu'), false);
 
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
 
         // Create a container for the whole view
         let contentContainer = new St.BoxLayout({
@@ -3288,10 +3318,14 @@ class PrayaIndicator extends PanelMenu.Button {
             });
             this._header.add_child(headerHint);
         } else {
-            // Show search entry (main menu view) - entry first, icon on right
+            // Show search entry (main menu view) - entry first, icon on right.
+            // Only mention asking when the AI chatbot is usable (enabled and
+            // an LLM API key is set); otherwise it is plain search.
+            this._chatbotSettings.reload();
+            let canAsk = this._isAIEnabled() && this._chatbotSettings.isConfigured();
             this._searchEntry = new St.Entry({
                 style_class: 'praya-search-entry',
-                hint_text: _('Search or ask...'),
+                hint_text: canAsk ? _('Search or ask...') : _('Search...'),
                 can_focus: true,
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
@@ -3549,7 +3583,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Get available height for chatbot panel
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -3614,7 +3648,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Get available height for chatbot panel
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -3666,7 +3700,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Get available height
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
