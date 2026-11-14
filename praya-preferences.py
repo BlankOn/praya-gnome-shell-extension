@@ -32,7 +32,7 @@ from distro import (
 from contributors import CONTRIBUTORS
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.47'
+VERSION = '0.1.48'
 
 PROVIDERS = {
     'anthropic': {

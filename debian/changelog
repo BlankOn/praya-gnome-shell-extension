@@ -1,3 +1,18 @@
+praya-gnome-shell-extension (0.1.48-1) sinambung; urgency=medium
+
+  * Always open the Praya panel on the primary monitor, as set in GNOME
+    Settings, instead of the monitor under the pointer.
+  * Clip the panel's slide animation at the primary monitor's left edge so
+    it no longer bleeds onto a monitor placed to its left.
+  * Show "Search or ask..." in the search box only when the AI chatbot is
+    enabled and an LLM API key is set; otherwise show "Search...".
+  * make install-user: stamp .installed-version so the autostart updater
+    no longer replaces the development copy at login.
+  * Add make install-system to install the working tree over the packaged
+    files with sudo.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sat, 14 Nov 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.47-1) sinambung; urgency=medium
 
   * Add support for GNOME Shell 51 while keeping GNOME Shell 50
