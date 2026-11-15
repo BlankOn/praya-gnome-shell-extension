@@ -1698,11 +1698,31 @@ export default class PrayaExtension extends Extension {
         if (!activities)
             return;
 
-        this._originalActivitiesVisible = activities.container.visible;
-        activities.container.visible = false;
+        let container = activities.container;
+        if (this._originalActivitiesVisible === undefined)
+            this._originalActivitiesVisible = container.visible;
+        container.visible = false;
+
+        // GNOME Shell shows every panel item again whenever the session mode
+        // is updated (Panel._updatePanel() -> _addToPanelBox() -> show()).
+        // On slow machines that update can land after enable(), bringing
+        // the Activities button back, so hide it again whenever it is shown.
+        if (!this._activitiesVisibleId) {
+            this._activitiesContainer = container;
+            this._activitiesVisibleId = container.connect('notify::visible', () => {
+                if (container.visible)
+                    container.visible = false;
+            });
+        }
     }
 
     _restoreActivities() {
+        if (this._activitiesVisibleId) {
+            this._activitiesContainer.disconnect(this._activitiesVisibleId);
+            this._activitiesVisibleId = null;
+            this._activitiesContainer = null;
+        }
+
         let activities = Main.panel.statusArea.activities;
         if (!activities)
             return;
