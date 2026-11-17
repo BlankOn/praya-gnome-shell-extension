@@ -5,6 +5,8 @@ praya-gnome-shell-extension (0.1.49-1) sinambung; urgency=medium
   * Keep the Activities button hidden after startup. On slow machines GNOME
     Shell could show it again after the extension was enabled.
   * Declare support for GNOME Shell 52.
+  * Place the date and time before the show desktop button, and show the
+    wallpaper in that button from the start instead of a black square.
 
  -- BlankOn Linux <blankon-dev@googlegroups.com>  Sun, 15 Nov 2026 00:00:00 +0700
 
