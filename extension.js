@@ -109,11 +109,16 @@ export default class PrayaExtension extends Extension {
             style_class: 'praya-show-desktop-button',
             reactive: false,
         });
+        // Dims the wallpaper slightly; cleared while the desktop is shown.
+        // St CSS has no `opacity`, so it is set here: left at the default
+        // 255 the overlay hid the wallpaper behind a black square until the
+        // first click.
         this._showDesktopOverlay = new St.Widget({
             style_class: 'praya-show-desktop-overlay',
             x_expand: true,
             y_expand: true,
             reactive: false,
+            opacity: 76,
         });
         this._showDesktopButton.add_child(this._showDesktopOverlay);
         this._showDesktopHoverArea.set_child(this._showDesktopButton);
@@ -160,6 +165,10 @@ export default class PrayaExtension extends Extension {
             this._setShowDesktopWallpaper();
         });
         this._bgDarkChangedId = this._bgSettings.connect('changed::picture-uri-dark', () => {
+            this._setShowDesktopWallpaper();
+        });
+        this._colorSchemeSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+        this._colorSchemeChangedId = this._colorSchemeSettings.connect('changed::color-scheme', () => {
             this._setShowDesktopWallpaper();
         });
 
@@ -1744,8 +1753,12 @@ export default class PrayaExtension extends Extension {
 
         if (centerBox.contains(dateMenu.container)) {
             centerBox.remove_child(dateMenu.container);
-            // Add to position 0 (left of quick settings)
-            rightBox.insert_child_at_index(dateMenu.container, 0);
+            // Order on the right: quick settings | date & time | show desktop
+            if (this._showDesktopHoverArea &&
+                rightBox.contains(this._showDesktopHoverArea))
+                rightBox.insert_child_below(dateMenu.container, this._showDesktopHoverArea);
+            else
+                rightBox.add_child(dateMenu.container);
         }
 
         // Remove center box from panel so left box can expand freely
@@ -2076,9 +2089,16 @@ export default class PrayaExtension extends Extension {
     _setShowDesktopWallpaper() {
         try {
             let settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
-            let uri = settings.get_string('picture-uri-dark') || settings.get_string('picture-uri');
-            if (uri) {
-                let path = uri.replace('file://', '');
+            // Use the wallpaper for the current light/dark style, like the
+            // desktop itself does.
+            let iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            let dark = iface.get_string('color-scheme') === 'prefer-dark';
+            let uri = (dark && settings.get_string('picture-uri-dark')) ||
+                settings.get_string('picture-uri') ||
+                settings.get_string('picture-uri-dark');
+            // Decode the URI properly (e.g. %20 in file names).
+            let path = uri ? Gio.File.new_for_uri(uri).get_path() : null;
+            if (path) {
                 this._showDesktopButton.set_style(
                     `background-image: url("${path}"); background-size: cover; background-position: center;`
                 );
@@ -2277,6 +2297,11 @@ export default class PrayaExtension extends Extension {
             this._bgDarkChangedId = null;
         }
         this._bgSettings = null;
+        if (this._colorSchemeChangedId && this._colorSchemeSettings) {
+            this._colorSchemeSettings.disconnect(this._colorSchemeChangedId);
+            this._colorSchemeChangedId = null;
+        }
+        this._colorSchemeSettings = null;
 
         if (this._showDesktopHoverArea) {
             this._showDesktopHoverArea.destroy();
