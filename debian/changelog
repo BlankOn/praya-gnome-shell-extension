@@ -4,6 +4,7 @@ praya-gnome-shell-extension (0.1.49-1) sinambung; urgency=medium
     finds Files when it is shown as "Berkas".
   * Keep the Activities button hidden after startup. On slow machines GNOME
     Shell could show it again after the extension was enabled.
+  * Declare support for GNOME Shell 52.
 
  -- BlankOn Linux <blankon-dev@googlegroups.com>  Sun, 15 Nov 2026 00:00:00 +0700
 

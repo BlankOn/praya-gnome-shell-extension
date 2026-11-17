@@ -5,6 +5,7 @@
   "gettext-domain": "praya",
   "shell-version": [
     "50",
-    "51"
+    "51",
+    "52"
   ]
 }
