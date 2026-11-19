@@ -875,6 +875,9 @@ class PrayaIndicator extends PanelMenu.Button {
         this._panel.add_child(this._slidingContainer);
         this._panel.add_child(this._bottomSection);
 
+        // Apply transparency to backgrounds only; labels and icons stay opaque.
+        this._applyPanelBackgroundOpacity();
+
         // Check if we should restore chatbot mode
         if (this._isChatbotMode) {
             // Restore chatbot mode
@@ -3776,7 +3779,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', searchEngine: 'google', searchEngineCustomUrl: '', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', panelOpacity: 100, searchEngine: 'google', searchEngineCustomUrl: '', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -3786,6 +3789,7 @@ class PrayaIndicator extends PanelMenu.Button {
                     let decoder = new TextDecoder('utf-8');
                     let jsonStr = decoder.decode(contents);
                     let config = JSON.parse(jsonStr);
+                    if (config.panelOpacity == null) config.panelOpacity = 100;
                     // Ensure appMenuLayout has a default
                     if (!config.appMenuLayout) config.appMenuLayout = 'grid';
                     // Ensure appGridColumns has a default
@@ -3801,6 +3805,54 @@ class PrayaIndicator extends PanelMenu.Button {
             log(`Praya: Error loading services config: ${e.message}`);
         }
         return defaultConfig;
+    }
+
+    // Return the effective transparency as a 0.0 - 1.0 alpha value.
+    _getPanelAlpha() {
+        if (this._servicesConfig?.lowspecEnabled)
+            return 1.0;
+        let percent = Number(this._servicesConfig?.panelOpacity ?? 100);
+        if (!Number.isFinite(percent)) percent = 100;
+        return Math.min(100, Math.max(20, percent)) / 100;
+    }
+
+    _findActorsWithClass(actor, styleClass, found = []) {
+        if (!actor) return found;
+        if (actor.has_style_class_name?.(styleClass))
+            found.push(actor);
+        for (let child of actor.get_children?.() || [])
+            this._findActorsWithClass(child, styleClass, found);
+        return found;
+    }
+
+    // Apply alpha to panel backgrounds only, never to text or icons.
+    _applyPanelBackgroundOpacity() {
+        if (!this._panel) return;
+        let alpha = this._getPanelAlpha();
+        let targets = [
+            [this._panel, '45, 45, 45'],
+            [this._header, '56, 56, 56'],
+            [this._bottomSection, '45, 45, 45'],
+        ];
+        for (let actor of this._findActorsWithClass(this._panel, 'praya-user-item'))
+            targets.push([actor, '45, 45, 45']);
+
+        for (let [actor, rgb] of targets) {
+            if (!actor) continue;
+            if (alpha >= 1) {
+                actor.set_style(null);
+            } else {
+                actor.set_style(
+                    `background-color: rgba(${rgb}, ${alpha.toFixed(2)});`
+                );
+            }
+        }
+    }
+
+    setPanelOpacity(value) {
+        this._servicesConfig = this._servicesConfig || {};
+        this._servicesConfig.panelOpacity = value;
+        this._applyPanelBackgroundOpacity();
     }
 
     setMainMenuHoverActivate(enabled) {
