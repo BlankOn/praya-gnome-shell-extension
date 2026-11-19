@@ -30,6 +30,7 @@ import { _ } from './translations.js';
 import { PrayaIndicator } from './indicator.js';
 import { PrayaTaskbar } from './taskbar.js';
 import { connectClickHandler } from './touch-helper.js';
+import { SettingsPanelFix } from './settingsPanelFix.js';
 
 // D-Bus constants for posture service
 const POSTURE_BUS_NAME = 'com.github.blankon.praya';
@@ -38,6 +39,11 @@ const POSTURE_SERVICE_PATH = '/com/github/blankon/Praya/Posture';
 
 export default class PrayaExtension extends Extension {
     enable() {
+        // Restore minimized Settings windows when a settings-panel menu
+        // entry is activated (Change Background, Bluetooth Settings, ...).
+        this._settingsPanelFix = new SettingsPanelFix();
+        this._settingsPanelFix.enable();
+
         // Load services configuration
         this._loadServicesConfig();
 
@@ -2215,6 +2221,11 @@ export default class PrayaExtension extends Extension {
     }
 
     disable() {
+        if (this._settingsPanelFix) {
+            this._settingsPanelFix.disable();
+            this._settingsPanelFix = null;
+        }
+
         // Drop any modal grab first: leaking one leaves the session with a
         // dead keyboard.
         if (this._indicator) {
