@@ -660,6 +660,33 @@ export default class PrayaExtension extends Extension {
                 `background-color: rgba(0, 0, 0, ${(percent / 100).toFixed(2)});`
             );
         }
+        this._applyPopupOpacity(percent);
+    }
+
+    // Apply the same alpha to the backgrounds of GNOME Shell popups: the
+    // calendar/notifications menu, the quick-settings menu, and the desktop
+    // right-click menu. Text and controls stay fully opaque.
+    _applyPopupOpacity(percent) {
+        let alpha = percent >= 100 ? 1.0 : percent / 100;
+        let style = alpha >= 1
+            ? null
+            : `background-color: rgba(54, 54, 58, ${alpha.toFixed(2)});`;
+
+        let boxes = [];
+        let status = Main.panel.statusArea;
+        if (status.dateMenu?.menu?.box)
+            boxes.push(status.dateMenu.menu.box);
+        if (status.quickSettings?.menu?.box)
+            boxes.push(status.quickSettings.menu.box);
+
+        for (let manager of Main.layoutManager._bgManagers || []) {
+            let menu = manager.backgroundActor?._backgroundMenu;
+            if (menu?.box)
+                boxes.push(menu.box);
+        }
+
+        for (let box of boxes)
+            box.set_style(style);
     }
 
     _applyPanelPosition(position) {
@@ -2326,6 +2353,7 @@ export default class PrayaExtension extends Extension {
         this._removeWorkAreaMargins();
         Main.panel.remove_style_class_name('praya-floating-panel');
         Main.panel.set_style(null);
+        this._applyPopupOpacity(100);
         if (this._topPanelOpacityIds) {
             for (let id of this._topPanelOpacityIds)
                 GLib.source_remove(id);
