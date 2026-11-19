@@ -30,6 +30,12 @@ import { _ } from './translations.js';
 import { PrayaIndicator } from './indicator.js';
 import { PrayaTaskbar } from './taskbar.js';
 import { connectClickHandler } from './touch-helper.js';
+import {
+    POWER_INDICATOR_RETRY_MS,
+    POWER_INDICATOR_MAX_RETRIES,
+    findPowerIndicator,
+    applyPowerIndicatorVisibility,
+} from './powerIndicator.js';
 
 // D-Bus constants for posture service
 const POSTURE_BUS_NAME = 'com.github.blankon.praya';
@@ -40,6 +46,12 @@ export default class PrayaExtension extends Extension {
     enable() {
         // Load services configuration
         this._loadServicesConfig();
+
+        // Battery/power indicator state (hidden on machines without a battery)
+        this._powerIndicator = null;
+        this._powerIndicatorVisibilityId = null;
+        this._powerIndicatorRetryId = null;
+        this._powerIndicatorRetries = 0;
 
         // Watch config files for live changes from preferences window
         this._setupConfigMonitors();
@@ -74,6 +86,7 @@ export default class PrayaExtension extends Extension {
         if (!Main.layoutManager._startingUp) {
             // Already started up (e.g. extension enabled from prefs)
             this._startPrayaServices();
+            this._setupPowerIndicatorVisibility();
         } else {
             this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
                 Main.layoutManager.disconnect(this._startupCompleteId);
@@ -84,6 +97,7 @@ export default class PrayaExtension extends Extension {
                 this._updateAllWindowsIconGeometry();
                 this._startPrayaServices();
                 this._scheduleLowspecCheck();
+                this._setupPowerIndicatorVisibility();
             });
         }
 
@@ -1713,6 +1727,57 @@ export default class PrayaExtension extends Extension {
         }
     }
 
+    // GNOME Shell always shows the power/battery indicator, even on machines
+    // without a battery (it falls back to a power icon). Mirror GNOME's own
+    // battery presence state onto the panel icon so desktops hide it while
+    // laptops keep showing the battery icon.
+    _setupPowerIndicatorVisibility() {
+        if (this._powerIndicatorVisibilityId)
+            return;
+
+        let target = findPowerIndicator(Main.panel.statusArea.quickSettings);
+
+        if (!target) {
+            if (this._powerIndicatorRetries >= POWER_INDICATOR_MAX_RETRIES)
+                return;
+
+            this._powerIndicatorRetries++;
+            if (!this._powerIndicatorRetryId) {
+                this._powerIndicatorRetryId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT, POWER_INDICATOR_RETRY_MS, () => {
+                        this._powerIndicatorRetryId = null;
+                        this._setupPowerIndicatorVisibility();
+                        return GLib.SOURCE_REMOVE;
+                    });
+            }
+            return;
+        }
+
+        this._powerIndicator = target;
+        this._powerIndicatorVisibilityId = target.powerToggle.connect(
+            'notify::visible',
+            () => applyPowerIndicatorVisibility(target.powerToggle, target.icon));
+        applyPowerIndicatorVisibility(target.powerToggle, target.icon);
+    }
+
+    _restorePowerIndicator() {
+        if (this._powerIndicatorRetryId) {
+            GLib.source_remove(this._powerIndicatorRetryId);
+            this._powerIndicatorRetryId = null;
+        }
+
+        if (this._powerIndicator && this._powerIndicatorVisibilityId) {
+            this._powerIndicator.powerToggle.disconnect(this._powerIndicatorVisibilityId);
+            this._powerIndicatorVisibilityId = null;
+        }
+
+        if (this._powerIndicator?.icon)
+            this._powerIndicator.icon.visible = true;
+
+        this._powerIndicator = null;
+        this._powerIndicatorRetries = 0;
+    }
+
     _moveDateTimeToRight() {
         let dateMenu = Main.panel.statusArea.dateMenu;
         if (!dateMenu)
@@ -2287,6 +2352,9 @@ export default class PrayaExtension extends Extension {
 
         // Remove OSD percentage labels
         this._unpatchOsdWindows();
+
+        // Restore the GNOME power/battery indicator
+        this._restorePowerIndicator();
 
         // Restore activities button
         this._restoreActivities();
