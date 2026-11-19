@@ -156,6 +156,7 @@ DEFAULT_SERVICES_CONFIG = {
     'quickAccessHoverActivate': False,
     'floatingPanel': True,
     'panelPosition': 'top',
+    'panelOpacity': 100,
     'searchEngine': DEFAULT_SEARCH_ENGINE,
     'searchEngineCustomUrl': '',
     'startButton': {
@@ -385,6 +386,27 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._floating_row.set_active(self._services.get('floatingPanel', True))
         self._floating_row.connect('notify::active', self._on_floating_changed)
         panel_group.add(self._floating_row)
+
+        # Panel opacity
+        self._opacity_row = Adw.SpinRow(
+            title=_('Panel opacity'),
+            subtitle=_('Transparency of the panel, from 20% to 100%.'),
+        )
+        self._opacity_row.set_digits(0)
+        opacity_adjustment = Gtk.Adjustment(
+            value=int(self._services.get('panelOpacity', 100)),
+            lower=20,
+            upper=100,
+            step_increment=5,
+            page_increment=10,
+        )
+        self._opacity_row.set_adjustment(opacity_adjustment)
+        self._opacity_row.set_value(float(self._services.get('panelOpacity', 100)))
+        self._opacity_row.set_sensitive(not self._services.get('lowspecEnabled', False))
+        # Connect after setting the initial value so opening Preferences does
+        # not save a spurious change to services.json.
+        self._opacity_row.connect('notify::value', self._on_opacity_changed)
+        panel_group.add(self._opacity_row)
 
         page.add(panel_group)
 
@@ -874,6 +896,10 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._services['floatingPanel'] = row.get_active()
         self._save_services()
 
+    def _on_opacity_changed(self, row, _pspec):
+        self._services['panelOpacity'] = int(row.get_value())
+        self._save_services()
+
     def _on_search_engine_changed(self, row, _pspec):
         self._services['searchEngine'] = SEARCH_ENGINE_ORDER[row.get_selected()]
         self._update_search_custom_row_visibility()
@@ -895,6 +921,10 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
     def _on_lowspec_changed(self, row, _pspec):
         enabled = row.get_active()
         self._services['lowspecEnabled'] = enabled
+
+        # Transparency is disabled in low-spec mode; grey out the control.
+        if hasattr(self, '_opacity_row'):
+            self._opacity_row.set_sensitive(not enabled)
 
         # Toggle GNOME animations
         try:
