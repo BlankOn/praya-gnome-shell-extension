@@ -571,3 +571,54 @@ msgstr "Layanan tidak tersedia"
 
 #~ msgid "Disable a few features"
 #~ msgstr "Nonaktifkan beberapa fitur"
+
+msgid "Applying…"
+msgstr "Menerapkan…"
+
+msgid "Blur"
+msgstr "Kabur"
+
+msgid "Blur radius applied to the picture, from 0 to 60."
+msgstr "Radius kabur yang diterapkan pada gambar, dari 0 sampai 60."
+
+msgid "Choose a picture first."
+msgstr "Pilih gambar terlebih dahulu."
+
+msgid "Choose an image from your home folder."
+msgstr "Pilih gambar dari folder rumah Anda."
+
+msgid "Choose login screen background"
+msgstr "Pilih latar layar masuk"
+
+msgid "Custom background applied."
+msgstr "Latar kustom telah diterapkan."
+
+msgid "Done."
+msgstr "Selesai."
+
+msgid "Helper not installed: %s"
+msgstr "Pembantu tidak terpasang: %s"
+
+msgid "Login Screen"
+msgstr "Layar Masuk"
+
+msgid "Login background"
+msgstr "Latar layar masuk"
+
+msgid "No custom background applied."
+msgstr "Tidak ada latar kustom yang diterapkan."
+
+msgid "Opacity"
+msgstr "Opasitas"
+
+msgid "Picture"
+msgstr "Gambar"
+
+msgid "Picture selected — press Choose… to apply."
+msgstr "Gambar dipilih — tekan Pilih… untuk menerapkan."
+
+msgid "Reset"
+msgstr "Atur ulang"
+
+msgid "Transparency of the picture, from 10% to 100%."
+msgstr "Transparansi gambar, dari 10% sampai 100%."

@@ -96,6 +96,7 @@ _ = t.gettext
 CONFIG_DIR = os.path.join(GLib.get_user_config_dir(), 'praya')
 SERVICES_CONFIG_PATH = os.path.join(CONFIG_DIR, 'services.json')
 CHATBOT_CONFIG_PATH = os.path.join(CONFIG_DIR, 'chatbot.json')
+LOGIN_BG_HELPER = '/usr/lib/praya-extension/blankon-login-background'
 
 # Web search engines offered by the "search the web" fallback in the menu.
 # The keys and URLs must stay in sync with SEARCH_ENGINES in searchEngine.js
@@ -137,6 +138,9 @@ DEFAULT_SERVICES_CONFIG = {
     'panelPosition': 'top',
     'searchEngine': DEFAULT_SEARCH_ENGINE,
     'searchEngineCustomUrl': '',
+    'loginBackgroundPath': '',
+    'loginBlur': 0,
+    'loginOpacity': 100,
     'startButton': {
         'imagePath': '',
         **DEFAULT_START_BUTTON,
@@ -229,6 +233,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
             self._dbus = None
 
         self._build_panel_page()
+        self._build_login_page()
         self._build_services_page()
         self._build_about_page()
 
@@ -541,7 +546,199 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._save_services()
 
     # ==================================================================
-    # Page 2: Services
+    # Page 2: Login Screen
+    # ==================================================================
+    def _build_login_page(self):
+        page = Adw.PreferencesPage(
+            title=_('Login Screen'),
+            icon_name='preferences-desktop-wallpaper-symbolic',
+        )
+
+        group = Adw.PreferencesGroup(
+            title=_('Login background'),
+            description=_('Shown on the GDM login screen after logout or boot. '
+                          'Changing it requires administrator authentication.'),
+        )
+
+        self._login_image_row = Adw.ActionRow(
+            title=_('Picture'),
+            subtitle=_('Choose an image from your home folder.'),
+        )
+        self._login_image_preview = Gtk.Picture()
+        self._login_image_preview.set_can_shrink(True)
+        self._login_image_preview.set_size_request(48, 32)
+        self._login_image_preview.set_valign(Gtk.Align.CENTER)
+        self._login_image_row.add_prefix(self._login_image_preview)
+
+        choose_btn = Gtk.Button(label=_('Choose…'))
+        choose_btn.set_valign(Gtk.Align.CENTER)
+        choose_btn.connect('clicked', self._on_login_choose_image)
+        self._login_image_row.add_suffix(choose_btn)
+
+        reset_btn = Gtk.Button(label=_('Reset'))
+        reset_btn.set_valign(Gtk.Align.CENTER)
+        reset_btn.connect('clicked', self._on_login_reset)
+        self._login_image_row.add_suffix(reset_btn)
+        group.add(self._login_image_row)
+
+        self._login_blur_row = Adw.SpinRow(
+            title=_('Blur'),
+            subtitle=_('Blur radius applied to the picture, from 0 to 60.'),
+        )
+        self._login_blur_row.set_digits(0)
+        self._login_blur_row.set_adjustment(Gtk.Adjustment(
+            value=int(self._services.get('loginBlur', 0)),
+            lower=0, upper=60, step_increment=2, page_increment=10,
+        ))
+        self._login_blur_row.set_value(float(self._services.get('loginBlur', 0)))
+        self._login_blur_row.connect('notify::value', self._on_login_blur_changed)
+        group.add(self._login_blur_row)
+
+        self._login_opacity_row = Adw.SpinRow(
+            title=_('Opacity'),
+            subtitle=_('Transparency of the picture, from 10% to 100%.'),
+        )
+        self._login_opacity_row.set_digits(0)
+        self._login_opacity_row.set_adjustment(Gtk.Adjustment(
+            value=int(self._services.get('loginOpacity', 100)),
+            lower=10, upper=100, step_increment=5, page_increment=10,
+        ))
+        self._login_opacity_row.set_value(float(self._services.get('loginOpacity', 100)))
+        self._login_opacity_row.connect('notify::value', self._on_login_opacity_changed)
+        group.add(self._login_opacity_row)
+
+        self._login_status_row = Adw.ActionRow(title=_('Status'))
+        self._login_status_label = Gtk.Label(label=self._login_status_text())
+        self._login_status_label.set_valign(Gtk.Align.CENTER)
+        self._login_status_label.set_wrap(True)
+        self._login_status_row.add_suffix(self._login_status_label)
+        group.add(self._login_status_row)
+
+        page.add(group)
+        self._update_login_preview()
+        self.add(page)
+
+    def _login_status_text(self):
+        """Reflect the currently applied login background on startup."""
+        if not self._services.get('loginBackgroundPath', ''):
+            return _('No custom background applied.')
+        try:
+            with open('/etc/gdm3/greeter.dconf-defaults') as handle:
+                if 'blankon-login' in handle.read():
+                    return _('Custom background applied.')
+        except OSError:
+            pass
+        return _('Picture selected — press Choose… to apply.')
+
+    def _update_login_preview(self):
+        path = self._services.get('loginBackgroundPath', '')
+        if path and os.path.isfile(path):
+            try:
+                self._login_image_preview.set_filename(path)
+                return
+            except Exception:
+                pass
+        self._login_image_preview.set_filename(None)
+
+    def _on_login_choose_image(self, _btn):
+        dialog = Gtk.FileDialog(title=_('Choose login screen background'))
+
+        image_filter = Gtk.FileFilter()
+        image_filter.set_name(_('Images'))
+        for pattern in ('*.png', '*.jpg', '*.jpeg', '*.webp', '*.bmp', '*.tif', '*.tiff'):
+            image_filter.add_pattern(pattern)
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(image_filter)
+        dialog.set_filters(filters)
+
+        def on_open(dlg, result):
+            try:
+                file = dlg.open_finish(result)
+            except GLib.Error:
+                return
+            if not file:
+                return
+            self._services['loginBackgroundPath'] = file.get_path()
+            self._save_services()
+            self._update_login_preview()
+            self._apply_login_background()
+
+        dialog.open(self, None, on_open)
+
+    def _on_login_blur_changed(self, row, _pspec):
+        self._services['loginBlur'] = int(row.get_value())
+        self._save_services()
+        self._schedule_login_apply()
+
+    def _on_login_opacity_changed(self, row, _pspec):
+        self._services['loginOpacity'] = int(row.get_value())
+        self._save_services()
+        self._schedule_login_apply()
+
+    def _schedule_login_apply(self):
+        if getattr(self, '_login_apply_id', 0):
+            GLib.source_remove(self._login_apply_id)
+        self._login_apply_id = GLib.timeout_add(500, self._apply_login_background)
+
+    def _on_login_reset(self, _btn):
+        self._services['loginBackgroundPath'] = ''
+        self._save_services()
+        self._update_login_preview()
+        self._run_login_helper(['--clear'])
+
+    def _apply_login_background(self):
+        self._login_apply_id = 0
+        path = self._services.get('loginBackgroundPath', '')
+        if not path:
+            self._login_status_label.set_label(_('Choose a picture first.'))
+            return False
+        self._run_login_helper([
+            '--image', path,
+            '--blur', str(int(self._services.get('loginBlur', 0))),
+            '--opacity', str(int(self._services.get('loginOpacity', 100))),
+            '--uid', str(os.getuid()),
+        ])
+        return False
+
+    def _run_login_helper(self, args):
+        if not os.path.exists(LOGIN_BG_HELPER):
+            self._login_status_label.set_label(
+                _('Helper not installed: %s') % LOGIN_BG_HELPER)
+            return
+        self._login_status_label.set_label(_('Applying…'))
+        argv = ['pkexec', LOGIN_BG_HELPER] + args
+        try:
+            proc = Gio.Subprocess.new(
+                argv,
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+            )
+        except GLib.Error as exc:
+            self._login_status_label.set_label(str(exc))
+            return
+        proc.communicate_utf8_async(None, None, self._on_login_helper_done, None)
+
+    def _on_login_helper_done(self, proc, result, _data):
+        try:
+            _ok, stdout, stderr = proc.communicate_utf8_finish(result)
+        except GLib.Error as exc:
+            self._login_status_label.set_label(str(exc))
+            return
+        message = ''
+        for line in (stdout or '').splitlines():
+            try:
+                data = json.loads(line)
+                if isinstance(data, dict):
+                    message = data.get('message', '')
+                    break
+            except json.JSONDecodeError:
+                continue
+        if not message:
+            lines = (stderr or '').strip().splitlines()
+            message = lines[-1] if lines else _('Done.')
+        self._login_status_label.set_label(message)
+
+    # ==================================================================
+    # Page 3: Services
     # ==================================================================
     def _build_services_page(self):
         page = Adw.PreferencesPage(
@@ -646,7 +843,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self.add(page)
 
     # ==================================================================
-    # Page 3: About Praya
+    # Page 4: About Praya
     # ==================================================================
     def _build_about_page(self):
         page = Adw.PreferencesPage(
