@@ -28,6 +28,9 @@ override_dh_auto_install:
 	install -m 644 debian/10_praya.gschema.override $(CURDIR)/debian/$(PKG_BLANKON)/usr/share/glib-2.0/schemas/
 	install -d $(CURDIR)/debian/$(PKG_BLANKON)/usr/lib/praya-extension
 	install -m 755 debian/praya-update-user.sh $(CURDIR)/debian/$(PKG_BLANKON)/usr/lib/praya-extension/
+	install -m 755 tools/blankon-login-background $(CURDIR)/debian/$(PKG_BLANKON)/usr/lib/praya-extension/
+	install -d $(CURDIR)/debian/$(PKG_BLANKON)/usr/share/polkit-1/actions
+	install -m 644 tools/id.blankon.loginbackground.policy $(CURDIR)/debian/$(PKG_BLANKON)/usr/share/polkit-1/actions/
 	install -d $(CURDIR)/debian/$(PKG_BLANKON)/etc/skel/.config/autostart
 	install -m 644 debian/praya-extension-update.desktop $(CURDIR)/debian/$(PKG_BLANKON)/etc/skel/.config/autostart/
 
