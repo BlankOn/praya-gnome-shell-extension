@@ -1,0 +1,297 @@
+#!/usr/bin/python3
+"""Set the GDM login-screen background for BlankOn / Praya.
+
+Installed root-owned and meant to be called through pkexec from the Praya
+preferences GUI. It never trusts the caller with a destination path: it
+re-encodes the picture itself into a shared, world-readable location.
+
+GNOME Shell 50 does not create a background manager in greeter mode, so
+org.gnome.desktop.background is ignored on the login screen. The visible
+background comes from the shell's CSS theme, so this helper also rebuilds
+/usr/share/gnome-shell/gnome-shell-theme.gresource with a
+#lockDialogGroup background-image rule.
+
+Usage:
+    blankon-login-background --image PATH [--blur N] [--opacity N] [--uid UID]
+    blankon-login-background --clear
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+from PIL import Image, ImageFilter, ImageOps
+
+CONFIG = Path('/etc/gdm3/greeter.dconf-defaults')
+CONFIG_BACKUP = Path('/etc/gdm3/greeter.dconf-defaults.praya-backup')
+THEME = Path('/usr/share/gnome-shell/gnome-shell-theme.gresource')
+THEME_BACKUP = Path('/usr/share/gnome-shell/gnome-shell-theme.gresource.praya-backup')
+OUTDIR = Path('/usr/share/backgrounds/blankon-login')
+GENERATE_CONFIG = Path('/usr/share/gdm/generate-config')
+BACKGROUND_SECTION = 'org/gnome/desktop/background'
+CSS_FILES = (
+    'gnome-shell-dark.css',
+    'gnome-shell-light.css',
+    'gnome-shell-high-contrast.css',
+)
+MAX_IMAGE_BYTES = 25 * 1024 * 1024
+TARGET_SIZE = (1920, 1080)
+
+
+def fail(message):
+    print(json.dumps({'ok': False, 'message': message}))
+    sys.exit(1)
+
+
+def run(argv, **kwargs):
+    return subprocess.run(argv, check=True, **kwargs)
+
+
+def read_config():
+    try:
+        return CONFIG.read_text()
+    except OSError as exc:
+        fail(f'cannot read {CONFIG}: {exc}')
+
+
+def write_config(text):
+    tmp = CONFIG.with_suffix('.praya-tmp')
+    try:
+        tmp.write_text(text)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, CONFIG)
+    except OSError as exc:
+        fail(f'cannot write {CONFIG}: {exc}')
+
+
+def ensure_backup(source, backup):
+    if not backup.exists() and source.exists():
+        try:
+            run(['cp', '-p', str(source), str(backup)])
+        except subprocess.CalledProcessError as exc:
+            fail(f'cannot back up {source}: {exc}')
+
+
+def replace_section(text, section, body):
+    """Replace (or append) one [section] block in a dconf-defaults file."""
+    header = f'[{section}]'
+    lines = text.splitlines(keepends=True)
+    out = []
+    i = 0
+    found = False
+    while i < len(lines):
+        line = lines[i]
+        if line.strip().lower() == header.lower():
+            found = True
+            out.append(header + '\n')
+            out.extend(f'{item}\n' for item in body)
+            i += 1
+            while i < len(lines) and not lines[i].lstrip().startswith('['):
+                i += 1
+            continue
+        out.append(line)
+        i += 1
+    if not found:
+        if out and not out[-1].endswith('\n'):
+            out.append('\n')
+        out.append('\n' + header + '\n')
+        out.extend(f'{item}\n' for item in body)
+    return ''.join(out)
+
+
+def process_image(source, uid, blur, opacity):
+    path = Path(source)
+    if not path.is_file():
+        fail('the selected image is not a regular file')
+    if path.stat().st_size > MAX_IMAGE_BYTES:
+        fail('the selected image is larger than 25 MB')
+
+    try:
+        with Image.open(path) as raw:
+            image = ImageOps.exif_transpose(raw).convert('RGBA')
+    except Exception as exc:
+        fail(f'cannot open image: {exc}')
+
+    image = ImageOps.fit(image, TARGET_SIZE, method=Image.Resampling.LANCZOS)
+
+    if blur:
+        image = image.filter(ImageFilter.GaussianBlur(radius=blur))
+
+    if opacity < 100:
+        red, green, blue, alpha = image.split()
+        alpha = alpha.point(lambda value: value * opacity // 100)
+        image = Image.merge('RGBA', (red, green, blue, alpha))
+
+    try:
+        OUTDIR.mkdir(parents=True, exist_ok=True)
+        os.chmod(OUTDIR, 0o755)
+        output = OUTDIR / f'user-{uid}.png'
+        image.save(output, 'PNG', optimize=True)
+        os.chmod(output, 0o644)
+    except OSError as exc:
+        fail(f'cannot write processed image: {exc}')
+    return output
+
+
+def patch_theme(image_uri):
+    """Rebuild the shell theme gresource with a login background CSS rule."""
+    for tool in ('gresource', 'glib-compile-resources'):
+        if not shutil.which(tool):
+            fail(f'{tool} is required but not installed '
+                 '(install libglib2.0-dev-bin)')
+
+    ensure_backup(THEME, THEME_BACKUP)
+    source = THEME_BACKUP if THEME_BACKUP.exists() else THEME
+
+    with tempfile.TemporaryDirectory(prefix='praya-theme-') as tmp:
+        work = Path(tmp)
+        xml = ['<?xml version="1.0" encoding="UTF-8"?>',
+               '<gresources><gresource>']
+        resources = run(['gresource', 'list', str(source)],
+                        capture_output=True, text=True).stdout.splitlines()
+        for resource in resources:
+            if not resource:
+                continue
+            name = Path(resource).name
+            with open(work / name, 'wb') as handle:
+                handle.write(run(['gresource', 'extract', str(source), resource],
+                                 capture_output=True).stdout)
+            xml.append(f'<file alias="{resource}">{name}</file>')
+        xml.append('</gresource></gresources>')
+        (work / 'theme.gresource.xml').write_text('\n'.join(xml))
+
+        for css_name in CSS_FILES:
+            css = work / css_name
+            if not css.exists():
+                continue
+            rule = (
+                '\n/* BlankOn / Praya login background */\n'
+                '#lockDialogGroup, #lockScreenGroup {\n'
+                f'  background-image: url("{image_uri}");\n'
+                '  background-size: cover;\n'
+                '  background-position: center;\n'
+                '  background-repeat: no-repeat;\n'
+                '}\n'
+            )
+            with open(css, 'a') as handle:
+                handle.write(rule)
+
+        compiled = work / 'gnome-shell-theme.gresource.new'
+        run(['glib-compile-resources',
+             f'--sourcedir={work}',
+             f'--target={compiled}',
+             str(work / 'theme.gresource.xml')],
+            capture_output=True)
+
+        try:
+            shutil.copyfile(compiled, THEME)
+            os.chmod(THEME, 0o644)
+        except OSError as exc:
+            fail(f'cannot install themed gresource: {exc}')
+
+
+def restore_theme():
+    if THEME_BACKUP.exists():
+        try:
+            shutil.copyfile(THEME_BACKUP, THEME)
+            os.chmod(THEME, 0o644)
+        except OSError as exc:
+            fail(f'cannot restore theme: {exc}')
+
+
+def apply_image(args):
+    uid = args.uid
+    if uid is None:
+        try:
+            uid = int(os.environ.get('PKEXEC_UID', os.getuid()))
+        except ValueError:
+            uid = os.getuid()
+
+    output = process_image(args.image, uid, args.blur, args.opacity)
+    uri = 'file://' + str(output)
+
+    ensure_backup(CONFIG, CONFIG_BACKUP)
+    text = read_config()
+    text = replace_section(text, BACKGROUND_SECTION, [
+        f"picture-uri='{uri}'",
+        f"picture-uri-dark='{uri}'",
+        "picture-options='zoom'",
+    ])
+    write_config(text)
+    patch_theme(uri)
+    regenerate()
+    print(json.dumps({
+        'ok': True,
+        'path': str(output),
+        'message': 'Login background updated. Log out and back in to see it.',
+    }))
+
+
+def clear():
+    if CONFIG_BACKUP.exists():
+        try:
+            run(['cp', '-p', str(CONFIG_BACKUP), str(CONFIG)])
+        except subprocess.CalledProcessError as exc:
+            fail(f'cannot restore configuration: {exc}')
+    else:
+        text = read_config()
+        lines = text.splitlines(keepends=True)
+        out = []
+        i = 0
+        while i < len(lines):
+            if lines[i].strip().lower() == f'[{BACKGROUND_SECTION}]'.lower():
+                i += 1
+                while i < len(lines) and not lines[i].lstrip().startswith('['):
+                    i += 1
+                continue
+            out.append(lines[i])
+            i += 1
+        write_config(''.join(out))
+    restore_theme()
+    regenerate()
+    print(json.dumps({
+        'ok': True,
+        'path': '',
+        'message': 'Login background reset to the system default.',
+    }))
+
+
+def regenerate():
+    if not GENERATE_CONFIG.exists():
+        return
+    try:
+        run([str(GENERATE_CONFIG)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError as exc:
+        fail(f'GDM configuration reload failed: {exc}')
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--image')
+    parser.add_argument('--clear', action='store_true')
+    parser.add_argument('--blur', type=int, default=0)
+    parser.add_argument('--opacity', type=int, default=100)
+    parser.add_argument('--uid', type=int)
+    args = parser.parse_args()
+
+    if not 0 <= args.blur <= 60:
+        fail('blur must be between 0 and 60')
+    if not 10 <= args.opacity <= 100:
+        fail('opacity must be between 10 and 100')
+
+    if args.clear:
+        clear()
+    elif args.image:
+        apply_image(args)
+    else:
+        parser.error('provide --image or --clear')
+
+
+if __name__ == '__main__':
+    main()
