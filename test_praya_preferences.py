@@ -228,5 +228,98 @@ class ChatbotApiKeyTest(unittest.TestCase):
         self.assertEqual(prefs._provider_api_key({'provider': 'anthropic'}, 'anthropic'), '')
 
 
+class ChatbotProvidersSyncTest(unittest.TestCase):
+    def _js_providers(self):
+        js_path = os.path.join(_HERE, 'chatbotEndpoint.js')
+        with open(js_path) as f:
+            js = f.read()
+        block = re.search(r'export const PROVIDERS\s*=\s*\{(.*?)\n\};', js, re.S)
+        self.assertIsNotNone(block, 'PROVIDERS not found in chatbotEndpoint.js')
+        providers = {}
+        for key, body in re.findall(
+                r"^ {4}'?([A-Za-z0-9_-]+)'?\s*:\s*\{(.*?)^ {4}\}",
+                block.group(1), re.M | re.S):
+            name = re.search(r"name:\s*'([^']*)'", body)
+            protocol = re.search(r"protocol:\s*'([^']*)'", body)
+            models = re.search(r'models:\s*\[(.*?)\]', body, re.S)
+            providers[key] = {
+                'name': name.group(1) if name else None,
+                'protocol': protocol.group(1) if protocol else None,
+                'custom': bool(re.search(r'custom:\s*true', body)),
+                'models': re.findall(r"'([^']*)'", models.group(1)) if models else [],
+            }
+        return providers
+
+    def test_providers_match_chatbot_endpoint_js(self):
+        # The preferences and the shell-side module must agree on the
+        # providers, their protocols and their model lists.
+        js = self._js_providers()
+        self.assertEqual(list(js), list(prefs.PROVIDERS))
+        for key, config in prefs.PROVIDERS.items():
+            self.assertEqual(js[key]['name'], config['name'], key)
+            self.assertEqual(js[key]['protocol'], config['protocol'], key)
+            self.assertEqual(js[key]['custom'], bool(config.get('custom')), key)
+            self.assertEqual(js[key]['models'], config['models'], key)
+
+    def test_custom_providers_have_no_fixed_models(self):
+        for key, config in prefs.PROVIDERS.items():
+            if config.get('custom'):
+                self.assertEqual(config['models'], [], key)
+            else:
+                self.assertTrue(config['models'], key)
+
+
+class ChatbotCustomEndpointTest(unittest.TestCase):
+    def test_default_has_no_custom_endpoints(self):
+        self.assertEqual(prefs.DEFAULT_CHATBOT_CONFIG['customEndpoints'], {})
+
+    def test_migrate_adds_missing_custom_endpoints(self):
+        migrated = prefs._migrate_chatbot_config({'provider': 'openai', 'apiKeys': {}})
+        self.assertEqual(migrated['customEndpoints'], {})
+
+    def test_migrate_drops_corrupt_custom_endpoints(self):
+        migrated = prefs._migrate_chatbot_config({'customEndpoints': 'nope'})
+        self.assertEqual(migrated['customEndpoints'], {})
+        migrated = prefs._migrate_chatbot_config({'customEndpoints': {
+            'openai-compatible': {'baseUrl': 'http://localhost:8080/v1', 'model': 'm'},
+            'anthropic-compatible': 'nope',
+        }})
+        self.assertEqual(migrated['customEndpoints'], {
+            'openai-compatible': {'baseUrl': 'http://localhost:8080/v1', 'model': 'm'},
+        })
+
+    def test_custom_endpoint_reads_and_trims(self):
+        config = {'customEndpoints': {
+            'openai-compatible': {'baseUrl': ' http://localhost:8080/v1 ', 'model': ' m '},
+        }}
+        self.assertEqual(prefs._custom_endpoint(config, 'openai-compatible'),
+                         {'baseUrl': 'http://localhost:8080/v1', 'model': 'm'})
+        self.assertEqual(prefs._custom_endpoint(config, 'anthropic-compatible'),
+                         {'baseUrl': '', 'model': ''})
+        self.assertEqual(prefs._custom_endpoint({}, 'openai-compatible'),
+                         {'baseUrl': '', 'model': ''})
+
+    def test_is_custom_provider(self):
+        self.assertTrue(prefs._is_custom_provider('openai-compatible'))
+        self.assertTrue(prefs._is_custom_provider('anthropic-compatible'))
+        self.assertFalse(prefs._is_custom_provider('anthropic'))
+        self.assertFalse(prefs._is_custom_provider('nope'))
+
+    def test_valid_base_url(self):
+        for url in ['http://localhost:8080/v1', 'https://api.example.com/v1',
+                    ' https://api.example.com ']:
+            self.assertTrue(prefs._is_valid_base_url(url), url)
+        for url in ['', '   ', None, 'localhost:8080', 'ftp://example.com',
+                    'http://', 'https://exa mple.com', 'http://[::1']:
+            self.assertFalse(prefs._is_valid_base_url(url), url)
+
+    def test_insecure_remote_url(self):
+        self.assertTrue(prefs._is_insecure_remote_url('http://192.168.1.10:8080/v1'))
+        self.assertTrue(prefs._is_insecure_remote_url('http://api.example.com/v1'))
+        for url in ['http://localhost:8080/v1', 'http://127.0.0.1:8080/v1',
+                    'http://[::1]:8080/v1', 'https://api.example.com/v1', 'nope', '']:
+            self.assertFalse(prefs._is_insecure_remote_url(url), url)
+
+
 if __name__ == '__main__':
     unittest.main()
