@@ -3,7 +3,8 @@
 
 Reads and writes:
   ~/.config/praya/services.json   (panel / hover / posture / AI toggles)
-  ~/.config/praya/chatbot.json    (provider, model, per-provider API keys)
+  ~/.config/praya/chatbot.json    (provider, model, per-provider API keys,
+                                   custom endpoints)
 
 The GNOME Shell extension watches these files via Gio.FileMonitor and
 applies changes live.
@@ -14,6 +15,7 @@ import sys
 import locale
 import gettext
 import subprocess
+from urllib.parse import urlsplit
 
 import gi
 gi.require_version('Gtk', '4.0')
@@ -34,19 +36,37 @@ from contributors import CONTRIBUTORS
 # -- Keep in sync with constants.js -------------------------------------------
 VERSION = '0.1.49'
 
+# -- Keep in sync with PROVIDERS in chatbotEndpoint.js -------------------------
+# Custom providers send requests to a user-supplied base URL and model, stored
+# per provider under 'customEndpoints' in chatbot.json.
 PROVIDERS = {
     'anthropic': {
         'name': 'Anthropic',
+        'protocol': 'anthropic',
         'models': ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-haiku-20241022'],
     },
     'openai': {
         'name': 'ChatGPT',
+        'protocol': 'openai',
         'models': ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
     },
     'deepseek': {
-        'name': "DeepSeek",
-        'models': ['deepseek-flash', 'deepseek-v4-pro']
-    }
+        'name': 'DeepSeek',
+        'protocol': 'openai',
+        'models': ['deepseek-flash', 'deepseek-v4-pro'],
+    },
+    'openai-compatible': {
+        'name': 'OpenAI-compatible (custom)',
+        'protocol': 'openai',
+        'custom': True,
+        'models': [],
+    },
+    'anthropic-compatible': {
+        'name': 'Anthropic-compatible (custom)',
+        'protocol': 'anthropic',
+        'custom': True,
+        'models': [],
+    },
 }
 # ------------------------------------------------------------------------------
 
@@ -150,7 +170,12 @@ DEFAULT_CHATBOT_CONFIG = {
     # one provider's key into another. Legacy configs that only stored a
     # single top-level 'apiKey' are migrated by _migrate_chatbot_config().
     'apiKeys': {},
+    # Base URL and model of each custom provider, keyed by provider.
+    'customEndpoints': {},
 }
+
+# Hosts that never leave the machine, so plain http:// is fine for them.
+_LOCAL_HOSTS = ('localhost', '127.0.0.1', '::1')
 
 
 def _migrate_chatbot_config(config):
@@ -170,6 +195,13 @@ def _migrate_chatbot_config(config):
         api_keys[provider] = legacy_key
 
     migrated['apiKeys'] = api_keys
+
+    endpoints = migrated.get('customEndpoints')
+    endpoints = endpoints if isinstance(endpoints, dict) else {}
+    migrated['customEndpoints'] = {
+        key: dict(value) for key, value in endpoints.items()
+        if isinstance(value, dict)
+    }
     return migrated
 
 
@@ -177,6 +209,43 @@ def _provider_api_key(config, provider):
     """Return the stored API key for ``provider`` ('' if none)."""
     api_keys = config.get('apiKeys') or {}
     return api_keys.get(provider, '')
+
+
+def _is_custom_provider(provider):
+    return bool(PROVIDERS.get(provider, {}).get('custom'))
+
+
+def _custom_endpoint(config, provider):
+    """Return the custom endpoint of ``provider`` as {'baseUrl', 'model'}."""
+    endpoints = config.get('customEndpoints')
+    entry = endpoints.get(provider) if isinstance(endpoints, dict) else None
+    entry = entry if isinstance(entry, dict) else {}
+    base_url = entry.get('baseUrl')
+    model = entry.get('model')
+    return {
+        'baseUrl': base_url.strip() if isinstance(base_url, str) else '',
+        'model': model.strip() if isinstance(model, str) else '',
+    }
+
+
+def _is_valid_base_url(url):
+    """Whether ``url`` is an http(s) URL with a host (see normalizeBaseUrl)."""
+    url = (url or '').strip()
+    if not url or any(c.isspace() for c in url):
+        return False
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme in ('http', 'https') and bool(parts.hostname)
+
+
+def _is_insecure_remote_url(url):
+    """Whether ``url`` sends data unencrypted to another machine."""
+    if not _is_valid_base_url(url):
+        return False
+    parts = urlsplit(url.strip())
+    return parts.scheme == 'http' and parts.hostname not in _LOCAL_HOSTS
 
 
 def _ensure_config_dir():
@@ -219,6 +288,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._chatbot = _migrate_chatbot_config(
             _load_json(CHATBOT_CONFIG_PATH, DEFAULT_CHATBOT_CONFIG))
         self._apikey_loading = False
+        self._custom_loading = False
         self._dbus = None
         self._posture_poll_id = None
         self._service_running = False
@@ -629,17 +699,44 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         self._provider_row.connect('notify::selected', self._on_provider_changed)
         ai_group.add(self._provider_row)
 
-        # Model combo
+        # Base URL (custom providers only)
+        self._baseurl_row = Adw.EntryRow(title=_('Base URL'))
+        self._baseurl_row.set_input_purpose(Gtk.InputPurpose.URL)
+        self._baseurl_row.set_tooltip_text(
+            _('For example http://localhost:8080/v1 or https://api.example.com/v1'))
+        self._baseurl_row.connect('changed', self._on_baseurl_changed)
+        ai_group.add(self._baseurl_row)
+
+        # Model combo (built-in providers)
         self._model_row = Adw.ComboRow(title=_('Model'))
         self._update_model_list()
         self._model_row.connect('notify::selected', self._on_model_changed)
         ai_group.add(self._model_row)
+
+        # Model name (custom providers only)
+        self._custom_model_row = Adw.EntryRow(title=_('Model'))
+        self._custom_model_row.connect('changed', self._on_custom_model_changed)
+        ai_group.add(self._custom_model_row)
 
         # API key
         self._apikey_row = Adw.PasswordEntryRow(title=_('API Key'))
         self._apikey_row.set_text(_provider_api_key(self._chatbot, self._current_provider_key()))
         self._apikey_row.connect('changed', self._on_apikey_changed)
         ai_group.add(self._apikey_row)
+
+        # Warning for API keys sent over plain http:// to another machine
+        self._insecure_row = Adw.ActionRow(
+            title=_('Unencrypted connection'),
+            subtitle=_('The API key and messages are sent without encryption. '
+                       'Use https:// unless the server is on this computer.'),
+        )
+        self._insecure_row.add_prefix(
+            Gtk.Image.new_from_icon_name('dialog-warning-symbolic'))
+        self._insecure_row.add_css_class('warning')
+        ai_group.add(self._insecure_row)
+
+        self._load_custom_endpoint()
+        self._update_custom_rows()
 
         page.add(ai_group)
 
@@ -841,6 +938,8 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         # Show the key belonging to the newly selected provider instead of
         # leaving the previous provider's key in the entry.
         self._load_api_key_for_provider()
+        self._load_custom_endpoint()
+        self._update_custom_rows()
         self._save_chatbot()
 
     def _on_model_changed(self, row, _pspec):
@@ -858,6 +957,56 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         api_keys = self._chatbot.setdefault('apiKeys', {})
         api_keys[self._current_provider_key()] = row.get_text()
         self._save_chatbot()
+
+    def _set_custom_endpoint_field(self, field, value):
+        pkey = self._current_provider_key()
+        if not _is_custom_provider(pkey):
+            return
+        endpoints = self._chatbot.setdefault('customEndpoints', {})
+        entry = endpoints.setdefault(pkey, {})
+        entry[field] = value.strip()
+        self._save_chatbot()
+
+    def _on_baseurl_changed(self, row):
+        self._update_baseurl_feedback()
+        if self._custom_loading:
+            return
+        self._set_custom_endpoint_field('baseUrl', row.get_text())
+
+    def _on_custom_model_changed(self, row):
+        if self._custom_loading:
+            return
+        self._set_custom_endpoint_field('model', row.get_text())
+
+    def _load_custom_endpoint(self):
+        """Populate the base URL and model entries for a custom provider."""
+        endpoint = _custom_endpoint(self._chatbot, self._current_provider_key())
+        self._custom_loading = True
+        try:
+            self._baseurl_row.set_text(endpoint['baseUrl'])
+            self._custom_model_row.set_text(endpoint['model'])
+        finally:
+            self._custom_loading = False
+
+    def _update_custom_rows(self):
+        """Show the rows that apply to the selected provider."""
+        is_custom = _is_custom_provider(self._current_provider_key())
+        self._baseurl_row.set_visible(is_custom)
+        self._custom_model_row.set_visible(is_custom)
+        self._model_row.set_visible(not is_custom)
+        self._apikey_row.set_title(
+            _('API Key (optional)') if is_custom else _('API Key'))
+        self._update_baseurl_feedback()
+
+    def _update_baseurl_feedback(self):
+        """Flag an unusable base URL and warn about unencrypted ones."""
+        is_custom = _is_custom_provider(self._current_provider_key())
+        url = self._baseurl_row.get_text()
+        if is_custom and url.strip() and not _is_valid_base_url(url):
+            self._baseurl_row.add_css_class('error')
+        else:
+            self._baseurl_row.remove_css_class('error')
+        self._insecure_row.set_visible(is_custom and _is_insecure_remote_url(url))
 
     def _load_api_key_for_provider(self):
         """Populate the API key entry with the active provider's key."""

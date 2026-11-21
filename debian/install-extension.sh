@@ -28,7 +28,7 @@ EXT="$DEST/usr/share/gnome-shell/extensions/$UUID"
 install -d "$EXT"
 
 # Variant-agnostic sources.
-for f in extension.js indicator.js constants.js chatbot.js taskbar.js \
+for f in extension.js indicator.js constants.js chatbot.js chatbotEndpoint.js taskbar.js \
 	translations.js touch-helper.js startButton.js searchProviders.js \
 	searchResults.js searchEngine.js contributors.py stylesheet.css; do
 	install -m 644 "$f" "$EXT/"

@@ -38,21 +38,6 @@ export const CHATBOT_INPUT_HEIGHT = 80;
 export const FAVOURITES_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'praya', 'favourites.json']);
 export const CHATBOT_SETTINGS_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'praya', 'chatbot.json']);
 
-// AI Providers configuration
-export const PROVIDERS = {
-    anthropic: {
-        name: 'Anthropic',
-        models: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-3-5-haiku-20241022'],
-        endpoint: 'https://api.anthropic.com/v1/messages'
-    },
-    openai: {
-        name: 'ChatGPT',
-        models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
-        endpoint: 'https://api.openai.com/v1/chat/completions'
-    },
-    deepseek: {
-        name: 'DeepSeek',
-        models: ['deepseek-flash', 'deepseek-v4-pro'],
-        endpoint: 'https://api.deepseek.com/chat/completions'
-    }
-};
+// AI Providers configuration (defined in the pure chatbotEndpoint.js so it
+// can be unit tested with plain Node).
+export { PROVIDERS } from './chatbotEndpoint.js';

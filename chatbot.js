@@ -18,8 +18,20 @@ import {
     CHATBOT_PANEL_WIDTH,
     CHATBOT_HEADER_HEIGHT,
     CHATBOT_INPUT_HEIGHT,
-    PROVIDERS
 } from './constants.js';
+import {
+    PROVIDERS,
+    resolveApiKey,
+    resolveModel,
+    resolveEndpoint,
+    isConfigured as isChatbotConfigured,
+    buildRequest,
+    parseResponse,
+} from './chatbotEndpoint.js';
+
+// Give up on a request after this many seconds, so an unreachable custom
+// endpoint does not leave the typing indicator running forever.
+const REQUEST_TIMEOUT_SECONDS = 60;
 
 // ChatbotSettings class for managing chatbot configuration
 export class ChatbotSettings {
@@ -71,15 +83,10 @@ export class ChatbotSettings {
     get model() { return this._settings.model; }
     set model(value) { this._settings.model = value; }
 
-    // API keys are stored per provider. Fall back to the legacy single
-    // top-level `apiKey` so configs written by older versions keep working.
+    // API keys are stored per provider (see resolveApiKey for the legacy
+    // single-key fallback).
     get apiKey() {
-        let apiKeys = this._settings.apiKeys;
-        if (apiKeys && typeof apiKeys === 'object' &&
-            Object.prototype.hasOwnProperty.call(apiKeys, this._settings.provider)) {
-            return apiKeys[this._settings.provider];
-        }
-        return this._settings.apiKey || '';
+        return resolveApiKey(this._settings, this._settings.provider);
     }
 
     set apiKey(value) {
@@ -88,9 +95,23 @@ export class ChatbotSettings {
         this._settings.apiKeys[this._settings.provider] = value;
     }
 
+    get protocol() {
+        return PROVIDERS[this._settings.provider]?.protocol || null;
+    }
+
+    // The request URL: fixed for built-in providers, built from the
+    // user-supplied base URL for custom ones. null when it cannot be used.
+    get endpoint() {
+        return resolveEndpoint(this._settings, this._settings.provider);
+    }
+
+    // The model actually requested. Custom providers keep their own model.
+    get effectiveModel() {
+        return resolveModel(this._settings, this._settings.provider);
+    }
+
     isConfigured() {
-        let apiKey = this.apiKey;
-        return !!(apiKey && apiKey.length > 0);
+        return isChatbotConfigured(this._settings, this._settings.provider);
     }
 
     reload() {
@@ -102,82 +123,44 @@ export class ChatbotSettings {
 export class ChatbotAPI {
     constructor(settings) {
         this._settings = settings;
-        this._session = new Soup.Session();
+        this._session = new Soup.Session({timeout: REQUEST_TIMEOUT_SECONDS});
     }
 
     sendMessage(messages, callback) {
-        let provider = this._settings.provider;
-        let providerConfig = PROVIDERS[provider];
+        let protocol = this._settings.protocol;
+        let endpoint = this._settings.endpoint;
 
-        if (!providerConfig) {
+        if (!protocol) {
             callback(null, 'Invalid provider');
             return;
         }
-
-        let message = new Soup.Message({
-            method: 'POST',
-            uri: GLib.Uri.parse(providerConfig.endpoint, GLib.UriFlags.NONE),
-        });
-
-        let requestBody;
-        if (provider === 'anthropic') {
-            requestBody = JSON.stringify({
-                model: this._settings.model,
-                max_tokens: 1024,
-                messages: messages.map(m => ({
-                    role: m.role === 'user' ? 'user' : 'assistant',
-                    content: m.content
-                }))
-            });
-            message.request_headers.append('x-api-key', this._settings.apiKey);
-            message.request_headers.append('anthropic-version', '2023-06-01');
-            message.request_headers.append('content-type', 'application/json');
-        } else if (provider === 'deepseek') {
-            requestBody = JSON.stringify({
-                model: this._settings.model,
-                stream: false,
-                messages: messages.map(m => ({
-                    role: m.role,
-                    content: m.content
-                }))
-            });
-            message.request_headers.append('content-type', 'application/json');
-            message.request_headers.append('authorization', `Bearer ${this._settings.apiKey}`);
-        } else {
-            requestBody = JSON.stringify({
-                model: this._settings.model,
-                messages: messages.map(m => ({
-                    role: m.role,
-                    content: m.content
-                }))
-            });
-            message.request_headers.append('Authorization', `Bearer ${this._settings.apiKey}`);
-            message.request_headers.append('Content-Type', 'application/json');
+        if (!endpoint) {
+            callback(null, 'Invalid endpoint URL');
+            return;
         }
 
+        let uri;
+        try {
+            uri = GLib.Uri.parse(endpoint, GLib.UriFlags.NONE);
+        } catch (e) {
+            callback(null, `Invalid endpoint URL: ${e.message}`);
+            return;
+        }
+
+        let message = new Soup.Message({method: 'POST', uri});
+        let {headers, body} = buildRequest(protocol, this._settings.effectiveModel,
+            this._settings.apiKey, messages);
+        for (let [name, value] of headers)
+            message.request_headers.append(name, value);
         message.set_request_body_from_bytes('application/json',
-            new GLib.Bytes(new TextEncoder().encode(requestBody)));
+            new GLib.Bytes(new TextEncoder().encode(body)));
 
         this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (session, result) => {
             try {
                 let bytes = session.send_and_read_finish(result);
-                let decoder = new TextDecoder('utf-8');
-                let responseText = decoder.decode(bytes.get_data());
-                let response = JSON.parse(responseText);
-
-                if (message.get_status() !== Soup.Status.OK) {
-                    let errorMsg = response.error?.message || `HTTP ${message.get_status()}`;
-                    callback(null, errorMsg);
-                    return;
-                }
-
-                let content;
-                if (provider === 'anthropic') {
-                    content = response.content?.[0]?.text || '';
-                } else {
-                    content = response.choices?.[0]?.message?.content || '';
-                }
-                callback(content, null);
+                let text = new TextDecoder('utf-8').decode(bytes.get_data() ?? new Uint8Array());
+                let {content, error} = parseResponse(protocol, message.get_status(), text);
+                callback(content, error);
             } catch (e) {
                 callback(null, e.message);
             }
@@ -239,7 +222,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
         titleContainer.add_child(titleLabel);
 
         let modelLabel = new St.Label({
-            text: settings.model,
+            text: settings.effectiveModel,
             style_class: 'praya-chatbot-model',
         });
         titleContainer.add_child(modelLabel);
