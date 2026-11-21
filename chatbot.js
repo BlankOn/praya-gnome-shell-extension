@@ -505,8 +505,10 @@ class PrayaChatbotPanel extends St.BoxLayout {
         this._sendToAPI();
     }
 
-    _addMessage(role, content) {
-        this._messages.push({role, content});
+    // `extra.error` marks a local error bubble: it is shown and kept across
+    // panel hide/show, but never sent back to the model.
+    _addMessage(role, content, extra = {}) {
+        this._messages.push({role, content, ...extra});
         this._addMessageToUI(role, content);
     }
 
@@ -571,7 +573,7 @@ class PrayaChatbotPanel extends St.BoxLayout {
             this._isWaiting = false;
 
             if (error) {
-                this._addMessage('assistant', `Error: ${error}`);
+                this._addMessage('assistant', `Error: ${error}`, {error: true});
             } else if (response) {
                 this._addMessage('assistant', response);
             }
