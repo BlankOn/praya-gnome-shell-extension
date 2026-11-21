@@ -35,7 +35,7 @@ from distro import (
 from contributors import CONTRIBUTORS
 
 # -- Keep in sync with constants.js -------------------------------------------
-VERSION = '0.1.49'
+VERSION = '0.1.50'
 
 # -- Keep in sync with PROVIDERS in chatbotEndpoint.js -------------------------
 # Custom providers send requests to a user-supplied base URL and model, stored
