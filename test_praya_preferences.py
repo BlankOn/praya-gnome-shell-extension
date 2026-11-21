@@ -129,6 +129,63 @@ class LoadJsonTest(unittest.TestCase):
                          prefs.DEFAULT_SERVICES_CONFIG['startButton']['iconName'])
 
 
+class AtomicSaveTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+
+    def _path(self, name):
+        return os.path.join(self._tmp.name, name)
+
+    def test_save_leaves_no_temporary_files(self):
+        path = self._path('chatbot.json')
+        for i in range(3):
+            prefs._save_json(path, {'n': i})
+        self.assertEqual(os.listdir(self._tmp.name), ['chatbot.json'])
+        with open(path) as f:
+            self.assertEqual(json.load(f), {'n': 2})
+
+    def test_save_replaces_the_file_instead_of_truncating_it(self):
+        # A reader holding the old file must still see complete content.
+        path = self._path('chatbot.json')
+        prefs._save_json(path, {'old': True})
+        with open(path) as reader:
+            prefs._save_json(path, {'new': True})
+            self.assertEqual(json.load(reader), {'old': True})
+        with open(path) as f:
+            self.assertEqual(json.load(f), {'new': True})
+
+    def test_save_sets_the_requested_mode(self):
+        path = self._path('chatbot.json')
+        prefs._save_json(path, {}, prefs.CHATBOT_CONFIG_MODE)
+        self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+        other = self._path('services.json')
+        prefs._save_json(other, {})
+        self.assertEqual(os.stat(other).st_mode & 0o777, prefs.DEFAULT_CONFIG_MODE)
+
+    def test_chatbot_config_is_private(self):
+        self.assertEqual(prefs.CHATBOT_CONFIG_MODE & 0o077, 0)
+
+    def test_save_follows_a_symlinked_config(self):
+        target = self._path('real.json')
+        link = self._path('chatbot.json')
+        prefs._save_json(target, {'a': 1})
+        os.symlink(target, link)
+        prefs._save_json(link, {'a': 2})
+        self.assertTrue(os.path.islink(link))
+        with open(target) as f:
+            self.assertEqual(json.load(f), {'a': 2})
+
+    def test_failed_save_keeps_the_old_file(self):
+        path = self._path('chatbot.json')
+        prefs._save_json(path, {'ok': True})
+        with self.assertRaises(TypeError):
+            prefs._save_json(path, {'bad': object()})
+        self.assertEqual(os.listdir(self._tmp.name), ['chatbot.json'])
+        with open(path) as f:
+            self.assertEqual(json.load(f), {'ok': True})
+
+
 class SearchEngineDefaultsTest(unittest.TestCase):
     def test_default_services_has_search_engine(self):
         self.assertEqual(prefs.DEFAULT_SERVICES_CONFIG['searchEngine'],
