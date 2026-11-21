@@ -539,6 +539,30 @@ msgstr "D-Bus tidak tersedia"
 msgid "Service unavailable"
 msgstr "Layanan tidak tersedia"
 
+#: praya-preferences.py:703
+msgid "Base URL"
+msgstr "URL dasar"
+
+#: praya-preferences.py:706
+msgid "For example http://localhost:8080/v1 or https://api.example.com/v1"
+msgstr "Misalnya http://localhost:8080/v1 atau https://api.example.com/v1"
+
+#: praya-preferences.py:729
+msgid "Unencrypted connection"
+msgstr "Koneksi tidak terenkripsi"
+
+#: praya-preferences.py:730
+msgid ""
+"The API key and messages are sent without encryption. "
+"Use https:// unless the server is on this computer."
+msgstr ""
+"Kunci API dan pesan dikirim tanpa enkripsi. "
+"Gunakan https:// kecuali server berada di komputer ini."
+
+#: praya-preferences.py:998
+msgid "API Key (optional)"
+msgstr "Kunci API (opsional)"
+
 #~ msgid "Icon size"
 #~ msgstr "Ukuran ikon"
 
