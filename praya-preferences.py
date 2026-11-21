@@ -11,6 +11,7 @@ applies changes live.
 import json
 import os
 import sys
+import tempfile
 import locale
 import gettext
 import subprocess
@@ -195,11 +196,40 @@ def _load_json(path, defaults):
         return dict(defaults)
 
 
-def _save_json(path, data):
+# chatbot.json holds API keys, so only its owner may read it.
+CHATBOT_CONFIG_MODE = 0o600
+DEFAULT_CONFIG_MODE = 0o644
+
+
+def _save_json(path, data, mode=DEFAULT_CONFIG_MODE):
+    """Write ``data`` to ``path`` as JSON, atomically.
+
+    The extension watches these files and reloads them on every change, and
+    the window saves on every keystroke. Writing in place let it read a
+    truncated file now and then, so write a temporary file next to the
+    target and rename it over the target instead. A symlinked config is
+    followed so the link itself survives.
+    """
     _ensure_config_dir()
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=2)
-        f.write('\n')
+    path = os.path.realpath(path)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=os.path.dirname(path),
+        prefix='.%s.' % os.path.basename(path),
+        suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(data, f, indent=2)
+            f.write('\n')
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp_path, mode)
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -950,7 +980,7 @@ class PrayaPreferencesWindow(Adw.PreferencesWindow):
         _save_json(SERVICES_CONFIG_PATH, self._services)
 
     def _save_chatbot(self):
-        _save_json(CHATBOT_CONFIG_PATH, self._chatbot)
+        _save_json(CHATBOT_CONFIG_PATH, self._chatbot, CHATBOT_CONFIG_MODE)
 
     # ==================================================================
     # Cleanup
