@@ -10,5 +10,5 @@ Ordered by number of commits (descending), then by name.
 
 CONTRIBUTORS = [
     {'name': 'Herpiko Dwi Aguno', 'email': 'herpiko@gmail.com', 'commits': 146},
-    {'name': 'Sendy Aditya Suryana', 'email': 'sendzation@gmail.com', 'commits': 54},
+    {'name': 'Sendy Aditya Suryana', 'email': 'sendzation@gmail.com', 'commits': 55},
 ]
