@@ -187,11 +187,13 @@ export function isConfigured(settings, provider) {
  * @param {string} protocol - PROTOCOL_OPENAI or PROTOCOL_ANTHROPIC
  * @param {string} model - model name
  * @param {string} apiKey - API key, may be empty
- * @param {{role: string, content: string}[]} messages - chat history
+ * @param {{role: string, content: string, error?: boolean}[]} messages -
+ *     chat history; entries marked `error` are local error bubbles and are
+ *     left out
  * @returns {{headers: string[][], body: string}} the request parts
  */
 export function buildRequest(protocol, model, apiKey, messages) {
-    let history = (messages || []).map(m => ({
+    let history = (messages || []).filter(m => !m.error).map(m => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content,
     }));

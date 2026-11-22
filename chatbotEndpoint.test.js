@@ -197,3 +197,18 @@ test('parseResponse survives non-JSON and empty bodies', () => {
     assert.deepEqual(parseResponse(PROTOCOL_ANTHROPIC, 200, JSON.stringify({content: []})),
         {content: null, error: 'Empty response from server'});
 });
+
+test('buildRequest leaves local error bubbles out of the history', () => {
+    let messages = [
+        {role: 'user', content: 'hi'},
+        {role: 'assistant', content: 'Error: HTTP 502', error: true},
+        {role: 'user', content: 'hi again'},
+    ];
+    for (let protocol of [PROTOCOL_OPENAI, PROTOCOL_ANTHROPIC]) {
+        let parsed = JSON.parse(buildRequest(protocol, 'm', '', messages).body);
+        assert.deepEqual(parsed.messages, [
+            {role: 'user', content: 'hi'},
+            {role: 'user', content: 'hi again'},
+        ], protocol);
+    }
+});
