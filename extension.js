@@ -65,6 +65,9 @@ export default class PrayaExtension extends Extension {
 
         // Apply panel position (top or bottom)
         this._applyPanelPosition(this._servicesConfig.panelPosition || 'top');
+        // Keep the GNOME panel background in sync with the opacity setting.
+        this._applyPanelOpacity();
+        this._schedulePanelOpacityReapply();
         this._setupWorkAreaMargins();
         this._setupIconGeometryTracking();
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
@@ -85,12 +88,17 @@ export default class PrayaExtension extends Extension {
 
         if (!Main.layoutManager._startingUp) {
             // Already started up (e.g. extension enabled from prefs)
+            this._applyPanelOpacity();
             this._startPrayaServices();
             this._setupPowerIndicatorVisibility();
         } else {
             this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
                 Main.layoutManager.disconnect(this._startupCompleteId);
                 this._startupCompleteId = null;
+                // The shell theme loads after enable(); re-apply so the
+                // translucent panel survives a restart.
+                this._applyPanelOpacity();
+                this._schedulePanelOpacityReapply();
                 this._applyPanelPosition(this._panelPosition || 'top');
                 this._removeWorkAreaMargins();
                 this._setupWorkAreaMargins();
@@ -123,11 +131,16 @@ export default class PrayaExtension extends Extension {
             style_class: 'praya-show-desktop-button',
             reactive: false,
         });
+        // Dims the wallpaper slightly; cleared while the desktop is shown.
+        // St CSS has no `opacity`, so it is set here: left at the default
+        // 255 the overlay hid the wallpaper behind a black square until the
+        // first click.
         this._showDesktopOverlay = new St.Widget({
             style_class: 'praya-show-desktop-overlay',
             x_expand: true,
             y_expand: true,
             reactive: false,
+            opacity: 76,
         });
         this._showDesktopButton.add_child(this._showDesktopOverlay);
         this._showDesktopHoverArea.set_child(this._showDesktopButton);
@@ -174,6 +187,10 @@ export default class PrayaExtension extends Extension {
             this._setShowDesktopWallpaper();
         });
         this._bgDarkChangedId = this._bgSettings.connect('changed::picture-uri-dark', () => {
+            this._setShowDesktopWallpaper();
+        });
+        this._colorSchemeSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+        this._colorSchemeChangedId = this._colorSchemeSettings.connect('changed::color-scheme', () => {
             this._setShowDesktopWallpaper();
         });
 
@@ -238,6 +255,7 @@ export default class PrayaExtension extends Extension {
             quickAccessHoverActivate: false,
             floatingPanel: true,
             panelPosition: 'top',
+            panelOpacity: 100,
             searchEngine: 'google',
             searchEngineCustomUrl: '',
             startButton: {
@@ -358,6 +376,20 @@ export default class PrayaExtension extends Extension {
             this._applyPanelPosition(newConfig.panelPosition || 'top');
             this._removeWorkAreaMargins();
             this._setupWorkAreaMargins();
+        }
+
+        // Apply panel opacity change
+        if (oldConfig.panelOpacity !== newConfig.panelOpacity) {
+            if (this._indicator)
+                this._indicator.setPanelOpacity(newConfig.panelOpacity ?? 100);
+            this._applyPanelOpacity();
+        }
+
+        // Low-spec mode forces full opacity; restore the saved value when off.
+        if (oldConfig.lowspecEnabled !== newConfig.lowspecEnabled) {
+            if (this._indicator)
+                this._indicator.setPanelOpacity(newConfig.panelOpacity ?? 100);
+            this._applyPanelOpacity();
         }
 
         // Apply hover activation settings to indicator
@@ -558,6 +590,11 @@ export default class PrayaExtension extends Extension {
                         // Update menu layout to list
                         this._servicesConfig.appMenuLayout = 'list';
                         this._servicesConfig.lowspecEnabled = true;
+
+                        // Low-spec mode turns off panel transparency
+                        if (this._indicator)
+                            this._indicator.setPanelOpacity(this._servicesConfig.panelOpacity ?? 100);
+                        this._applyPanelOpacity();
                     }
 
                     // Only mark as dismissed if user actually chose (0=Ignore, 1=Apply)
@@ -600,6 +637,70 @@ export default class PrayaExtension extends Extension {
         } catch (e) {
             log(`Praya: Error saving services config: ${e.message}`);
         }
+    }
+
+    // Re-apply the panel opacity a few times during startup. The shell
+    // theme and the extension updater can replace inline styles after enable().
+    _schedulePanelOpacityReapply() {
+        if (this._panelOpacityIds) {
+            for (let id of this._panelOpacityIds)
+                GLib.source_remove(id);
+        }
+        this._panelOpacityIds = [];
+        for (let i = 1; i <= 10; i++) {
+            this._panelOpacityIds.push(
+                GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, i, () => {
+                    this._applyPanelOpacity();
+                    return GLib.SOURCE_REMOVE;
+                })
+            );
+        }
+    }
+
+    // Apply the panelOpacity setting to the GNOME panel background too,
+    // so it matches the Praya panel instead of staying solid black.
+    _applyPanelOpacity() {
+        // Low-spec mode disables transparency for performance.
+        let percent = this._servicesConfig?.lowspecEnabled
+            ? 100
+            : Number(this._servicesConfig?.panelOpacity ?? 100);
+        if (!Number.isFinite(percent)) percent = 100;
+        percent = Math.min(100, Math.max(20, percent));
+
+        this._applyOpacity(Main.panel, '0, 0, 0', percent / 100);
+        this._applyPopupOpacity(percent);
+    }
+
+    // Background-only alpha helper: text, icons and controls stay fully
+    // opaque because only the actor's background-color is changed.
+    _applyOpacity(actor, rgb, alpha) {
+        if (!actor) return;
+        actor.set_style(alpha >= 1
+            ? null
+            : `background-color: rgba(${rgb}, ${alpha.toFixed(2)});`);
+    }
+
+    // Apply the same alpha to the backgrounds of GNOME Shell popups: the
+    // calendar/notifications menu, the quick-settings menu, and the desktop
+    // right-click menu. Text and controls stay fully opaque.
+    _applyPopupOpacity(percent) {
+        let alpha = percent >= 100 ? 1.0 : percent / 100;
+
+        let boxes = [];
+        let status = Main.panel.statusArea;
+        if (status.dateMenu?.menu?.box)
+            boxes.push(status.dateMenu.menu.box);
+        if (status.quickSettings?.menu?.box)
+            boxes.push(status.quickSettings.menu.box);
+
+        for (let manager of Main.layoutManager._bgManagers || []) {
+            let menu = manager.backgroundActor?._backgroundMenu;
+            if (menu?.box)
+                boxes.push(menu.box);
+        }
+
+        for (let box of boxes)
+            this._applyOpacity(box, '54, 54, 58', alpha);
     }
 
     _applyPanelPosition(position) {
@@ -1389,7 +1490,7 @@ export default class PrayaExtension extends Extension {
 
             // Add warning icon and text - centered via BinLayout
             let contentBox = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
                 x_expand: true,
@@ -1461,7 +1562,7 @@ export default class PrayaExtension extends Extension {
 
             // Button container at bottom
             let buttonContainer = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.END,
                 x_expand: true,
@@ -1712,11 +1813,31 @@ export default class PrayaExtension extends Extension {
         if (!activities)
             return;
 
-        this._originalActivitiesVisible = activities.container.visible;
-        activities.container.visible = false;
+        let container = activities.container;
+        if (this._originalActivitiesVisible === undefined)
+            this._originalActivitiesVisible = container.visible;
+        container.visible = false;
+
+        // GNOME Shell shows every panel item again whenever the session mode
+        // is updated (Panel._updatePanel() -> _addToPanelBox() -> show()).
+        // On slow machines that update can land after enable(), bringing
+        // the Activities button back, so hide it again whenever it is shown.
+        if (!this._activitiesVisibleId) {
+            this._activitiesContainer = container;
+            this._activitiesVisibleId = container.connect('notify::visible', () => {
+                if (container.visible)
+                    container.visible = false;
+            });
+        }
     }
 
     _restoreActivities() {
+        if (this._activitiesVisibleId) {
+            this._activitiesContainer.disconnect(this._activitiesVisibleId);
+            this._activitiesVisibleId = null;
+            this._activitiesContainer = null;
+        }
+
         let activities = Main.panel.statusArea.activities;
         if (!activities)
             return;
@@ -1789,8 +1910,12 @@ export default class PrayaExtension extends Extension {
 
         if (centerBox.contains(dateMenu.container)) {
             centerBox.remove_child(dateMenu.container);
-            // Add to position 0 (left of quick settings)
-            rightBox.insert_child_at_index(dateMenu.container, 0);
+            // Order on the right: quick settings | date & time | show desktop
+            if (this._showDesktopHoverArea &&
+                rightBox.contains(this._showDesktopHoverArea))
+                rightBox.insert_child_below(dateMenu.container, this._showDesktopHoverArea);
+            else
+                rightBox.add_child(dateMenu.container);
         }
 
         // Remove center box from panel so left box can expand freely
@@ -2121,9 +2246,16 @@ export default class PrayaExtension extends Extension {
     _setShowDesktopWallpaper() {
         try {
             let settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.background' });
-            let uri = settings.get_string('picture-uri-dark') || settings.get_string('picture-uri');
-            if (uri) {
-                let path = uri.replace('file://', '');
+            // Use the wallpaper for the current light/dark style, like the
+            // desktop itself does.
+            let iface = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
+            let dark = iface.get_string('color-scheme') === 'prefer-dark';
+            let uri = (dark && settings.get_string('picture-uri-dark')) ||
+                settings.get_string('picture-uri') ||
+                settings.get_string('picture-uri-dark');
+            // Decode the URI properly (e.g. %20 in file names).
+            let path = uri ? Gio.File.new_for_uri(uri).get_path() : null;
+            if (path) {
                 this._showDesktopButton.set_style(
                     `background-image: url("${path}"); background-size: cover; background-position: center;`
                 );
@@ -2285,6 +2417,13 @@ export default class PrayaExtension extends Extension {
         }
         this._removeWorkAreaMargins();
         Main.panel.remove_style_class_name('praya-floating-panel');
+        Main.panel.set_style(null);
+        this._applyPopupOpacity(100);
+        if (this._panelOpacityIds) {
+            for (let id of this._panelOpacityIds)
+                GLib.source_remove(id);
+            this._panelOpacityIds = null;
+        }
         let monitor = Main.layoutManager.primaryMonitor;
         let panelBox = Main.layoutManager.panelBox;
         if (monitor && panelBox) {
@@ -2322,6 +2461,11 @@ export default class PrayaExtension extends Extension {
             this._bgDarkChangedId = null;
         }
         this._bgSettings = null;
+        if (this._colorSchemeChangedId && this._colorSchemeSettings) {
+            this._colorSchemeSettings.disconnect(this._colorSchemeChangedId);
+            this._colorSchemeChangedId = null;
+        }
+        this._colorSchemeSettings = null;
 
         if (this._showDesktopHoverArea) {
             this._showDesktopHoverArea.destroy();

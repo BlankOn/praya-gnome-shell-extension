@@ -16,6 +16,8 @@ import {
     queryTerms,
     isAppResultId,
     flattenSections,
+    nameMatchesQuery,
+    rankAppMatches,
 } from './searchResults.js';
 
 test('queryTerms trims and splits on whitespace', () => {
@@ -114,4 +116,64 @@ test('flattenSections tolerates malformed input', () => {
     assert.deepEqual(flattenSections([null, {}, {results: 'nope'}]), []);
     // Entries without an id are skipped.
     assert.deepEqual(flattenSections([{providerId: 'a', results: [{name: 'x'}]}]), []);
+});
+
+test('nameMatchesQuery matches the start of any word', () => {
+    assert.equal(nameMatchesQuery('Files', 'fil'), true);
+    assert.equal(nameMatchesQuery('Text Editor', 'ed'), true);
+    assert.equal(nameMatchesQuery('Text Editor', 'text ed'), true);
+    assert.equal(nameMatchesQuery('Text Editor', 'xt'), false);
+    assert.equal(nameMatchesQuery('Text Editor', 'text foo'), false);
+});
+
+test('nameMatchesQuery ignores case and accents', () => {
+    assert.equal(nameMatchesQuery('FILES', '  Fil '), true);
+    assert.equal(nameMatchesQuery('Éditeur', 'edi'), true);
+    assert.equal(nameMatchesQuery('Editor', 'édi'), true);
+});
+
+test('nameMatchesQuery never matches an empty query or name', () => {
+    assert.equal(nameMatchesQuery('Files', ''), false);
+    assert.equal(nameMatchesQuery('Files', '   '), false);
+    assert.equal(nameMatchesQuery('', 'fil'), false);
+    assert.equal(nameMatchesQuery(null, 'fil'), false);
+});
+
+test('rankAppMatches finds an app by its English name', () => {
+    // Indonesian session: Files is shown as "Berkas", so the system search
+    // for "fil" only finds keyword/executable matches.
+    const native = [
+        { id: 'remmina.desktop', name: 'Remmina' },
+        { id: 'filmcraft.desktop', name: 'FilmCraft' },
+    ];
+    const candidates = [
+        { id: 'nautilus.desktop', name: 'Berkas', englishName: 'Files' },
+        { id: 'gedit.desktop', name: 'Penyunting Teks', englishName: 'Text Editor' },
+    ];
+    assert.deepEqual(
+        rankAppMatches(native, candidates, 'Fil').map(a => a.id),
+        ['filmcraft.desktop', 'nautilus.desktop', 'remmina.desktop']);
+});
+
+test('rankAppMatches keeps native order and does not duplicate apps', () => {
+    const native = [
+        { id: 'other.desktop', name: 'Berkas Lain' },
+        { id: 'nautilus.desktop', name: 'Berkas' },
+    ];
+    const candidates = [
+        { id: 'nautilus.desktop', name: 'Berkas', englishName: 'Files' },
+    ];
+    assert.deepEqual(
+        rankAppMatches(native, candidates, 'berk').map(a => a.id),
+        ['other.desktop', 'nautilus.desktop']);
+    // A weak native match whose English name matches moves up.
+    assert.deepEqual(
+        rankAppMatches(native, candidates, 'fil').map(a => a.id),
+        ['nautilus.desktop', 'other.desktop']);
+});
+
+test('rankAppMatches tolerates missing input', () => {
+    assert.deepEqual(rankAppMatches(null, null, 'fil'), []);
+    assert.deepEqual(
+        rankAppMatches([], [{ id: 'x.desktop', name: 'X' }], 'x'), []);
 });

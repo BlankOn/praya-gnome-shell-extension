@@ -1,3 +1,49 @@
+praya-gnome-shell-extension (0.1.50-1) sinambung; urgency=medium
+
+  * Add OpenAI-compatible and Anthropic-compatible custom AI providers,
+    with a configurable base URL and model and an optional API key.
+  * Save the preferences and chatbot config files atomically, so the
+    extension no longer reads a half-written chatbot.json, and keep
+    chatbot.json (which holds API keys) private with mode 0600.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sun, 22 Nov 2026 00:00:00 +0700
+
+praya-gnome-shell-extension (0.1.49-1) sinambung; urgency=medium
+
+  * Match apps by their untranslated English name in search too, so "Fil"
+    finds Files when it is shown as "Berkas".
+  * Keep the Activities button hidden after startup. On slow machines GNOME
+    Shell could show it again after the extension was enabled.
+  * Declare support for GNOME Shell 52.
+  * Place the date and time before the show desktop button, and show the
+    wallpaper in that button from the start instead of a black square.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sun, 15 Nov 2026 00:00:00 +0700
+
+praya-gnome-shell-extension (0.1.48-1) sinambung; urgency=medium
+
+  * Always open the Praya panel on the primary monitor, as set in GNOME
+    Settings, instead of the monitor under the pointer.
+  * Clip the panel's slide animation at the primary monitor's left edge so
+    it no longer bleeds onto a monitor placed to its left.
+  * Show "Search or ask..." in the search box only when the AI chatbot is
+    enabled and an LLM API key is set; otherwise show "Search...".
+  * make install-user: stamp .installed-version so the autostart updater
+    no longer replaces the development copy at login.
+  * Add make install-system to install the working tree over the packaged
+    files with sudo.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Sat, 14 Nov 2026 00:00:00 +0700
+
+praya-gnome-shell-extension (0.1.47-1) sinambung; urgency=medium
+
+  * Add support for GNOME Shell 51 while keeping GNOME Shell 50
+    compatibility for now.
+  * Replace the St widget "vertical" property, removed in GNOME Shell 51,
+    with Clutter.Orientation, so the panel and menu layouts keep working.
+
+ -- BlankOn Linux <blankon-dev@googlegroups.com>  Mon, 09 Nov 2026 00:00:00 +0700
+
 praya-gnome-shell-extension (0.1.46-1) sinambung; urgency=medium
 
   * New upstream release, shipping the atomic per-user extension update

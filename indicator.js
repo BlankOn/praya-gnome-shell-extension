@@ -22,7 +22,7 @@ import { _ } from './translations.js';
 import { ChatbotSettings, PrayaChatbotPanel } from './chatbot.js';
 import { connectClickHandler, enableTouchScroll } from './touch-helper.js';
 import { SearchProviders } from './searchProviders.js';
-import { queryTerms, flattenSections } from './searchResults.js';
+import { queryTerms, flattenSections, rankAppMatches } from './searchResults.js';
 import {
     normalizeStartButtonConfig,
     clampStartButtonHeight,
@@ -479,7 +479,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Create context menu container
         this._contextMenu = new St.BoxLayout({
             style_class: 'praya-context-menu',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             track_hover: true,
         });
@@ -806,9 +806,14 @@ class PrayaIndicator extends PanelMenu.Button {
         // Clean up existing menu button hover area
         this._removeMenuButtonHoverArea();
 
-        // Use the monitor where the pointer currently is (where user clicked the indicator)
-        this._currentMonitor = Main.layoutManager.currentMonitor;
+        // Always open on the primary monitor (as configured in GNOME Settings),
+        // regardless of which monitor the pointer is on.
+        this._currentMonitor = Main.layoutManager.primaryMonitor;
         let monitor = this._currentMonitor;
+        if (!monitor) {
+            this._isPanelTransitioning = false;
+            return;
+        }
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -833,7 +838,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let panelY = isBottomBar ? monitor.y + MARGIN_TOP : monitor.y + panelHeight + MARGIN_TOP;
         this._panel = new St.BoxLayout({
             style_class: 'praya-panel',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             track_hover: true,
             x: monitor.x + MARGIN_LEFT,
@@ -870,6 +875,9 @@ class PrayaIndicator extends PanelMenu.Button {
         this._panel.add_child(this._slidingContainer);
         this._panel.add_child(this._bottomSection);
 
+        // Apply transparency to backgrounds only; labels and icons stay opaque.
+        this._applyPanelBackgroundOpacity();
+
         // Check if we should restore chatbot mode
         if (this._isChatbotMode) {
             // Restore chatbot mode
@@ -883,6 +891,13 @@ class PrayaIndicator extends PanelMenu.Button {
         // Start with opacity 0 and off-screen to the left for slide-in animation
         this._panel.opacity = 0;
         this._panel.x = monitor.x + MARGIN_LEFT - effectiveWidth;
+
+        // The slide starts left of the monitor's edge; clip whatever lies
+        // past that edge so it never bleeds onto a monitor placed to the left.
+        this._panel.connect('notify::x', () => this._clipPanelToMonitor());
+        this._panel.connect('notify::width', () => this._clipPanelToMonitor());
+        this._panel.connect('notify::height', () => this._clipPanelToMonitor());
+        this._clipPanelToMonitor();
 
         this._takeKeyboard();
 
@@ -1022,6 +1037,24 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Create the menu button hover area
         this._setupMenuButtonHoverArea();
+    }
+
+    // Clip the panel at the left edge of its monitor (in panel-local
+    // coordinates). Extra room is left on the other sides so the box-shadow
+    // is kept everywhere except across the monitor edge.
+    _clipPanelToMonitor() {
+        let panel = this._panel;
+        let monitor = this._currentMonitor;
+        if (!panel || !monitor)
+            return;
+
+        const SHADOW_PAD = 64;
+        let left = Math.max(monitor.x - panel.x, -SHADOW_PAD);
+        panel.set_clip(
+            left,
+            -SHADOW_PAD,
+            panel.width + SHADOW_PAD - left,
+            panel.height + SHADOW_PAD * 2);
     }
 
     _setupMenuButtonHoverArea() {
@@ -1638,12 +1671,12 @@ class PrayaIndicator extends PanelMenu.Button {
         this._updateHeader(_('Menu'), false);
 
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
 
         // Create a container for the whole view
         let contentContainer = new St.BoxLayout({
             style_class: 'praya-content-container',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_expand: true,
         });
@@ -1660,7 +1693,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -1876,7 +1909,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2002,7 +2035,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2040,7 +2073,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2245,7 +2278,36 @@ class PrayaIndicator extends PanelMenu.Button {
             }
         }
 
-        return matchedApps;
+        return rankAppMatches(matchedApps, this._getEnglishNameCandidates(), query);
+    }
+
+    // Every visible app with its untranslated English name (the plain
+    // `Name=` key of its .desktop file), so search can also match by the
+    // English name when the session runs in another language.
+    _getEnglishNameCandidates() {
+        let candidates = [];
+        for (let appInfo of Gio.AppInfo.get_all()) {
+            if (!appInfo || typeof appInfo.get_string !== 'function')
+                continue;
+            if (typeof appInfo.should_show === 'function' && !appInfo.should_show())
+                continue;
+
+            let appId = appInfo.get_id();
+            let englishName = appInfo.get_string('Name');
+            let name = appInfo.get_name() || appId;
+            // Nothing to add when the shown name already is the English one.
+            if (!appId || !englishName || englishName === name)
+                continue;
+
+            candidates.push({
+                app: this._appSystem.lookup_app(appId),
+                appInfo: appInfo,
+                name: name,
+                id: appId,
+                englishName: englishName,
+            });
+        }
+        return candidates;
     }
 
     _launchFirstSearchResult() {
@@ -2316,7 +2378,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -2633,7 +2695,7 @@ class PrayaIndicator extends PanelMenu.Button {
         item.add_child(icon);
 
         let textBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -2805,7 +2867,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let item = new St.BoxLayout({
             style_class: 'praya-grid-item',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             reactive: true,
             track_hover: true,
             x_align: Clutter.ActorAlign.CENTER,
@@ -2885,7 +2947,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Vertical box that holds horizontal rows
         let container = new St.BoxLayout({
             style_class: 'praya-grid-container',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
         container._gridRow = null;
@@ -3055,7 +3117,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Name container (full name + username)
         let nameBox = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             y_align: Clutter.ActorAlign.CENTER,
             x_expand: true,
         });
@@ -3099,7 +3161,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Bottom section - sticks to bottom (User + Lock + Log Out + Power)
         let bottomSection = new St.BoxLayout({
             style_class: 'praya-bottom-section',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -3141,7 +3203,7 @@ class PrayaIndicator extends PanelMenu.Button {
         // Power options container (initially hidden with 0 height for animation)
         let powerOptionsBox = new St.BoxLayout({
             style_class: 'praya-power-options',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
             clip_to_allocation: true,
         });
@@ -3288,10 +3350,14 @@ class PrayaIndicator extends PanelMenu.Button {
             });
             this._header.add_child(headerHint);
         } else {
-            // Show search entry (main menu view) - entry first, icon on right
+            // Show search entry (main menu view) - entry first, icon on right.
+            // Only mention asking when the AI chatbot is usable (enabled and
+            // an LLM API key is set); otherwise it is plain search.
+            this._chatbotSettings.reload();
+            let canAsk = this._isAIEnabled() && this._chatbotSettings.isConfigured();
             this._searchEntry = new St.Entry({
                 style_class: 'praya-search-entry',
-                hint_text: _('Search or ask...'),
+                hint_text: canAsk ? _('Search or ask...') : _('Search...'),
                 can_focus: true,
                 x_expand: true,
                 y_align: Clutter.ActorAlign.CENTER,
@@ -3360,7 +3426,7 @@ class PrayaIndicator extends PanelMenu.Button {
             let scrollView = this._createScrollView();
             let menuBox = new St.BoxLayout({
                 style_class: 'praya-menu-box',
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
             });
 
@@ -3431,7 +3497,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -3470,7 +3536,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         let menuBox = new St.BoxLayout({
             style_class: 'praya-menu-box',
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             x_expand: true,
         });
 
@@ -3549,7 +3615,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Get available height for chatbot panel
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -3614,7 +3680,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Get available height for chatbot panel
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -3666,7 +3732,7 @@ class PrayaIndicator extends PanelMenu.Button {
 
         // Get available height
         // Use stored monitor from when panel was opened
-        let monitor = this._currentMonitor || Main.layoutManager.currentMonitor;
+        let monitor = this._currentMonitor || Main.layoutManager.primaryMonitor;
         let panelHeight = Main.panel.height;
         let isBottomBar = this._servicesConfig.panelPosition === 'bottom';
         let bottomMargin = isBottomBar ? MARGIN_BOTTOM_BAR : MARGIN_BOTTOM;
@@ -3713,7 +3779,7 @@ class PrayaIndicator extends PanelMenu.Button {
         let homeDir = GLib.get_home_dir();
         let configPath = GLib.build_filenamev([homeDir, '.config', 'praya', 'services.json']);
 
-        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', searchEngine: 'google', searchEngineCustomUrl: '', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
+        let defaultConfig = { ai: false, posture: false, appMenuLayout: 'grid', appGridColumns: 3, mainMenuHoverActivate: false, taskbarHoverActivate: false, showDesktopHoverActivate: false, panelPosition: 'top', panelOpacity: 100, searchEngine: 'google', searchEngineCustomUrl: '', startButton: { mode: 'default', imagePath: '', iconName: 'start-here-symbolic', text: 'Start', imageHeight: 16 } };
 
         try {
             let configFile = Gio.File.new_for_path(configPath);
@@ -3723,6 +3789,7 @@ class PrayaIndicator extends PanelMenu.Button {
                     let decoder = new TextDecoder('utf-8');
                     let jsonStr = decoder.decode(contents);
                     let config = JSON.parse(jsonStr);
+                    if (config.panelOpacity == null) config.panelOpacity = 100;
                     // Ensure appMenuLayout has a default
                     if (!config.appMenuLayout) config.appMenuLayout = 'grid';
                     // Ensure appGridColumns has a default
@@ -3738,6 +3805,54 @@ class PrayaIndicator extends PanelMenu.Button {
             log(`Praya: Error loading services config: ${e.message}`);
         }
         return defaultConfig;
+    }
+
+    // Return the effective transparency as a 0.0 - 1.0 alpha value.
+    _getPanelAlpha() {
+        if (this._servicesConfig?.lowspecEnabled)
+            return 1.0;
+        let percent = Number(this._servicesConfig?.panelOpacity ?? 100);
+        if (!Number.isFinite(percent)) percent = 100;
+        return Math.min(100, Math.max(20, percent)) / 100;
+    }
+
+    _findActorsWithClass(actor, styleClass, found = []) {
+        if (!actor) return found;
+        if (actor.has_style_class_name?.(styleClass))
+            found.push(actor);
+        for (let child of actor.get_children?.() || [])
+            this._findActorsWithClass(child, styleClass, found);
+        return found;
+    }
+
+    // Apply alpha to panel backgrounds only, never to text or icons.
+    _applyPanelBackgroundOpacity() {
+        if (!this._panel) return;
+        let alpha = this._getPanelAlpha();
+        let targets = [
+            [this._panel, '45, 45, 45'],
+            [this._header, '56, 56, 56'],
+            [this._bottomSection, '45, 45, 45'],
+        ];
+        for (let actor of this._findActorsWithClass(this._panel, 'praya-user-item'))
+            targets.push([actor, '45, 45, 45']);
+
+        for (let [actor, rgb] of targets) {
+            if (!actor) continue;
+            if (alpha >= 1) {
+                actor.set_style(null);
+            } else {
+                actor.set_style(
+                    `background-color: rgba(${rgb}, ${alpha.toFixed(2)});`
+                );
+            }
+        }
+    }
+
+    setPanelOpacity(value) {
+        this._servicesConfig = this._servicesConfig || {};
+        this._servicesConfig.panelOpacity = value;
+        this._applyPanelBackgroundOpacity();
     }
 
     setMainMenuHoverActivate(enabled) {

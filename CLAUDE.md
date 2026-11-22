@@ -71,6 +71,7 @@ Local development targets have `-generic` counterparts that set
 make run-generic
 make run-mutter-devkit-generic
 make install-user-generic
+make install-system-generic
 make test-generic
 make distro / distro-generic
 ```
@@ -79,3 +80,16 @@ Always run `make distro` (or `distro-generic`) before the `run*`/`install*`/
 `test*` targets; they depend on it. Debian builds two binary packages
 (`praya-gnome-shell-extension` and `praya-gnome-shell-extension-generic`) from
 the same source via `debian/install-extension.sh`.
+## Installing for testing in a real session
+
+- **`make install-user`** copies the working tree to
+  `~/.local/share/gnome-shell/extensions/<uuid>` and stamps
+  `.installed-version` with the installed package version. Without that stamp
+  the packaged autostart updater (`debian/praya-update-user.sh`) replaces the
+  copy with the packaged one at the next login.
+- **`make install-system`** (run as your normal user; it calls `sudo` itself,
+  via **`tools/install-system.sh`**) installs over the Debian package's files
+  in `/usr/share`, using `debian/install-extension.sh` for the same file set,
+  plus the BlankOn updater and gschema override. It then refreshes the
+  per-user copy, which GNOME Shell prefers over the system one. The next
+  package upgrade overwrites these files.
