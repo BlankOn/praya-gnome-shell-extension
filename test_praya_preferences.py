@@ -77,13 +77,13 @@ class ContributorsTest(unittest.TestCase):
     def test_contributors_are_well_formed(self):
         self.assertGreater(len(prefs.CONTRIBUTORS), 0)
         for person in prefs.CONTRIBUTORS:
+            self.assertEqual(set(person), {'name', 'email'})
             self.assertTrue(person['name'])
             self.assertTrue(person['email'])
-            self.assertGreater(person['commits'], 0)
 
-    def test_contributors_are_sorted_by_commits_descending(self):
-        counts = [person['commits'] for person in prefs.CONTRIBUTORS]
-        self.assertEqual(counts, sorted(counts, reverse=True))
+    def test_contributors_are_sorted_by_name(self):
+        names = [person['name'].casefold() for person in prefs.CONTRIBUTORS]
+        self.assertEqual(names, sorted(names))
 
 
 class LoadJsonTest(unittest.TestCase):
