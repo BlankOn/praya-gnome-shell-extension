@@ -25,6 +25,7 @@ import St from 'gi://St';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import { _ } from './translations.js';
 import { PrayaIndicator } from './indicator.js';
@@ -36,10 +37,60 @@ const POSTURE_BUS_NAME = 'com.github.blankon.praya';
 const POSTURE_SERVICE_INTERFACE = 'com.github.blankon.Praya.Posture';
 const POSTURE_SERVICE_PATH = '/com/github/blankon/Praya/Posture';
 
+// --- Desktop right-click menu integration ---
+const desktopMenuItems = new Map();
+let desktopMenuIdleId = null;
+
+function openPrayaPreferences(extensionPath) {
+    Main.overview.hide();
+    Main.panel.closeQuickSettings();
+
+    let script = GLib.build_filenamev([extensionPath, 'praya-preferences.py']);
+    try {
+        Gio.Subprocess.new(['python3', script], Gio.SubprocessFlags.NONE);
+    } catch (e) {
+        log(`Praya: failed to open preferences from desktop menu: ${e.message}`);
+    }
+}
+
+function addPreferencesToMenu(menu, extensionPath) {
+    if (!menu || desktopMenuItems.has(menu))
+        return;
+
+    let item = new PopupMenu.PopupImageMenuItem(
+        _('Praya Preferences'),
+        'preferences-other-symbolic'
+    );
+    item.connect('activate', () => openPrayaPreferences(extensionPath));
+    menu.addMenuItem(item);
+    desktopMenuItems.set(menu, item);
+}
+
+function decorateBackgroundMenus(extensionPath) {
+    for (let manager of Main.layoutManager._bgManagers || []) {
+        let actor = manager.backgroundActor;
+        if (actor)
+            addPreferencesToMenu(actor._backgroundMenu, extensionPath);
+    }
+}
+
 export default class PrayaExtension extends Extension {
     enable() {
         // Load services configuration
         this._loadServicesConfig();
+
+        // Add Praya Preferences to the desktop right-click menu. Background
+        // menus are recreated when monitors change, so re-decorate then too.
+        decorateBackgroundMenus(this.path);
+        this._desktopMenuMonitorsId = Main.layoutManager.connect('monitors-changed', () => {
+            if (desktopMenuIdleId)
+                GLib.source_remove(desktopMenuIdleId);
+            desktopMenuIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                desktopMenuIdleId = null;
+                decorateBackgroundMenus(this.path);
+                return GLib.SOURCE_REMOVE;
+            });
+        });
 
         // Watch config files for live changes from preferences window
         this._setupConfigMonitors();
@@ -2260,6 +2311,18 @@ export default class PrayaExtension extends Extension {
         }
         this._removeWorkAreaMargins();
         Main.panel.remove_style_class_name('praya-floating-panel');
+
+        if (this._desktopMenuMonitorsId) {
+            Main.layoutManager.disconnect(this._desktopMenuMonitorsId);
+            this._desktopMenuMonitorsId = null;
+        }
+        if (desktopMenuIdleId) {
+            GLib.source_remove(desktopMenuIdleId);
+            desktopMenuIdleId = null;
+        }
+        for (let item of desktopMenuItems.values())
+            item.destroy();
+        desktopMenuItems.clear();
         let monitor = Main.layoutManager.primaryMonitor;
         let panelBox = Main.layoutManager.panelBox;
         if (monitor && panelBox) {
