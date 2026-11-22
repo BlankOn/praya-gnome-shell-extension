@@ -53,16 +53,15 @@ class GenContributorsTest(unittest.TestCase):
         entries = _load(_generate())
         self.assertGreater(len(entries), 0)
         for person in entries:
+            self.assertEqual(set(person), {'name', 'email'})
             self.assertIsInstance(person['name'], str)
             self.assertTrue(person['name'])
             self.assertIsInstance(person['email'], str)
-            self.assertIsInstance(person['commits'], int)
-            self.assertGreater(person['commits'], 0)
 
-    def test_entries_are_sorted_by_commits_descending(self):
+    def test_entries_are_sorted_by_name(self):
         entries = _load(_generate())
-        counts = [person['commits'] for person in entries]
-        self.assertEqual(counts, sorted(counts, reverse=True))
+        names = [person['name'].casefold() for person in entries]
+        self.assertEqual(names, sorted(names))
 
     def test_entries_are_unique_by_name_and_email(self):
         entries = _load(_generate())

@@ -32,7 +32,9 @@ lives in **`startButton.js`** so it can be tested without GNOME Shell.
 The "About Praya" preferences page lists the project's contributors. The list
 is generated from git history by **`tools/gen-contributors.py`** into the
 committed module **`contributors.py`** (`make contributors`). Names and
-e-mails are taken from the git author fields and ordered by commit count.
+e-mails are taken from the git author fields and ordered by name. Commit
+counts are deliberately not recorded or shown, so contributors are not ranked
+by contribution size.
 Regenerate and commit it whenever a new person contributes; packaging copies
 the file as-is, so builds from a tarball (no `.git`) still work.
 
