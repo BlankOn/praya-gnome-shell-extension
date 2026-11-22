@@ -12,7 +12,6 @@ CONTRIBUTORS = [
     {'name': 'Alfiyan', 'email': 'mas@alfiyan.id'},
     {'name': 'Herpiko Dwi Aguno', 'email': 'herpiko@gmail.com'},
     {'name': 'Mansoee', 'email': 'Mansoee@users.noreply.github.com'},
-    {'name': 'PatrickNoFilter', 'email': '164853302+PatrickNoFilter@users.noreply.github.com'},
     {'name': 'PatrickNoFilter', 'email': 'patrisius.wr@gmail.com'},
     {'name': 'Sendy Aditya Suryana', 'email': 'sendzation@gmail.com'},
 ]
