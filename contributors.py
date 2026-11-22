@@ -9,6 +9,10 @@ Ordered by number of commits (descending), then by name.
 """
 
 CONTRIBUTORS = [
-    {'name': 'Herpiko Dwi Aguno', 'email': 'herpiko@gmail.com', 'commits': 146},
-    {'name': 'Sendy Aditya Suryana', 'email': 'sendzation@gmail.com', 'commits': 54},
+    {'name': 'Herpiko Dwi Aguno', 'email': 'herpiko@gmail.com', 'commits': 166},
+    {'name': 'Sendy Aditya Suryana', 'email': 'sendzation@gmail.com', 'commits': 57},
+    {'name': 'Alfiyan', 'email': 'mas@alfiyan.id', 'commits': 5},
+    {'name': 'PatrickNoFilter', 'email': 'patrisius.wr@gmail.com', 'commits': 4},
+    {'name': 'Mansoee', 'email': 'Mansoee@users.noreply.github.com', 'commits': 2},
+    {'name': 'PatrickNoFilter', 'email': '164853302+PatrickNoFilter@users.noreply.github.com', 'commits': 1},
 ]
