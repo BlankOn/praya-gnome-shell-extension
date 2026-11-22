@@ -53,9 +53,9 @@ export default class PrayaExtension extends Extension {
 
         // Apply panel position (top or bottom)
         this._applyPanelPosition(this._servicesConfig.panelPosition || 'top');
-        // Keep the GNOME top panel background in sync with the opacity setting.
-        this._applyTopPanelOpacity();
-        this._scheduleTopPanelOpacityReapply();
+        // Keep the GNOME panel background in sync with the opacity setting.
+        this._applyPanelOpacity();
+        this._schedulePanelOpacityReapply();
         this._setupWorkAreaMargins();
         this._setupIconGeometryTracking();
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
@@ -76,16 +76,16 @@ export default class PrayaExtension extends Extension {
 
         if (!Main.layoutManager._startingUp) {
             // Already started up (e.g. extension enabled from prefs)
-            this._applyTopPanelOpacity();
+            this._applyPanelOpacity();
             this._startPrayaServices();
         } else {
             this._startupCompleteId = Main.layoutManager.connect('startup-complete', () => {
                 Main.layoutManager.disconnect(this._startupCompleteId);
                 this._startupCompleteId = null;
                 // The shell theme loads after enable(); re-apply so the
-                // translucent top panel survives a restart.
-                this._applyTopPanelOpacity();
-                this._scheduleTopPanelOpacityReapply();
+                // translucent panel survives a restart.
+                this._applyPanelOpacity();
+                this._schedulePanelOpacityReapply();
                 this._applyPanelPosition(this._panelPosition || 'top');
                 this._removeWorkAreaMargins();
                 this._setupWorkAreaMargins();
@@ -368,14 +368,14 @@ export default class PrayaExtension extends Extension {
         if (oldConfig.panelOpacity !== newConfig.panelOpacity) {
             if (this._indicator)
                 this._indicator.setPanelOpacity(newConfig.panelOpacity ?? 100);
-            this._applyTopPanelOpacity();
+            this._applyPanelOpacity();
         }
 
         // Low-spec mode forces full opacity; restore the saved value when off.
         if (oldConfig.lowspecEnabled !== newConfig.lowspecEnabled) {
             if (this._indicator)
                 this._indicator.setPanelOpacity(newConfig.panelOpacity ?? 100);
-            this._applyTopPanelOpacity();
+            this._applyPanelOpacity();
         }
 
         // Apply hover activation settings to indicator
@@ -580,7 +580,7 @@ export default class PrayaExtension extends Extension {
                         // Low-spec mode turns off panel transparency
                         if (this._indicator)
                             this._indicator.setPanelOpacity(this._servicesConfig.panelOpacity ?? 100);
-                        this._applyTopPanelOpacity();
+                        this._applyPanelOpacity();
                     }
 
                     // Only mark as dismissed if user actually chose (0=Ignore, 1=Apply)
@@ -625,27 +625,27 @@ export default class PrayaExtension extends Extension {
         }
     }
 
-    // Re-apply the top panel opacity a few times during startup. The shell
+    // Re-apply the panel opacity a few times during startup. The shell
     // theme and the extension updater can replace inline styles after enable().
-    _scheduleTopPanelOpacityReapply() {
-        if (this._topPanelOpacityIds) {
-            for (let id of this._topPanelOpacityIds)
+    _schedulePanelOpacityReapply() {
+        if (this._panelOpacityIds) {
+            for (let id of this._panelOpacityIds)
                 GLib.source_remove(id);
         }
-        this._topPanelOpacityIds = [];
+        this._panelOpacityIds = [];
         for (let i = 1; i <= 10; i++) {
-            this._topPanelOpacityIds.push(
+            this._panelOpacityIds.push(
                 GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, i, () => {
-                    this._applyTopPanelOpacity();
+                    this._applyPanelOpacity();
                     return GLib.SOURCE_REMOVE;
                 })
             );
         }
     }
 
-    // Apply the panelOpacity setting to the GNOME top panel background too,
-    // so the top bar matches the Praya panel instead of staying solid black.
-    _applyTopPanelOpacity() {
+    // Apply the panelOpacity setting to the GNOME panel background too,
+    // so it matches the Praya panel instead of staying solid black.
+    _applyPanelOpacity() {
         // Low-spec mode disables transparency for performance.
         let percent = this._servicesConfig?.lowspecEnabled
             ? 100
@@ -653,14 +653,17 @@ export default class PrayaExtension extends Extension {
         if (!Number.isFinite(percent)) percent = 100;
         percent = Math.min(100, Math.max(20, percent));
 
-        if (percent >= 100) {
-            Main.panel.set_style(null);
-        } else {
-            Main.panel.set_style(
-                `background-color: rgba(0, 0, 0, ${(percent / 100).toFixed(2)});`
-            );
-        }
+        this._applyOpacity(Main.panel, '0, 0, 0', percent / 100);
         this._applyPopupOpacity(percent);
+    }
+
+    // Background-only alpha helper: text, icons and controls stay fully
+    // opaque because only the actor's background-color is changed.
+    _applyOpacity(actor, rgb, alpha) {
+        if (!actor) return;
+        actor.set_style(alpha >= 1
+            ? null
+            : `background-color: rgba(${rgb}, ${alpha.toFixed(2)});`);
     }
 
     // Apply the same alpha to the backgrounds of GNOME Shell popups: the
@@ -668,9 +671,6 @@ export default class PrayaExtension extends Extension {
     // right-click menu. Text and controls stay fully opaque.
     _applyPopupOpacity(percent) {
         let alpha = percent >= 100 ? 1.0 : percent / 100;
-        let style = alpha >= 1
-            ? null
-            : `background-color: rgba(54, 54, 58, ${alpha.toFixed(2)});`;
 
         let boxes = [];
         let status = Main.panel.statusArea;
@@ -686,7 +686,7 @@ export default class PrayaExtension extends Extension {
         }
 
         for (let box of boxes)
-            box.set_style(style);
+            this._applyOpacity(box, '54, 54, 58', alpha);
     }
 
     _applyPanelPosition(position) {
@@ -2354,10 +2354,10 @@ export default class PrayaExtension extends Extension {
         Main.panel.remove_style_class_name('praya-floating-panel');
         Main.panel.set_style(null);
         this._applyPopupOpacity(100);
-        if (this._topPanelOpacityIds) {
-            for (let id of this._topPanelOpacityIds)
+        if (this._panelOpacityIds) {
+            for (let id of this._panelOpacityIds)
                 GLib.source_remove(id);
-            this._topPanelOpacityIds = null;
+            this._panelOpacityIds = null;
         }
         let monitor = Main.layoutManager.primaryMonitor;
         let panelBox = Main.layoutManager.panelBox;
