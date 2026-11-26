@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 import Gio from 'gi://Gio';
+import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
@@ -42,8 +43,16 @@ const POSTURE_BUS_NAME = 'com.github.blankon.praya';
 const POSTURE_SERVICE_INTERFACE = 'com.github.blankon.Praya.Posture';
 const POSTURE_SERVICE_PATH = '/com/github/blankon/Praya/Posture';
 
+// Settings-panel activation
+const SETTINGS_APP = 'org.gnome.Settings.desktop';
+const SETTINGS_APP_IDS = ['org.gnome.Settings', 'gnome-control-center'];
+
 export default class PrayaExtension extends Extension {
     enable() {
+        // Restore minimized Settings windows when a settings-panel menu
+        // entry is activated (Change Background, Bluetooth Settings, ...).
+        this._patchSettingsPanelActivation();
+
         // Load services configuration
         this._loadServicesConfig();
 
@@ -2371,7 +2380,124 @@ export default class PrayaExtension extends Extension {
         }
     }
 
+    // Settings-panel entries activate a panel-specific .desktop file such as
+    // gnome-background-panel.desktop. The shell considers that app "stopped"
+    // even while Settings is running but minimized, so it launches a new
+    // process whose gtk_window_present() cannot undo a Wayland minimize.
+    // Intercept Shell.App.activate() at click time instead.
+    _isSettingsWindow(win) {
+        const gtkAppId = win.get_gtk_application_id?.();
+        const wmClass = win.get_wm_class?.();
+        return SETTINGS_APP_IDS.includes(gtkAppId) ||
+            SETTINGS_APP_IDS.includes(wmClass);
+    }
+
+    _activateSettingsWindows() {
+        for (const actor of global.get_window_actors()) {
+            const win = actor.meta_window;
+            if (win && win.minimized && this._isSettingsWindow(win)) {
+                win.unminimize(global.get_current_time());
+                Main.activateWindow(win);
+            }
+        }
+    }
+
+    _getSettingsPanelArgs(desktopFile) {
+        const info = GioUnix.DesktopAppInfo.new(desktopFile);
+        if (!info)
+            return null;
+
+        const exec = info.get_string('Exec');
+        if (!exec)
+            return null;
+
+        const tokens = exec.trim().split(/\s+/);
+        if (tokens.shift()?.split('/').pop() !== 'gnome-control-center')
+            return null;
+
+        return tokens.length ? tokens : null;
+    }
+
+    _isSettingsPanelApp(app) {
+        const id = app.get_id?.();
+        return typeof id === 'string' &&
+            id.startsWith('gnome-') &&
+            id.endsWith('-panel.desktop');
+    }
+
+    _activateSettingsPanel(app, original, args) {
+        const panelArgs = this._getSettingsPanelArgs(app.get_id());
+        const settingsApp = Shell.AppSystem.get_default().lookup_app(SETTINGS_APP);
+
+        if (!panelArgs || !settingsApp) {
+            original.apply(app, args);
+            return;
+        }
+
+        this._activateSettingsWindows();
+
+        /* Activating the main app makes the shell un-minimize/focus its window. */
+        settingsApp.activate();
+
+        const [panel, ...params] = panelArgs;
+
+        /* Empty platform data avoids an uncompleted startup notification that
+         * would otherwise leave a busy cursor behind. */
+        Gio.DBus.session.call(
+            'org.gnome.Settings',
+            '/org/gnome/Settings',
+            'org.freedesktop.Application',
+            'ActivateAction',
+            new GLib.Variant('(sava{sv})', [
+                'launch-panel',
+                [new GLib.Variant('(sav)', [
+                    panel,
+                    params.map(value => new GLib.Variant('s', value)),
+                ])],
+                {},
+            ]),
+            null,
+            Gio.DBusCallFlags.NONE,
+            -1,
+            null,
+            (connection, res) => {
+                try {
+                    connection.call_finish(res);
+                } catch (e) {
+                    console.warn(`Praya: failed to launch Settings panel ${panel}: ${e.message}`);
+                }
+            },
+        );
+    }
+
+    _patchSettingsPanelActivation() {
+        if (this._originalSettingsActivate)
+            return;
+
+        const extension = this;
+        this._originalSettingsActivate = Shell.App.prototype.activate;
+        this._patchedSettingsActivate = function (...args) {
+            if (extension._isSettingsPanelApp(this)) {
+                extension._activateSettingsPanel(this, extension._originalSettingsActivate, args);
+                return;
+            }
+            return extension._originalSettingsActivate.apply(this, args);
+        };
+        Shell.App.prototype.activate = this._patchedSettingsActivate;
+    }
+
+    _restoreSettingsPanelActivation() {
+        if (!this._originalSettingsActivate)
+            return;
+
+        Shell.App.prototype.activate = this._originalSettingsActivate;
+        this._originalSettingsActivate = null;
+        this._patchedSettingsActivate = null;
+    }
+
     disable() {
+        this._restoreSettingsPanelActivation();
+
         // Drop any modal grab first: leaking one leaves the session with a
         // dead keyboard.
         if (this._indicator) {
